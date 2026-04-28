@@ -3,27 +3,103 @@
 ## 环境要求
 
 - Node.js 20+
-- PostgreSQL 14+
+- Docker Desktop 或 PostgreSQL 14+
 
-## 初始化
+推荐使用 Docker Desktop 启动 PostgreSQL，这样数据库版本、账号、库名都和项目配置一致。
+
+## Docker Desktop 安装说明
+
+如果使用 Windows，可以通过 winget 安装：
+
+```bash
+winget install --id Docker.DockerDesktop -e --accept-package-agreements --accept-source-agreements
+```
+
+安装器会请求管理员权限，请在 Windows 弹窗中允许。安装后通常需要：
+
+1. 重启电脑。
+2. 打开 Docker Desktop。
+3. 根据 Docker Desktop 提示启用 WSL2 或虚拟化相关能力。
+4. 等待 Docker Desktop 显示 Docker Engine running。
+
+如果命令行安装失败，可以手动安装 Docker Desktop，安装完成后重新打开终端检查：
+
+```bash
+docker --version
+docker compose version
+```
+
+## 初始化依赖
+
+安装前端依赖：
+
+```bash
+npm install
+```
+
+安装后端依赖：
 
 ```bash
 npm install --prefix server
 ```
 
-复制环境变量示例：
+## 环境变量
+
+复制前端环境变量示例：
+
+```bash
+cp .env.example .env
+```
+
+复制后端环境变量示例：
 
 ```bash
 cp server/.env.example server/.env
 ```
 
-修改 `server/.env` 中的：
+Docker PostgreSQL 默认连接串是：
 
-- `DATABASE_URL`
-- `JWT_SECRET`
-- `FRONTEND_ORIGIN`
+```text
+postgresql://postgres:postgres@localhost:5432/lowcode_editor?schema=public
+```
 
-## 数据库
+对应 `server/.env`：
+
+```text
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/lowcode_editor?schema=public"
+JWT_SECRET="replace-with-a-random-secret"
+JWT_EXPIRES_IN="7d"
+PORT="3000"
+FRONTEND_ORIGIN="http://localhost:5173"
+```
+
+## 启动 PostgreSQL
+
+Docker 可用后，在项目根目录执行：
+
+```bash
+docker compose up -d postgres
+```
+
+查看容器状态：
+
+```bash
+docker compose ps
+```
+
+停止数据库：
+
+```bash
+docker compose down
+```
+
+如果要删除本地数据库数据卷，谨慎执行：
+
+```bash
+docker compose down -v
+```
+
+## 数据库迁移
 
 生成 Prisma Client：
 
@@ -31,19 +107,19 @@ cp server/.env.example server/.env
 npm run prisma:generate --prefix server
 ```
 
-开发环境创建表：
+创建开发数据库表：
 
 ```bash
 npm run prisma:migrate --prefix server
 ```
 
-如果只是本地快速同步模型，也可以使用：
+如果只是本地快速同步模型，也可以在 `server/` 目录执行：
 
 ```bash
-npx prisma db push --prefix server
+npx prisma db push
 ```
 
-## 启动
+## 启动服务
 
 后端：
 
@@ -79,3 +155,34 @@ VITE_API_BASE_URL=http://localhost:3000/api
 6. 拖拽组件并修改属性。
 7. 点击保存。
 8. 刷新后重新打开页面，确认组件树恢复。
+
+## 常见问题
+
+### Docker 安装失败，退出代码 4294967291
+
+常见原因：
+
+- 没有完成管理员权限确认。
+- Docker Desktop 安装器被系统策略或安全软件阻止。
+- WSL2 / 虚拟化组件未启用。
+
+处理建议：
+
+1. 用管理员身份打开 Windows Terminal。
+2. 重新执行 winget 安装命令。
+3. 或手动下载安装 Docker Desktop。
+4. 安装后重启电脑。
+5. 打开 Docker Desktop，按提示修复 WSL2。
+
+### `docker` 命令不存在
+
+说明 Docker Desktop 没有安装成功，或者安装后终端还没重新打开。先重启终端；如果仍失败，重新安装 Docker Desktop。
+
+### 后端连接数据库失败
+
+检查：
+
+1. Docker Desktop 是否运行。
+2. `docker compose ps` 是否显示 postgres healthy。
+3. `server/.env` 的 `DATABASE_URL` 是否和 docker-compose 配置一致。
+4. 是否已经运行 Prisma migration。
