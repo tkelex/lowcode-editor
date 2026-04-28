@@ -1,0 +1,84 @@
+# 编码规范
+
+## 通用原则
+
+- 优先实现明确需求，不做超出当前阶段的抽象。
+- 前后端都使用 TypeScript。
+- 重要业务数据结构需要显式类型。
+- 不提交真实密钥、token、数据库连接串。
+- 错误要返回清晰信息，但不要泄露内部堆栈和敏感配置。
+
+## 前端规范
+
+### 目录
+
+- `src/api/`：接口请求封装。
+- `src/features/`：业务模块，如 auth、projects、pages。
+- `src/editor/`：保留现有编辑器核心。
+- `src/editor/stores/`：编辑器状态。
+
+### 状态
+
+- 编辑器运行时状态继续使用 Zustand。
+- 后端返回的页面 schema 加载后写入编辑器 store。
+- 不直接在组件中散落 localStorage 读写。
+- Token 可以先集中封装在 auth API/state 中，后续再升级更完整的会话管理。
+
+### API
+
+- axios 实例统一放在 `src/api/http.ts`。
+- 业务接口按模块拆分，例如 `auth.ts`、`projects.ts`、`pages.ts`。
+- 组件中不要直接拼接复杂 URL。
+- 请求失败必须给用户明确提示。
+
+### 编辑器
+
+- 保留现有公开 typo API：`useComponetsStore`、`useMaterailDrop`、`components/Preivew`。
+- 新增 store action 时保持现有嵌套对象更新模式：修改后替换顶层 `components` 数组触发更新。
+- 新增会触发组件树更新的 action 时，同步考虑 `markZustandUpdate` 性能采样。
+- dev 物料根节点需要暴露 `data-component-id`。
+
+## 后端规范
+
+### 目录
+
+- `server/src/modules/<domain>/`：业务模块。
+- `server/src/common/`：guard、decorator、filter、pipe 等通用能力。
+- `server/src/prisma/`：PrismaService 和数据库连接。
+
+### API
+
+- Controller 只做参数接收和返回，不写复杂业务逻辑。
+- Service 负责业务规则和数据库访问。
+- DTO 使用 `class-validator` 做输入校验。
+- 受保护接口必须使用 JWT Guard。
+- 涉及项目/页面的数据读取必须校验 owner。
+
+### 数据库
+
+- 使用 Prisma schema 管理模型。
+- 生产数据不使用 `db push` 替代迁移；开发阶段可临时使用。
+- 页面 schema 使用 JSON 字段保存。
+- 重要记录保留 `createdAt`、`updatedAt`。
+
+### 错误处理
+
+- 参数错误返回 400。
+- 未登录返回 401。
+- 无权限或访问他人资源返回 403 或 404。
+- 资源不存在返回 404。
+- 不把数据库错误原样暴露给前端。
+
+## 命名
+
+- 前端组件使用 PascalCase。
+- hooks 使用 `useXxx`。
+- API 函数使用动词开头，例如 `createProject`、`updatePage`。
+- DTO 使用 `CreateXxxDto`、`UpdateXxxDto`。
+- Prisma model 使用单数 PascalCase。
+
+## 提交前检查
+
+- 前端改动：运行 `npm run lint` 和 `npm run build`。
+- 后端改动：运行 `npm run build`，有 lint 脚本时运行 lint。
+- 涉及数据库：确认 Prisma schema 和环境变量说明同步更新。
