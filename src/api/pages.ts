@@ -30,3 +30,8 @@ export async function rollbackPage(pageId: number, versionId: number) {
   const { data } = await http.post<EditorPage>(`/pages/${pageId}/rollback`, { versionId });
   return data;
 }
+
+export async function deletePageVersion(pageId: number, versionId: number) {
+  const { data } = await http.delete<{ success: boolean }>(`/pages/${pageId}/versions/${versionId}`);
+  return data;
+}

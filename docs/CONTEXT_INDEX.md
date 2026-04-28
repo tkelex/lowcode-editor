@@ -84,7 +84,7 @@
   ↓
 后端创建 PageVersion
   ↓
-版本历史可回滚到旧 schema
+版本历史可回滚到旧 schema，也可删除无用版本记录
   ↓
 再次打开页面恢复组件树
 ```
@@ -146,7 +146,7 @@ docker compose down
 
 - PostgreSQL Docker 容器 healthy。
 - Prisma migration 成功。
-- 注册、登录、创建项目、创建页面、保存 schema、读取 schema、生成版本、回滚 schema 的 API smoke test 通过。
+- 注册、登录、创建项目、创建页面、保存 schema、读取 schema、生成版本、回滚 schema、删除版本记录的 API smoke test 通过。
 - `npm run build` 通过。
 - `npm run build --prefix server` 通过。
 

@@ -1158,3 +1158,186 @@ page.schema.components → useComponetsStore.setComponents
 ```
 
 否则用户会以为回滚没有生效。
+
+## 14. 2026-04-28 页面版本记录删除功能
+
+本次补齐的是版本历史里的“删除版本记录”能力。它只删除某条 `PageVersion` 历史快照，不修改当前 `Page.schema`，也不会改变编辑器当前画布内容。
+
+### 14.1 本次新增能力
+
+```text
+打开版本历史
+  ↓
+选择某条历史版本
+  ↓
+点击删除并二次确认
+  ↓
+DELETE /api/pages/:id/versions/:versionId
+  ↓
+后端校验页面 owner 和版本归属
+  ↓
+删除对应 PageVersion
+  ↓
+前端刷新版本列表
+```
+
+删除后该版本不能再用于回滚，但当前页面内容仍以 `Page.schema` 为准。
+
+### 14.2 本次修改文件
+
+后端：
+
+```text
+server/src/modules/pages/pages.controller.ts
+server/src/modules/pages/pages.service.ts
+```
+
+作用：
+
+- 新增 `DELETE /api/pages/:id/versions/:versionId`。
+- 删除前复用页面 owner 校验，确保只能操作自己的页面。
+- 删除时同时匹配 `pageId` 和 `versionId`，避免只靠版本 ID 操作错误页面。
+- 删除不存在或不属于该页面的版本时返回 not found。
+
+前端：
+
+```text
+src/api/pages.ts
+src/editor/components/Header/index.tsx
+```
+
+作用：
+
+- 新增 `deletePageVersion(pageId, versionId)` API 封装。
+- 在版本历史 Drawer 每条记录旁增加“删除”按钮。
+- 使用 `Popconfirm` 二次确认，提示删除后不可回滚。
+- 删除成功后刷新版本列表，不调用 `setComponents`，因为当前画布不应该变化。
+
+文档：
+
+```text
+docs/API.md
+docs/ARCHITECTURE.md
+docs/CONTEXT_INDEX.md
+.claude/context/FILE_MAP.md
+docs/development-progress-summary.md
+```
+
+作用：
+
+- 同步记录删除版本接口、架构数据流、上下文索引、关键文件职责和本次学习总结。
+
+### 14.3 已验证内容
+
+已运行：
+
+```bash
+npm run build
+npm run build --prefix server
+```
+
+说明：
+
+- 前端 TypeScript 和生产构建通过。
+- 后端 NestJS 构建通过。
+
+API smoke test 已验证版本删除闭环：
+
+```text
+注册 / 登录
+  ↓
+创建项目和页面
+  ↓
+保存两个不同 schema，生成至少两个版本
+  ↓
+删除其中一个历史版本
+  ↓
+再次查询版本列表，确认该版本消失
+  ↓
+读取当前页面，确认 Page.schema 没有变化
+  ↓
+尝试回滚已删除版本，确认返回 not found
+```
+
+验证结果摘要：
+
+```json
+{
+  "ok": true,
+  "pageId": 13,
+  "deletedVersionId": 8,
+  "deletedVersionNo": 1,
+  "versionsBefore": 2,
+  "versionsAfter": 1,
+  "currentText": "删除前版本二",
+  "rollbackDeletedStatus": 404
+}
+```
+
+说明：
+
+- 删除版本后，版本列表数量从 2 变成 1。
+- 被删除的版本不再出现在版本列表。
+- 删除版本没有改变当前页面 schema，当前文本仍然是 `删除前版本二`。
+- 回滚已删除版本返回 404。
+
+### 14.4 你应该学习的点
+
+#### 删除历史版本不等于回滚
+
+低代码页面当前状态和历史快照是两种不同数据：
+
+```text
+Page.schema        = 当前页面状态
+PageVersion.schema = 某个历史快照
+```
+
+删除历史版本只应该删除 `PageVersion`，不能改 `Page.schema`。否则用户只是想清理历史记录，却会意外改变当前页面。
+
+#### 为什么删除时要同时匹配 pageId 和 versionId
+
+`versionId` 虽然是唯一 ID，但接口语义是“删除某个页面下的某个版本”：
+
+```text
+DELETE /api/pages/:id/versions/:versionId
+```
+
+所以后端应该确认两件事：
+
+```text
+page 属于当前用户
+version 属于这个 page
+```
+
+这能避免跨用户、跨页面误删。
+
+#### 为什么用 deleteMany
+
+Prisma 的 `delete` 通常按唯一键删除，虽然可以用 `id`，但不能在同一个 `where` 里表达 `pageId` 归属约束。
+
+这里用：
+
+```ts
+deleteMany({ where: { id: versionId, pageId } })
+```
+
+可以同时满足“版本 ID 正确”和“版本属于当前页面”。如果 `count === 0`，就说明这个版本不存在或不属于该页面。
+
+#### 前端删除成功后只刷新列表
+
+回滚成功后要更新 Zustand，因为当前页面内容变了。
+
+删除版本成功后不应该更新 Zustand，因为当前页面内容没变，只是历史列表变了。
+
+所以前端只需要：
+
+```text
+await loadVersions()
+```
+
+而不是：
+
+```text
+setComponents(...)
+```
+

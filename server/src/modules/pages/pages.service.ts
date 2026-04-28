@@ -145,6 +145,23 @@ export class PagesService {
     });
   }
 
+  async deleteVersion(pageId: number, versionId: number, ownerId: number) {
+    await this.getOwnedPage(pageId, ownerId);
+
+    const result = await this.prisma.pageVersion.deleteMany({
+      where: {
+        id: versionId,
+        pageId,
+      },
+    });
+
+    if (result.count === 0) {
+      throw new NotFoundException('Page version not found');
+    }
+
+    return { success: true };
+  }
+
   async delete(id: number, ownerId: number) {
     await this.getOwnedPage(id, ownerId);
     await this.prisma.page.delete({ where: { id } });

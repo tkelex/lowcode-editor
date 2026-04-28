@@ -2,7 +2,7 @@ import { Button, Drawer, List, Popconfirm, Space, Tag, Typography, message } fro
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { listPageVersions, rollbackPage, updatePage } from '../../../api/pages';
+import { deletePageVersion, listPageVersions, rollbackPage, updatePage } from '../../../api/pages';
 import { PageVersion } from '../../../api/types';
 import { Component, useComponetsStore } from '../../stores/components';
 import { PerfPanel } from '../PerfPanel';
@@ -18,6 +18,7 @@ export function Header({ pageId, onBack }: HeaderProps) {
   const [versions, setVersions] = useState<PageVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
+  const [deletingVersionId, setDeletingVersionId] = useState<number | null>(null);
 
   const { mode, components, setMode, setCurComponentId, setComponents } = useComponetsStore((state) => ({
     mode: state.mode,
@@ -96,6 +97,21 @@ export function Header({ pageId, onBack }: HeaderProps) {
     }
   }
 
+  async function handleDeleteVersion(version: PageVersion) {
+    if (!pageId) return;
+
+    setDeletingVersionId(version.id);
+    try {
+      await deletePageVersion(pageId, version.id);
+      message.success(`已删除 v${version.versionNo} 版本记录`);
+      await loadVersions();
+    } catch (error) {
+      message.error('删除版本记录失败，请稍后重试');
+    } finally {
+      setDeletingVersionId(null);
+    }
+  }
+
   return (
     <div className='w-[100%] h-[100%]'>
       <div className='h-[50px] flex justify-between items-center px-[20px]'>
@@ -152,6 +168,17 @@ export function Header({ pageId, onBack }: HeaderProps) {
                   onConfirm={() => void handleRollback(version)}
                 >
                   <Button type="link" loading={rollingBack}>回滚</Button>
+                </Popconfirm>,
+                <Popconfirm
+                  key="delete"
+                  title={`确认删除 v${version.versionNo}？`}
+                  description="删除后该历史版本不可再回滚，当前页面内容不会受影响。"
+                  okText="删除"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                  onConfirm={() => void handleDeleteVersion(version)}
+                >
+                  <Button type="link" danger loading={deletingVersionId === version.id}>删除</Button>
                 </Popconfirm>,
               ]}
             >

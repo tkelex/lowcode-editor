@@ -39,7 +39,7 @@
 | `src/api/http.ts` | axios 实例和 token header 注入。 | 改 token key 或 baseURL 会影响所有 API。 |
 | `src/api/auth.ts` | register/login/me/logout/token storage。 | 要和 `/api/auth/*` 保持一致。 |
 | `src/api/projects.ts` | 项目 API 封装。 | 要和 ProjectsController 路由保持一致。 |
-| `src/api/pages.ts` | 页面 API 封装、schema 保存、版本列表和回滚。 | 影响保存与回滚闭环。 |
+| `src/api/pages.ts` | 页面 API 封装、schema 保存、版本列表、回滚和版本删除。 | 影响保存与版本管理闭环。 |
 | `src/api/types.ts` | 前端 API 类型。 | 后端响应结构变化时同步。 |
 
 ## 编辑器核心
@@ -50,7 +50,7 @@
 | `src/editor/stores/components.tsx` | 组件树 Zustand store。 | 高风险；影响拖拽、选择、属性修改、保存。 |
 | `src/editor/stores/component-config.tsx` | 物料注册表、setter、events、methods。 | 高风险；影响物料面板和设置面板。 |
 | `src/editor/interface.ts` | 通用组件 props 类型。 | 改 `id/name` 类型会影响 dev/prod materials。 |
-| `src/editor/components/Header/index.tsx` | 顶部栏、保存按钮、版本历史、回滚、预览切换。 | 保存和回滚逻辑、pageId 绑定在这里。 |
+| `src/editor/components/Header/index.tsx` | 顶部栏、保存按钮、版本历史、回滚、版本删除、预览切换。 | 保存、回滚、版本删除逻辑和 pageId 绑定在这里。 |
 | `src/editor/components/EditArea/index.tsx` | 编辑态递归渲染组件树。 | 影响选择、hover、编辑画布渲染。 |
 | `src/editor/components/Preivew/index.tsx` | 预览态递归渲染和事件动作执行。 | 高风险；含 `customJS` 执行路径。 |
 | `src/editor/components/Setting/index.tsx` | 设置面板入口。 | 影响属性、样式、事件配置。 |
@@ -89,8 +89,8 @@
 | `server/src/modules/users/users.service.ts` | 用户查询。 | 不要泄露 passwordHash。 |
 | `server/src/modules/projects/projects.controller.ts` | 项目 CRUD 路由。 | 全部需要 JWT。 |
 | `server/src/modules/projects/projects.service.ts` | 项目 CRUD 和 owner 校验。 | 高风险；不能跨用户访问。 |
-| `server/src/modules/pages/pages.controller.ts` | 页面列表、创建、读取、更新、删除、版本列表、回滚路由。 | 全部需要 JWT；版本接口也必须校验页面归属。 |
-| `server/src/modules/pages/pages.service.ts` | 页面 CRUD、schema normalize、版本创建、回滚、owner 校验。 | 高风险；保存和回滚闭环依赖这里。 |
+| `server/src/modules/pages/pages.controller.ts` | 页面列表、创建、读取、更新、删除、版本列表、回滚和版本删除路由。 | 全部需要 JWT；版本接口也必须校验页面归属。 |
+| `server/src/modules/pages/pages.service.ts` | 页面 CRUD、schema normalize、版本创建、回滚、版本删除、owner 校验。 | 高风险；保存和版本管理闭环依赖这里。 |
 | `server/src/modules/pages/dto/*.ts` | 页面 DTO 校验，包括 routePath 和 rollback versionId。 | 前端创建页面和回滚接口要同步。 |
 
 ## 数据库
@@ -119,7 +119,7 @@
 3. 更新 `src/editor/stores/component-config.tsx`
 4. 测试编辑态拖拽、属性设置、预览态渲染
 
-### 改 schema 保存或回滚逻辑
+### 改 schema 保存、回滚或版本删除逻辑
 
 1. `src/editor/components/Header/index.tsx`
 2. `src/api/pages.ts`

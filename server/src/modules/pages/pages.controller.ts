@@ -53,6 +53,15 @@ export class PagesController {
     return this.pagesService.rollback(id, dto.versionId, user.userId);
   }
 
+  @Delete('pages/:id/versions/:versionId')
+  deleteVersion(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Param('versionId', ParseIntPipe) versionId: number,
+  ) {
+    return this.pagesService.deleteVersion(id, versionId, user.userId);
+  }
+
   @Delete('pages/:id')
   delete(@CurrentUser() user: CurrentUserPayload, @Param('id', ParseIntPipe) id: number) {
     return this.pagesService.delete(id, user.userId);

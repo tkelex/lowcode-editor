@@ -163,6 +163,22 @@ POST /api/pages/:id/rollback
 前端 setComponents(page.schema.components)
 ```
 
+删除历史版本：
+
+```text
+Header 打开版本历史
+  ↓
+选择版本并确认删除
+  ↓
+DELETE /api/pages/:id/versions/:versionId
+  ↓
+后端删除对应 PageVersion
+  ↓
+前端刷新版本列表
+```
+
+删除历史版本只删除 `PageVersion` 快照，不修改当前 `Page.schema`，因此编辑器画布不会因为删除版本记录而变化。
+
 ### 前端 API 层
 
 ```text

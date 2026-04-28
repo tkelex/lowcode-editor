@@ -380,6 +380,22 @@ rollback  用户执行回滚后生成的新版本
 1. 把目标 `PageVersion.schema` 恢复到 `Page.schema`。
 2. 新建一条 `source = "rollback"` 的 PageVersion，记录本次回滚结果。
 
+### DELETE /api/pages/:id/versions/:versionId
+
+删除某条页面历史版本记录。
+
+权限：页面所属项目必须属于当前用户，并且版本必须属于该页面。
+
+响应：
+
+```json
+{
+  "success": true
+}
+```
+
+删除行为只会删除 `PageVersion` 记录，不会修改当前 `Page.schema`，也不会影响编辑器当前页面内容。删除后的历史版本不能再用于回滚。
+
 ### DELETE /api/pages/:id
 
 删除页面。
@@ -441,7 +457,7 @@ GET /api/pages/:id
 
 确认最后读取出的 `schema.components` 与保存内容一致。
 
-版本回滚验证顺序：
+版本回滚和删除验证顺序：
 
 ```text
 PATCH /api/pages/:id 保存版本一
@@ -450,6 +466,9 @@ GET /api/pages/:id/versions
 POST /api/pages/:id/rollback 回滚到版本一
 GET /api/pages/:id 确认 schema 恢复
 GET /api/pages/:id/versions 确认新增 rollback 版本
+DELETE /api/pages/:id/versions/:versionId 删除某条历史版本
+GET /api/pages/:id/versions 确认该版本消失
+GET /api/pages/:id 确认当前 schema 不受删除影响
 ```
 
 ## 未来 API 方向
