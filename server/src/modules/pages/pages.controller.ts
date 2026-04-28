@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, UseGua
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CreatePageDto } from './dto/create-page.dto';
+import { RollbackPageDto } from './dto/rollback-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { PagesService } from './pages.service';
 
@@ -36,6 +37,20 @@ export class PagesController {
     @Body() dto: UpdatePageDto,
   ) {
     return this.pagesService.update(id, user.userId, dto);
+  }
+
+  @Get('pages/:id/versions')
+  listVersions(@CurrentUser() user: CurrentUserPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.pagesService.listVersions(id, user.userId);
+  }
+
+  @Post('pages/:id/rollback')
+  rollback(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RollbackPageDto,
+  ) {
+    return this.pagesService.rollback(id, dto.versionId, user.userId);
   }
 
   @Delete('pages/:id')

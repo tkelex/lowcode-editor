@@ -141,6 +141,26 @@ Header 点击保存
 PATCH /api/pages/:id
   ↓
 后端保存到 Page.schema
+  ↓
+后端创建 PageVersion(source = save)
+```
+
+回滚页面：
+
+```text
+Header 打开版本历史
+  ↓
+GET /api/pages/:id/versions
+  ↓
+选择版本并确认回滚
+  ↓
+POST /api/pages/:id/rollback
+  ↓
+后端将 PageVersion.schema 恢复到 Page.schema
+  ↓
+后端创建 PageVersion(source = rollback)
+  ↓
+前端 setComponents(page.schema.components)
 ```
 
 ### 前端 API 层
@@ -215,6 +235,8 @@ server/src/modules/auth/auth.service.ts
 User 1 - N Project
 Project 1 - N Page
 User 1 - N Page(createdBy)
+Page 1 - N PageVersion
+User 1 - N PageVersion(createdBy)
 ```
 
 权限原则：
@@ -233,6 +255,7 @@ User 1 - N Page(createdBy)
 User
 Project
 Page
+PageVersion
 ```
 
 最核心字段：
@@ -242,6 +265,14 @@ Page.schema Json
 ```
 
 它保存低代码编辑器的页面 schema，在 PostgreSQL 中对应 JSONB。
+
+历史版本字段：
+
+```prisma
+PageVersion.schema Json
+```
+
+保存页面会生成 `source = "save"` 的版本；回滚页面会生成 `source = "rollback"` 的版本。
 
 ## 本地开发架构
 
@@ -267,13 +298,12 @@ server/.env.example  # 后端示例，提交
 - 用户注册登录。
 - JWT 鉴权。
 - 项目/页面基础管理。
-- 页面 schema 保存和读取。
+- 页面版本管理和回滚。
 - 本地 Docker PostgreSQL。
 - Prisma migration。
 
 尚未完成：
 
-- 页面版本管理。
 - 发布访问页。
 - 项目成员权限。
 - 生产部署 Dockerfile/Nginx。

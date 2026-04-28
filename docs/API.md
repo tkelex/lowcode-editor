@@ -324,6 +324,62 @@ Service：`server/src/modules/pages/pages.service.ts`
 
 前端 API 封装位置：`src/api/pages.ts`
 
+### GET /api/pages/:id/versions
+
+获取页面历史版本列表。
+
+权限：页面所属项目必须属于当前用户。
+
+响应示例：
+
+```json
+[
+  {
+    "id": 1,
+    "pageId": 1,
+    "createdById": 1,
+    "versionNo": 1,
+    "schema": {
+      "schemaVersion": "1.0.0",
+      "pageId": 1,
+      "components": [],
+      "metadata": {}
+    },
+    "source": "save",
+    "message": null,
+    "createdAt": "2026-04-28T00:00:00.000Z"
+  }
+]
+```
+
+`source` 当前含义：
+
+```text
+save      用户点击保存生成的版本
+rollback  用户执行回滚后生成的新版本
+```
+
+### POST /api/pages/:id/rollback
+
+回滚页面到指定历史版本。
+
+权限：页面所属项目必须属于当前用户，并且版本必须属于该页面。
+
+请求体：
+
+```json
+{
+  "versionId": 1
+}
+```
+
+响应：更新后的页面。
+
+回滚行为会：
+
+1. 把目标 `PageVersion.schema` 恢复到 `Page.schema`。
+2. 新建一条 `source = "rollback"` 的 PageVersion，记录本次回滚结果。
+
 ### DELETE /api/pages/:id
 
 删除页面。
@@ -385,13 +441,22 @@ GET /api/pages/:id
 
 确认最后读取出的 `schema.components` 与保存内容一致。
 
+版本回滚验证顺序：
+
+```text
+PATCH /api/pages/:id 保存版本一
+PATCH /api/pages/:id 保存版本二
+GET /api/pages/:id/versions
+POST /api/pages/:id/rollback 回滚到版本一
+GET /api/pages/:id 确认 schema 恢复
+GET /api/pages/:id/versions 确认新增 rollback 版本
+```
+
 ## 未来 API 方向
 
 尚未实现但产品计划需要：
 
-- 页面版本：`PageVersion`
 - 发布记录：`Deployment`
 - 上传素材：`Asset`
 - 项目成员：`ProjectMember`
 - 发布页公开访问 API
-- 回滚版本 API

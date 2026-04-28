@@ -38,3 +38,14 @@ export interface EditorPage {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface PageVersion {
+  id: number;
+  pageId: number;
+  createdById: number;
+  versionNo: number;
+  schema: PageSchema;
+  source: 'save' | 'rollback' | string;
+  message?: string | null;
+  createdAt: string;
+}

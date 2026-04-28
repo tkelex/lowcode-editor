@@ -901,3 +901,260 @@ prod = 运行态组件，用于真实预览或发布页面
 ```
 
 这样问题可以被快速定位。
+
+## 13. 2026-04-28 页面版本历史与回滚功能
+
+本次完成的是页面版本管理 MVP：每次保存页面时自动生成历史版本，用户可以在编辑器里打开版本历史，并选择某个版本回滚。
+
+### 13.1 本次新增能力
+
+```text
+点击保存
+  ↓
+更新 Page.schema 当前页面
+  ↓
+创建 PageVersion 历史版本
+  ↓
+打开版本历史
+  ↓
+选择版本并确认回滚
+  ↓
+恢复旧 schema 到 Page.schema
+  ↓
+再创建一条 rollback 来源的新版本
+```
+
+这让编辑器从“只能覆盖保存”变成“可以恢复历史状态”。
+
+### 13.2 本次修改文件
+
+数据库：
+
+```text
+server/prisma/schema.prisma
+server/prisma/migrations/20260428120657_add_page_versions/migration.sql
+```
+
+作用：
+
+- 新增 `PageVersion` 模型和数据表。
+- `PageVersion.schema` 保存某一次保存或回滚时的完整页面 schema。
+- `versionNo` 记录页面内递增版本号。
+- `source` 区分版本来源：`save` 或 `rollback`。
+- 页面删除时，历史版本跟随 cascade 删除。
+
+后端：
+
+```text
+server/src/modules/pages/pages.controller.ts
+server/src/modules/pages/pages.service.ts
+server/src/modules/pages/dto/rollback-page.dto.ts
+```
+
+作用：
+
+- 保存页面时同时创建历史版本。
+- 新增 `GET /api/pages/:id/versions` 查询版本列表。
+- 新增 `POST /api/pages/:id/rollback` 回滚到指定版本。
+- 回滚前校验页面归属和版本归属，避免跨用户或跨页面回滚。
+- 回滚后再创建一条 `source = rollback` 的版本，保留操作记录。
+
+前端：
+
+```text
+src/api/pages.ts
+src/api/types.ts
+src/editor/components/Header/index.tsx
+```
+
+作用：
+
+- 新增 `PageVersion` 类型。
+- 新增版本列表和回滚 API 请求方法。
+- 编辑器 Header 增加“版本历史”按钮。
+- 使用 Drawer 展示版本列表。
+- 使用 Popconfirm 防止误点回滚。
+- 回滚成功后调用 `setComponents`，让编辑器画布立即恢复旧组件树。
+
+文档：
+
+```text
+docs/API.md
+docs/ARCHITECTURE.md
+docs/CONTEXT_INDEX.md
+.claude/context/FILE_MAP.md
+docs/development-progress-summary.md
+```
+
+作用：
+
+- 同步记录版本接口、架构数据流、上下文索引和关键文件地图。
+
+### 13.3 已验证内容
+
+已运行：
+
+```bash
+npm run prisma:migrate --prefix server -- --name add_page_versions
+npm run prisma:generate --prefix server
+npm run build
+npm run build --prefix server
+```
+
+API smoke test 已验证完整版本回滚闭环：
+
+```text
+注册用户
+  ↓
+创建项目
+  ↓
+创建页面
+  ↓
+第一次保存 schema，生成 v1
+  ↓
+第二次保存不同 schema，生成 v2
+  ↓
+查询版本列表
+  ↓
+回滚到 v1
+  ↓
+读取页面，确认 schema 恢复
+  ↓
+再次查询版本列表，确认新增 rollback 版本
+```
+
+验证结果摘要：
+
+```json
+{
+  "ok": true,
+  "pageId": 12,
+  "versionCount": 3,
+  "restoredText": "版本一",
+  "rollbackVersionNo": 3
+}
+```
+
+说明：
+
+- 保存会生成 `source = save` 的版本。
+- 回滚会恢复旧 schema。
+- 回滚行为本身会生成 `source = rollback` 的新版本。
+- 前端和后端生产构建均通过。
+
+### 13.4 本次遇到的问题
+
+#### Prisma Client 没有及时更新
+
+新增 `PageVersion` 后，第一次后端构建报错：
+
+```text
+Property 'pageVersion' does not exist on type 'PrismaService'
+```
+
+原因是修改了 `schema.prisma`，但 Prisma Client 还没有重新生成。
+
+处理方式：
+
+```bash
+npm run prisma:generate --prefix server
+```
+
+#### Windows 下 Prisma query engine DLL 被占用
+
+第一次执行 Prisma generate 时遇到 DLL rename 权限错误。
+
+原因是本地 Nest dev server 或残留 Prisma migration 进程占用了 Prisma query engine 文件。
+
+处理方式：
+
+- 停止后端 dev server 和残留 Prisma 进程。
+- 保留前端 Vite 进程。
+- 重新执行 Prisma generate。
+
+#### 进度文档不能整文件覆盖
+
+记录本次总结时曾误把进度文档改成简短版本，可能丢失之前的学习记录。
+
+处理方式：
+
+```bash
+git restore -- docs/development-progress-summary.md
+```
+
+恢复后改为只追加第 13 节。
+
+### 13.5 你应该学习的点
+
+#### 保存版本和当前页面为什么要分开
+
+当前页面：
+
+```text
+Page.schema
+```
+
+表示用户现在打开编辑器看到的最新状态。
+
+历史版本：
+
+```text
+PageVersion.schema
+```
+
+表示某一次保存或回滚时的快照。
+
+这样设计的好处是：
+
+- 读取当前页面很简单，只查 `Page`。
+- 历史记录不会覆盖当前状态。
+- 回滚只是把某个历史快照复制回当前页面。
+
+#### 回滚不是删除历史
+
+回滚不是把版本列表倒退，也不是删除后面的版本。
+
+更合理的做法是：
+
+```text
+旧版本 v1
+新版本 v2
+用户回滚到 v1
+系统生成 v3，内容等于 v1，source = rollback
+```
+
+这样历史是完整的，后续可以知道用户什么时候执行过回滚。
+
+#### 权限校验不能只查 versionId
+
+回滚接口不能只根据 `versionId` 查版本，否则可能出现用户拿到别人版本 ID 后跨页面回滚。
+
+正确逻辑是：
+
+```text
+先确认 page 属于当前用户
+再确认 version 属于这个 page
+最后才允许回滚
+```
+
+这就是后端业务接口必须做 owner 校验的原因。
+
+#### 版本号和并发
+
+当前 MVP 使用：
+
+```text
+当前最大 versionNo + 1
+```
+
+这对单人编辑和本地开发足够。以后如果要做多人协作或高并发保存，需要考虑事务冲突、重试或更严格的版本生成策略。
+
+#### 前端回滚后要更新 Zustand
+
+后端回滚成功只代表数据库已经恢复。编辑器画布要立即变化，还必须把返回的 schema 写回前端状态：
+
+```text
+page.schema.components → useComponetsStore.setComponents
+```
+
+否则用户会以为回滚没有生效。

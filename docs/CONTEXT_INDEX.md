@@ -4,7 +4,7 @@
 
 ## 项目一句话说明
 
-这是一个从 React 学习型 demo 演进中的低代码编辑器项目，目标是成为可上线的全栈产品。当前已具备注册登录、项目管理、页面管理、编辑器 schema 保存到 PostgreSQL、重新读取恢复页面的第一阶段闭环。
+这是一个从 React 学习型 demo 演进中的低代码编辑器项目，目标是成为可上线的全栈产品。当前已具备注册登录、项目管理、页面管理、编辑器 schema 保存到 PostgreSQL、重新读取恢复页面、页面版本历史和回滚的核心闭环。
 
 ## 当前技术栈
 
@@ -82,6 +82,10 @@
   ↓
 前端 components → PATCH /api/pages/:id → PostgreSQL Page.schema
   ↓
+后端创建 PageVersion
+  ↓
+版本历史可回滚到旧 schema
+  ↓
 再次打开页面恢复组件树
 ```
 
@@ -103,7 +107,7 @@ npm install --prefix server
 npm run dev --prefix server
 npm run build --prefix server
 npm run prisma:generate --prefix server
-npm run prisma:migrate --prefix server -- --name init
+npm run prisma:migrate --prefix server -- --name add_page_versions
 ```
 
 本地 PostgreSQL：
@@ -142,7 +146,7 @@ docker compose down
 
 - PostgreSQL Docker 容器 healthy。
 - Prisma migration 成功。
-- 注册、登录、创建项目、创建页面、保存 schema、读取 schema 的 API smoke test 通过。
+- 注册、登录、创建项目、创建页面、保存 schema、读取 schema、生成版本、回滚 schema 的 API smoke test 通过。
 - `npm run build` 通过。
 - `npm run build --prefix server` 通过。
 
@@ -150,9 +154,8 @@ docker compose down
 
 ## 后续最可能的工作方向
 
-1. 浏览器端完整手测保存闭环。
-2. 页面版本管理：保存版本、版本列表、回滚。
-3. 发布能力：发布当前页面并生成可访问地址。
-4. 权限协作：项目成员、owner/editor/viewer。
-5. 部署上线：Dockerfile、Nginx、迁移流程、生产环境变量。
-6. CI/CD：自动 lint/build/test。
+1. 浏览器端完整手测版本历史和回滚。
+2. 发布能力：发布当前页面并生成可访问地址。
+3. 权限协作：项目成员、owner/editor/viewer。
+4. 部署上线：Dockerfile、Nginx、迁移流程、生产环境变量。
+5. CI/CD：自动 lint/build/test。

@@ -61,15 +61,87 @@ export class PagesService {
   }
 
   async update(id: number, ownerId: number, dto: UpdatePageDto) {
-    const page = await this.getOwnedPage(id, ownerId);
+    await this.getOwnedPage(id, ownerId);
 
-    return this.prisma.page.update({
-      where: { id },
-      data: {
-        name: dto.name,
-        routePath: dto.routePath,
-        schema: dto.schema ? this.normalizeSchema(dto.schema, id) : undefined,
+    if (!dto.schema) {
+      return this.prisma.page.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          routePath: dto.routePath,
+        },
+      });
+    }
+
+    const schema = this.normalizeSchema(dto.schema, id);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedPage = await tx.page.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          routePath: dto.routePath,
+          schema,
+        },
+      });
+
+      await tx.pageVersion.create({
+        data: {
+          pageId: id,
+          createdById: ownerId,
+          versionNo: await this.getNextVersionNo(tx, id),
+          schema,
+          source: 'save',
+        },
+      });
+
+      return updatedPage;
+    });
+  }
+
+  async listVersions(id: number, ownerId: number) {
+    await this.getOwnedPage(id, ownerId);
+
+    return this.prisma.pageVersion.findMany({
+      where: { pageId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async rollback(id: number, versionId: number, ownerId: number) {
+    await this.getOwnedPage(id, ownerId);
+
+    const version = await this.prisma.pageVersion.findFirst({
+      where: {
+        id: versionId,
+        pageId: id,
       },
+    });
+
+    if (!version) {
+      throw new NotFoundException('Page version not found');
+    }
+
+    const schema = this.normalizeSchema(version.schema as Record<string, unknown>, id);
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedPage = await tx.page.update({
+        where: { id },
+        data: { schema },
+      });
+
+      await tx.pageVersion.create({
+        data: {
+          pageId: id,
+          createdById: ownerId,
+          versionNo: await this.getNextVersionNo(tx, id),
+          schema,
+          source: 'rollback',
+          message: `Rollback from version ${version.versionNo}`,
+        },
+      });
+
+      return updatedPage;
     });
   }
 
@@ -92,6 +164,15 @@ export class PagesService {
     return page;
   }
 
+  private async getNextVersionNo(tx: Prisma.TransactionClient, pageId: number) {
+    const latestVersion = await tx.pageVersion.findFirst({
+      where: { pageId },
+      orderBy: { versionNo: 'desc' },
+      select: { versionNo: true },
+    });
+
+    return (latestVersion?.versionNo ?? 0) + 1;
+  }
 
   private isUniqueConstraintError(error: unknown) {
     return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
