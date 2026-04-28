@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ProjectsService } from '../projects/projects.service';
@@ -37,15 +37,23 @@ export class PagesService {
   async create(projectId: number, ownerId: number, dto: CreatePageDto) {
     await this.projectsService.getOwnedProject(projectId, ownerId);
 
-    return this.prisma.page.create({
-      data: {
-        projectId,
-        createdById: ownerId,
-        name: dto.name,
-        routePath: dto.routePath,
-        schema: this.normalizeSchema(dto.schema, undefined),
-      },
-    });
+    try {
+      return await this.prisma.page.create({
+        data: {
+          projectId,
+          createdById: ownerId,
+          name: dto.name,
+          routePath: dto.routePath,
+          schema: this.normalizeSchema(dto.schema, undefined),
+        },
+      });
+    } catch (error) {
+      if (this.isUniqueConstraintError(error)) {
+        throw new ConflictException('Page route path already exists in this project');
+      }
+
+      throw error;
+    }
   }
 
   async get(id: number, ownerId: number) {
@@ -82,6 +90,11 @@ export class PagesService {
     }
 
     return page;
+  }
+
+
+  private isUniqueConstraintError(error: unknown) {
+    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
   }
 
   private normalizeSchema(schema: Record<string, unknown> | undefined, pageId: number | undefined): Prisma.InputJsonValue {

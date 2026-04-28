@@ -17,6 +17,7 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [pageModalOpen, setPageModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pageForm] = Form.useForm<{ name: string; routePath: string }>();
 
   useEffect(() => {
     void loadProjects();
@@ -45,6 +46,23 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
     } catch (error) {
       message.error('加载页面失败');
     }
+  }
+
+  function getNextPageRoutePath() {
+    const existingRoutePaths = new Set(pages.map((page) => page.routePath));
+    let index = pages.length + 1;
+
+    while (existingRoutePaths.has(`/page-${index}`)) {
+      index += 1;
+    }
+
+    return `/page-${index}`;
+  }
+
+  function openPageModal() {
+    pageForm.resetFields();
+    pageForm.setFieldsValue({ routePath: getNextPageRoutePath() });
+    setPageModalOpen(true);
   }
 
   async function handleCreateProject(values: { name: string; description?: string }) {
@@ -107,7 +125,7 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
 
         <Card
           title={selectedProject ? `${selectedProject.name} / 页面` : '页面'}
-          extra={<Button type="primary" disabled={!selectedProject} onClick={() => setPageModalOpen(true)}>新建页面</Button>}
+          extra={<Button type="primary" disabled={!selectedProject} onClick={openPageModal}>新建页面</Button>}
         >
           <List
             dataSource={pages}
@@ -133,7 +151,7 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
     </Modal>
 
     <Modal title="新建页面" open={pageModalOpen} footer={null} onCancel={() => setPageModalOpen(false)}>
-      <Form layout="vertical" onFinish={handleCreatePage} initialValues={{ routePath: '/home' }}>
+      <Form form={pageForm} layout="vertical" onFinish={handleCreatePage}>
         <Form.Item name="name" label="页面名称" rules={[{ required: true, message: '请输入页面名称' }]}>
           <Input />
         </Form.Item>
