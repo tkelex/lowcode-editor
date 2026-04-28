@@ -1,0 +1,100 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../../prisma/prisma.service';
+import { ProjectsService } from '../projects/projects.service';
+import { CreatePageDto } from './dto/create-page.dto';
+import { UpdatePageDto } from './dto/update-page.dto';
+
+const defaultSchema = {
+  schemaVersion: '1.0.0',
+  components: [
+    {
+      id: 1,
+      name: 'Page',
+      props: {},
+      desc: '页面',
+    },
+  ],
+  metadata: {},
+};
+
+@Injectable()
+export class PagesService {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly projectsService: ProjectsService,
+  ) {}
+
+  async list(projectId: number, ownerId: number) {
+    await this.projectsService.getOwnedProject(projectId, ownerId);
+
+    return this.prisma.page.findMany({
+      where: { projectId },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  async create(projectId: number, ownerId: number, dto: CreatePageDto) {
+    await this.projectsService.getOwnedProject(projectId, ownerId);
+
+    return this.prisma.page.create({
+      data: {
+        projectId,
+        createdById: ownerId,
+        name: dto.name,
+        routePath: dto.routePath,
+        schema: this.normalizeSchema(dto.schema, undefined),
+      },
+    });
+  }
+
+  async get(id: number, ownerId: number) {
+    return this.getOwnedPage(id, ownerId);
+  }
+
+  async update(id: number, ownerId: number, dto: UpdatePageDto) {
+    const page = await this.getOwnedPage(id, ownerId);
+
+    return this.prisma.page.update({
+      where: { id },
+      data: {
+        name: dto.name,
+        routePath: dto.routePath,
+        schema: dto.schema ? this.normalizeSchema(dto.schema, id) : undefined,
+      },
+    });
+  }
+
+  async delete(id: number, ownerId: number) {
+    await this.getOwnedPage(id, ownerId);
+    await this.prisma.page.delete({ where: { id } });
+    return { success: true };
+  }
+
+  private async getOwnedPage(id: number, ownerId: number) {
+    const page = await this.prisma.page.findUnique({
+      where: { id },
+      include: { project: true },
+    });
+
+    if (!page || page.project.ownerId !== ownerId) {
+      throw new NotFoundException('Page not found');
+    }
+
+    return page;
+  }
+
+  private normalizeSchema(schema: Record<string, unknown> | undefined, pageId: number | undefined): Prisma.InputJsonValue {
+    const nextSchema: Record<string, unknown> = schema ?? defaultSchema;
+
+    return {
+      ...nextSchema,
+      schemaVersion: typeof nextSchema.schemaVersion === 'string' ? nextSchema.schemaVersion : '1.0.0',
+      pageId: pageId ?? nextSchema.pageId ?? null,
+      metadata: {
+        ...(typeof nextSchema.metadata === 'object' && nextSchema.metadata !== null ? nextSchema.metadata : {}),
+        updatedAt: new Date().toISOString(),
+      },
+    } as Prisma.InputJsonValue;
+  }
+}
