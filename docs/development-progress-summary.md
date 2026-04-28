@@ -31,6 +31,8 @@ git push -u origin main
 
 后续不会自动 push，除非明确要求。
 
+补充说明：现在本地 `master` 已经成功关联并推送过 GitHub，后续新增 commit 仍然只会在你明确要求时 push。
+
 ## 2. 当前本地提交记录
 
 目前已经按重要板块完成 3 个本地 commit：
@@ -347,4 +349,162 @@ src/editor/stores/components.tsx
 5. 说明为什么这样改。
 6. 总结你应该学习的知识点。
 
-这样可以保证项目既能持续推进，也能帮助你建立完整的工程和业务认知。
+## 9. 2026-04-28 保存闭环验证记录
+
+本次完成的是第一阶段最关键的后端保存闭环验证：把前端页面 schema 真正写入 PostgreSQL，并再次读取确认数据一致。
+
+### 9.1 本次提交
+
+提交：
+
+```bash
+993a3cd server: add initial Prisma migration
+```
+
+包含：
+
+```text
+server/prisma/migrations/20260428084614_init/migration.sql
+server/prisma/migrations/migration_lock.toml
+```
+
+作用：
+
+- 把 `server/prisma/schema.prisma` 里的模型转换成数据库建表 SQL。
+- 创建 `User`、`Project`、`Page` 三张核心业务表。
+- 创建唯一索引和外键约束。
+- 让其他环境可以通过 migration 复现相同的数据库结构。
+
+### 9.2 本次验证通过的内容
+
+PostgreSQL Docker 容器已启动并通过健康检查。
+
+Prisma migration 已成功执行：
+
+```bash
+npm run prisma:migrate --prefix server -- --name init
+```
+
+前后端构建验证通过：
+
+```bash
+npm run build
+npm run build --prefix server
+```
+
+API smoke test 已验证完整闭环：
+
+```text
+注册用户
+  ↓
+登录获取 token
+  ↓
+调用 /auth/me 验证登录态
+  ↓
+创建项目
+  ↓
+创建页面
+  ↓
+PATCH /api/pages/:id 保存 schema
+  ↓
+GET /api/pages/:id 读取 schema
+  ↓
+确认保存的 Button 组件仍然存在
+```
+
+验证结果摘要：
+
+```json
+{
+  "ok": true,
+  "userId": 1,
+  "projectId": 1,
+  "pageId": 1,
+  "savedComponent": "Button"
+}
+```
+
+### 9.3 本次遇到的问题
+
+第一次运行 Prisma migration 时，命令停在交互式输入：
+
+```text
+Enter a name for the new migration
+```
+
+原因是 `prisma migrate dev` 在首次生成 migration 时需要 migration 名称。
+
+处理方式是改成非交互命令：
+
+```bash
+npm run prisma:migrate --prefix server -- --name init
+```
+
+中断第一次命令后，PostgreSQL 里残留了一个 Prisma advisory lock，导致下一次迁移短暂超时。
+
+处理方式是终止本地开发库里卡住的 Prisma migration 会话，然后重新运行 migration。
+
+### 9.4 你应该重点学习的点
+
+#### Prisma migration 是什么
+
+`schema.prisma` 是数据库模型设计文件，migration 是 Prisma 根据模型生成的真实 SQL 变更记录。
+
+可以这样理解：
+
+```text
+schema.prisma       = 设计图
+migration.sql       = 真正施工的 SQL
+PostgreSQL tables   = 施工完成后的数据库结构
+```
+
+所以 migration 文件需要提交到 Git，否则别人或部署环境不知道应该如何创建数据库表。
+
+#### 为什么低代码 schema 用 JSONB
+
+低代码页面的组件树结构不固定，不同页面可能有不同组件、属性、样式和事件配置。
+
+如果每个组件属性都拆成数据库表，会非常复杂；当前阶段更适合把整棵组件树保存到 `Page.schema`：
+
+```prisma
+schema Json
+```
+
+在 PostgreSQL 里它会变成 `JSONB` 字段，既能保存灵活 JSON，也比普通文本更适合后续查询和扩展。
+
+#### 保存闭环的核心价值
+
+现在项目已经不只是前端 demo，而是具备了最小产品闭环：
+
+```text
+用户登录
+  ↓
+创建项目和页面
+  ↓
+编辑器生成组件树
+  ↓
+保存到数据库
+  ↓
+重新打开页面恢复组件树
+```
+
+这是低代码平台能成为产品的基础。后续的版本管理、发布、权限、部署，都是建立在这个闭环之上。
+
+### 9.5 后续总结规则
+
+从现在开始，每次完成重要代码块后，除了简短聊天说明，还要把以下内容写入项目文档：
+
+1. 本次提交。
+2. 修改了哪些文件。
+3. 每个文件的作用。
+4. 执行了哪些验证。
+5. 遇到了什么问题以及如何解决。
+6. 你应该学习的知识点。
+
+优先更新：
+
+```text
+docs/development-progress-summary.md
+```
+
+如果某次内容属于专门主题，例如后端、本地开发、部署、安全，再补充到对应专题文档。
