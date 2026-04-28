@@ -2,6 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Context Index
+
+For low-token project onboarding or after context compaction, read these first:
+
+- `docs/CONTEXT_INDEX.md` — project overview, reading order, current verified state.
+- `.claude/context/FILE_MAP.md` — key files, responsibilities, and edit risks.
+- `docs/ARCHITECTURE.md` — frontend/backend/database architecture and data flow.
+- `docs/API.md` — backend routes, auth, and schema persistence contracts.
+- `docs/DECISIONS.md` — product and technical decisions with rationale.
+
+Use the `/context-index` skill to refresh these docs when project structure, API, or architecture changes.
+
 ## Commands
 
 - Install dependencies: `npm install`

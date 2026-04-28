@@ -1,0 +1,150 @@
+# 技术与产品决策记录
+
+这个文件记录已经做出的关键决策，帮助未来会话理解“为什么这样做”，避免重复讨论。
+
+## 1. 项目目标
+
+决策：把学习阶段的 React 低代码编辑器 demo，逐步完善为可上线的全栈低代码平台。
+
+原因：用户希望从单纯写前端功能，转向理解业务场景、产品闭环、后端、数据库、安全和部署。
+
+影响：后续优先级不再是“堆更多组件”，而是先保证项目、页面、保存、读取、发布、回滚等产品核心链路稳定。
+
+## 2. 第一阶段优先做登录 + 保存闭环
+
+决策：第一阶段 MVP 是：
+
+```text
+注册 / 登录 → 创建项目 → 创建页面 → 打开编辑器 → 保存 schema → 再次打开恢复 schema
+```
+
+原因：低代码编辑器成为产品的前提是用户可以稳定保存和恢复自己的页面。
+
+影响：版本、发布、素材、权限协作、部署上线都放到后续阶段。
+
+## 3. 后端选择 NestJS + TypeScript
+
+决策：后端使用 NestJS。
+
+原因：
+
+- 用户熟悉前端 TypeScript，NestJS 学习成本低于 Java/Go。
+- NestJS 的 Module/Controller/Service/DTO/Guard 分层清晰，适合学习工程化后端。
+- 和前端同语言，类型和工程习惯更容易迁移。
+
+影响：后端代码位于 `server/`，采用同仓 monorepo 形式，但暂不引入 npm workspace，降低第一阶段复杂度。
+
+## 4. 数据库选择 PostgreSQL
+
+决策：数据库使用 PostgreSQL。
+
+原因：
+
+- 用户、项目、页面、权限关系适合关系型数据库。
+- 低代码页面 schema 结构灵活，PostgreSQL JSONB 能很好保存组件树。
+- 后续版本、发布、权限、审计等能力也适合 PostgreSQL。
+
+影响：本地开发通过 Docker Compose 启动 PostgreSQL。
+
+## 5. ORM 选择 Prisma
+
+决策：ORM 使用 Prisma。
+
+原因：
+
+- TypeScript 类型体验好。
+- schema 文件能清晰表达数据模型。
+- migration 适合学习和部署数据库变更流程。
+
+影响：数据库模型定义在 `server/prisma/schema.prisma`，结构变更必须生成并提交 migration。
+
+## 6. 页面 schema 存为 JSONB
+
+决策：`Page.schema` 使用 Prisma `Json` 类型，在 PostgreSQL 中对应 JSONB。
+
+原因：
+
+- 低代码组件树每个页面都可能不同。
+- 属性、样式、事件配置结构灵活。
+- 第一阶段没有必要把每个组件拆成数据库行。
+
+影响：保存时前端直接提交整棵组件树，后端整体写入 `Page.schema`。
+
+## 7. 鉴权采用 JWT
+
+决策：当前阶段使用 JWT access token。
+
+原因：
+
+- 实现简单，适合前后端分离。
+- 能保护项目和页面 API。
+- 后续可以再引入 refresh token、token 黑名单或 session 策略。
+
+影响：前端把 token 存到 localStorage，axios 请求拦截器自动附加 `Authorization` header。
+
+## 8. 密码必须哈希保存
+
+决策：密码使用 bcryptjs hash，不保存明文。
+
+原因：这是基础安全要求，即使是学习项目也不能养成明文存密码的习惯。
+
+影响：`server/src/modules/auth/auth.service.ts` 注册时 hash，登录时 compare。
+
+## 9. 业务接口必须做 owner 权限校验
+
+决策：用户只能访问自己的项目和页面。
+
+原因：低代码平台中页面 schema 是用户资产，不能跨用户读取或修改。
+
+影响：ProjectsService 和 PagesService 必须在读写前校验项目 owner。
+
+## 10. 保留现有 typo API
+
+决策：暂时保留以下历史拼写：
+
+```text
+useComponetsStore
+useMaterailDrop
+components/Preivew
+components/Sourse
+```
+
+原因：这些名字已经被现有代码引用，随手改名容易制造大量无关改动。
+
+影响：除非做明确的全量迁移任务，否则不要在功能开发中顺手重命名。
+
+## 11. 总结和学习点写入文档
+
+决策：每次重要代码块完成后，除了聊天简短说明，还要把总结写入项目文档。
+
+原因：用户希望长期学习和复盘，聊天上下文会压缩或丢失，Markdown 文档更持久。
+
+影响：优先更新 `docs/development-progress-summary.md`，必要时更新专题文档。
+
+## 12. 做 context-index skill，而不是把 CLAUDE.md 写巨大
+
+决策：新增 `.claude/skills/context-index/SKILL.md` 和上下文索引文档。
+
+原因：
+
+- `CLAUDE.md` 每次会话都会加载，太大会浪费 token。
+- Markdown 索引可以给 Claude Code、其它 AI、新协作者共同使用。
+- Skill 可以按需刷新索引，不必每次完整扫描项目。
+
+影响：`CLAUDE.md` 保留操作入口和关键注意事项；详细项目上下文放到 `docs/CONTEXT_INDEX.md`、`docs/ARCHITECTURE.md`、`docs/API.md`、`.claude/context/FILE_MAP.md`。
+
+## 13. 暂不引入 MCP
+
+决策：当前阶段不做 MCP。
+
+原因：项目现在最需要的是稳定上下文文档、保存闭环和工程流程，不需要外部语义检索服务。
+
+影响：如果未来要跨项目知识库、向量索引、部署平台/数据库/issue 系统集成，再考虑 MCP。
+
+## 14. Git 提交按重要板块拆分
+
+决策：每个重要板块单独 commit。
+
+原因：方便学习、回滚、查看变更范围，也帮助用户理解每一步做了什么。
+
+影响：不会自动 push；push 需要用户明确要求。

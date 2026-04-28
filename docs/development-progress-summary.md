@@ -35,9 +35,13 @@ git push -u origin main
 
 ## 2. 当前本地提交记录
 
-目前已经按重要板块完成 3 个本地 commit：
+目前已经按重要板块完成多个本地 commit，核心包括：
 
 ```bash
+c16e19a docs: record save loop verification summary
+993a3cd server: add initial Prisma migration
+7f12216 chore: add docker postgres local setup
+5cde745 docs: add development progress learning summary
 da9e2e9 frontend: add auth dashboard and schema save flow
 2c67205 server: add auth and page schema APIs
 8b30dc7 docs: add production planning and project guidelines
@@ -158,6 +162,9 @@ src/editor/stores/components.tsx
 9. 有了登录注册能力。
 10. 有了项目 / 页面管理能力。
 11. 有了前端保存 schema 到后端的闭环。
+12. 有了 Docker Compose 本地 PostgreSQL。
+13. 有了 Prisma migration。
+14. 有了上下文索引文档和 `/context-index` skill。
 
 ## 5. 已验证内容
 
@@ -168,6 +175,7 @@ npm run build
 npm run lint
 npm run prisma:generate --prefix server
 npm run build --prefix server
+npm run prisma:migrate --prefix server -- --name init
 ```
 
 说明：
@@ -175,20 +183,27 @@ npm run build --prefix server
 - 前端 TypeScript 构建通过。
 - 前端 lint 通过。
 - Prisma Client 生成通过。
+- Prisma migration 执行通过。
 - NestJS 后端构建通过。
+- API 保存闭环 smoke test 通过。
 
 ## 6. 尚未完成的验证
 
-完整端到端验证还未执行，原因是本地还需要准备 PostgreSQL。
+后端 API 保存闭环已经通过，浏览器端完整人工验证还未完成。
 
-后续需要：
+后续需要在浏览器验证：
 
-1. 安装或启动 PostgreSQL。
-2. 配置 `server/.env`。
-3. 运行 Prisma migration。
-4. 启动后端。
-5. 启动前端。
-6. 在浏览器中验证完整流程。
+1. 启动 PostgreSQL。
+2. 启动后端。
+3. 启动前端。
+4. 注册 / 登录。
+5. 创建项目。
+6. 创建页面。
+7. 打开编辑器。
+8. 拖拽组件并修改配置。
+9. 点击保存。
+10. 刷新页面。
+11. 重新打开页面并确认组件树恢复。
 
 完整验证路径：
 
@@ -270,6 +285,7 @@ Prisma：访问数据库
 
 ```text
 server/prisma/schema.prisma
+server/prisma/migrations/20260428084614_init/migration.sql
 ```
 
 目前有三个核心模型：
@@ -338,6 +354,34 @@ src/editor/stores/components.tsx
 
 这就是从前端 Demo 走向完整产品的第一步。
 
+### 7.5 上下文索引和 token 管理
+
+建议重点看：
+
+```text
+.claude/skills/context-index/SKILL.md
+docs/CONTEXT_INDEX.md
+.claude/context/FILE_MAP.md
+docs/ARCHITECTURE.md
+docs/API.md
+docs/DECISIONS.md
+```
+
+你可以这样理解上下文索引：
+
+```text
+完整源码        = 信息最多，但 token 成本最高
+上下文索引文档  = 信息较少，但足够帮助 AI 定位
+按需读取源码    = 需要改哪里，再读哪里
+```
+
+这个机制的价值是：
+
+- 新会话不用重新扫全项目。
+- 上下文压缩后可以快速恢复项目状态。
+- 其它 AI 不支持 Claude Code Skill，也可以直接读 Markdown。
+- `CLAUDE.md` 不需要塞太多内容，避免每次会话都浪费 token。
+
 ## 8. 后续协作规则
 
 后续每完成一个重要板块，都按以下流程执行：
@@ -345,9 +389,10 @@ src/editor/stores/components.tsx
 1. 完成代码。
 2. 运行必要验证。
 3. 创建一次 git commit。
-4. 说明本次修改了哪些文件。
-5. 说明为什么这样改。
-6. 总结你应该学习的知识点。
+4. 把总结写入项目文档。
+5. 说明本次修改了哪些文件。
+6. 说明为什么这样改。
+7. 总结你应该学习的知识点。
 
 ## 9. 2026-04-28 保存闭环验证记录
 
@@ -508,3 +553,87 @@ docs/development-progress-summary.md
 ```
 
 如果某次内容属于专门主题，例如后端、本地开发、部署、安全，再补充到对应专题文档。
+
+## 10. 2026-04-28 上下文索引 Skill 与文档记录
+
+本次完成的是为项目建立“低 token 上下文入口”，解决上下文太多、压缩后恢复困难、其它 AI 接手项目成本高的问题。
+
+### 10.1 本次新增文件
+
+```text
+.claude/skills/context-index/SKILL.md
+docs/CONTEXT_INDEX.md
+docs/ARCHITECTURE.md
+docs/API.md
+docs/DECISIONS.md
+.claude/context/FILE_MAP.md
+```
+
+同时更新：
+
+```text
+CLAUDE.md
+docs/development-progress-summary.md
+```
+
+### 10.2 每个文件的作用
+
+`/.claude/skills/context-index/SKILL.md`：定义 `/context-index` skill 的目标、扫描步骤、输出文件和注意事项。
+
+`docs/CONTEXT_INDEX.md`：未来会话和其它 AI 的第一阅读入口，包含项目一句话说明、技术栈、推荐阅读顺序、核心闭环、命令和风险提醒。
+
+`docs/ARCHITECTURE.md`：说明前端、后端、数据库之间如何协作，以及编辑器打开页面和保存页面的完整数据流。
+
+`docs/API.md`：集中记录后端接口、鉴权方式、请求/响应结构、schema contract 和 API smoke test 路径。
+
+`docs/DECISIONS.md`：记录产品和技术决策，例如为什么第一阶段先做保存闭环、为什么用 NestJS/PostgreSQL/Prisma、为什么做上下文索引而不是 MCP。
+
+`.claude/context/FILE_MAP.md`：关键文件地图，说明哪些文件负责什么、修改风险是什么、常见修改路线怎么走。
+
+`CLAUDE.md`：新增 Context Index 入口，避免把所有项目细节塞进每次都会加载的上下文。
+
+### 10.3 为什么这样做
+
+上下文索引的目标不是替代源码，而是帮助 AI 更快判断“接下来该读哪些源码”。
+
+推荐流程是：
+
+```text
+先读 CLAUDE.md
+  ↓
+读 docs/CONTEXT_INDEX.md
+  ↓
+读 .claude/context/FILE_MAP.md
+  ↓
+根据任务按需读源码
+```
+
+这样比每次重新扫描全项目更省 token，也更适合上下文压缩后的恢复。
+
+### 10.4 你应该学习的点
+
+#### CLAUDE.md 不应该无限变大
+
+`CLAUDE.md` 每次 Claude Code 会话都会读，如果里面放太多细节，会持续浪费 token。
+
+更好的方式是：
+
+```text
+CLAUDE.md = 短入口 + 必须遵守的规则
+索引文档 = 可按需读取的项目说明
+源码     = 真正权威的信息
+```
+
+#### Skill 和 Markdown 的分工
+
+Skill 适合定义“如何生成上下文索引”的流程。
+
+Markdown 适合保存“当前项目是什么样”的结果。
+
+其它 AI 可能不能运行 Claude Code Skill，但一般都可以读取 Markdown，所以项目知识应该落到文档里。
+
+#### MCP 不是当前阶段的首选
+
+MCP 适合连接外部系统或做更复杂的跨工具能力，例如数据库管理、部署平台、issue 系统、向量检索等。
+
+当前项目只需要让 AI 更好理解本仓库，所以先用 Skill + 文档索引更轻量。
