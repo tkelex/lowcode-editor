@@ -1,10 +1,9 @@
 import { CommonComponentProps } from "../../interface";
 
 function Page({ children, styles }: CommonComponentProps) {
-
     return (
         <div
-            className='p-[20px]'
+            className='min-h-[calc(100vh-60px)] p-[20px] box-border bg-white'
             style={{ ...styles }}
         >
             {children}

@@ -56,7 +56,9 @@ export function Preview() {
             const config = componentConfig?.[component.name]
 
             if (!config?.prod) {
-                return null;
+                return <div key={component.id} className="m-2 border border-red-300 bg-red-50 p-2 text-red-600">
+                    未找到 {component.name} 的预览组件
+                </div>;
             }
             
             return React.createElement(
@@ -76,7 +78,7 @@ export function Preview() {
         })
     }
 
-    return <div>
+    return <div className="h-full bg-slate-50">
         {renderComponents(components)}
     </div>
 }

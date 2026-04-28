@@ -1,12 +1,10 @@
-
 import { CommonComponentProps } from '../../interface';
 
 const Container = ({ children, styles }: CommonComponentProps) => {
-
     return (
-        <div 
+        <div
             style={styles}
-            className={`p-[20px]`}
+            className="min-h-[80px] p-[20px] border border-dashed border-slate-300 box-border"
         >{children}</div>
     )
 }

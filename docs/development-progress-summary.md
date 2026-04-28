@@ -799,4 +799,105 @@ PageVersion
 
 回滚需要先有历史版本记录，所以必须新增版本表或版本存储机制。
 
-这也是为什么下一阶段要做页面版本管理。
+
+## 12. 2026-04-28 预览模式模块不可见修复
+
+### 12.1 用户发现的问题
+
+点击编辑器顶部“预览”后，页面里看不到对应模块，用户会以为预览没有渲染。
+
+### 12.2 问题原因
+
+预览模式使用的是物料的 `prod.tsx`，不是编辑模式的 `dev.tsx`。
+
+编辑模式下：
+
+```text
+src/editor/components/EditArea/index.tsx
+  ↓
+componentConfig[component.name].dev
+```
+
+预览模式下：
+
+```text
+src/editor/components/Preivew/index.tsx
+  ↓
+componentConfig[component.name].prod
+```
+
+部分布局组件在编辑态有边框、最小高度和拖拽提示，但在预览态更接近真实页面，没有明显边框。
+
+例如空 `Container` 在预览态没有内容时，即使已经渲染，也可能看起来像什么都没有。
+
+另外，如果某个组件缺少 `prod` 注册，原先预览会直接返回 `null`，用户看不到任何提示。
+
+### 12.3 本次修复
+
+修改：
+
+```text
+src/editor/materials/Page/prod.tsx
+src/editor/materials/Container/prod.tsx
+src/editor/components/Preivew/index.tsx
+```
+
+具体改动：
+
+- `Page` 预览态增加最小高度和白色背景。
+- `Container` 预览态增加最小高度和虚线边框，让空容器也可见。
+- `Preview` 外层增加背景色。
+- 如果某个组件没有 `prod` 预览组件，显示“未找到 xxx 的预览组件”提示，而不是静默空白。
+
+### 12.4 已验证内容
+
+已运行：
+
+```bash
+npm run build
+npm run build --prefix server
+```
+
+说明：
+
+- 前端 TypeScript 和生产构建通过。
+- 后端构建通过。
+
+### 12.5 你应该学习的点
+
+#### 低代码编辑器通常有两套渲染
+
+编辑器里常见两套组件：
+
+```text
+dev  = 编辑态组件，用于拖拽、选中、hover、辅助边框
+prod = 运行态组件，用于真实预览或发布页面
+```
+
+所以一个组件在编辑态可见，不代表预览态一定可见；预览态要看 `prod.tsx` 是否正确渲染。
+
+#### 空容器需要可视化提示
+
+低代码编辑器里，容器类组件即使没有子节点，也应该让用户知道它存在。
+
+否则用户会误以为：
+
+```text
+组件没有保存
+组件没有渲染
+预览坏了
+```
+
+这属于产品体验问题，不只是代码问题。
+
+#### 静默失败不适合编辑器
+
+原来缺少 `prod` 时直接返回 `null`，这对开发者和用户都不友好。
+
+更好的方式是显示明确占位：
+
+```text
+未找到 Button 的预览组件
+```
+
+这样问题可以被快速定位。
