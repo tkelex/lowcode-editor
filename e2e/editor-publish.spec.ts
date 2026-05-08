@@ -13,6 +13,8 @@ const project = {
   id: 10,
   name: 'E2E 项目',
   description: 'mock project',
+  currentUserRole: 'owner',
+  status: 'active',
   ownerId: user.id,
   createdAt: now,
   updatedAt: now,

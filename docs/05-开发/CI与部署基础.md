@@ -58,10 +58,19 @@ CI 配置位置：
 ```text
 npm ci
 npm ci --prefix server
+npm run prisma:generate --prefix server
 npm run check
+npm run prisma:deploy --prefix server
+npm run smoke:api
+npm run test:e2e
 ```
 
-这保证依赖可安装、前端可 lint/build、后端可 build、共享 schema 测试可通过。
+CI 会启动 PostgreSQL service，执行 Prisma migration，拉起 NestJS API，等待 `/api/health` 可用后跑 API smoke。这样可以覆盖依赖安装、前端 lint/build、后端 build、共享 schema 测试、真实数据库迁移、接口权限链路和前端 mock E2E 主链路。
+
+CI 失败时会上传：
+
+- `server-ci-log`：后端启动日志。
+- `playwright-report` / `test-results`：Playwright 报告和 trace。
 
 ## Docker 与 Nginx
 
