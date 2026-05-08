@@ -6,8 +6,20 @@ import {
 import { shallow } from 'zustand/shallow';
 import { createPortal } from 'react-dom';
 import { getComponentById, useComponetsStore } from '../../stores/components';
-import { Dropdown, Popconfirm, Space } from 'antd';
-import { DeleteOutlined } from '@ant-design/icons';
+import { Dropdown, Popconfirm, Space, Tooltip } from 'antd';
+import {
+  ArrowDownOutlined,
+  ArrowUpOutlined,
+  BorderOuterOutlined,
+  CopyOutlined,
+  DeleteOutlined,
+} from '@ant-design/icons';
+import { useComponentConfigStore } from '../../registry/component-config';
+import {
+  getMaskComponentNode,
+  getMaskContainer,
+  getMaskPosition,
+} from '../maskPosition';
 
 interface SelectedMaskProps {
   portalWrapperClassName: string
@@ -26,13 +38,26 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
     labelLeft: 0,
   });
 
-  const { components, curComponentId, curComponent, deleteComponent, setCurComponentId } = useComponetsStore((state) => ({
+  const {
+    components,
+    curComponentId,
+    curComponent,
+    deleteComponent,
+    duplicateComponent,
+    moveComponentSibling,
+    setCurComponentId,
+    wrapComponent,
+  } = useComponetsStore((state) => ({
     components: state.components,
     curComponentId: state.curComponentId,
     curComponent: state.curComponent,
     deleteComponent: state.deleteComponent,
+    duplicateComponent: state.duplicateComponent,
+    moveComponentSibling: state.moveComponentSibling,
     setCurComponentId: state.setCurComponentId,
+    wrapComponent: state.wrapComponent,
   }), shallow);
+  const componentConfig = useComponentConfigStore((state) => state.componentConfig);
   const [portalEl, setPortalEl] = useState<Element | null>(null);
 
   useEffect(() => {
@@ -56,36 +81,56 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
   }, []);
 
   useEffect(() => {
+    const container = document.querySelector(`.${containerClassName}`);
+    if (!container) return;
+
+    let frame = 0;
+    const updateOnFrame = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updatePosition);
+    };
+
+    container.addEventListener('scroll', updateOnFrame);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      container.removeEventListener('scroll', updateOnFrame);
+    };
+  }, [componentId, containerClassName]);
+
+  useEffect(() => {
+    const container = getMaskContainer(containerClassName);
+    if (!container) return;
+
+    const node = getMaskComponentNode(container, componentId);
+    if (!node) return;
+
+    const updateOnFrame = () => {
+      window.requestAnimationFrame(updatePosition);
+    };
+    const observer = new ResizeObserver(updateOnFrame);
+    observer.observe(container);
+    observer.observe(node);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [componentId, containerClassName]);
+
+  useEffect(() => {
     setPortalEl(document.querySelector(`.${portalWrapperClassName}`));
   }, [portalWrapperClassName]);
 
   function updatePosition() {
     if (!componentId) return;
 
-    const container = document.querySelector(`.${containerClassName}`);
+    const container = getMaskContainer(containerClassName);
     if (!container) return;
 
-    const node = document.querySelector(`[data-component-id="${componentId}"]`);
+    const node = getMaskComponentNode(container, componentId);
     if (!node) return;
 
-    const { top, left, width, height } = node.getBoundingClientRect();
-    const { top: containerTop, left: containerLeft } = container.getBoundingClientRect();
-
-    let labelTop = top - containerTop + container.scrollTop;
-    let labelLeft = left - containerLeft + width;
-
-    if (labelTop <= 0) {
-      labelTop -= -20;
-    }
-  
-    setPosition({
-      top: top - containerTop + container.scrollTop,
-      left: left - containerLeft + container.scrollTop,
-      width,
-      height,
-      labelTop,
-      labelLeft,
-    });
+    setPosition(getMaskPosition(container, node));
   }
 
   const curSelectedComponent = useMemo(() => {
@@ -95,6 +140,20 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
   function handleDelete() {
     deleteComponent(curComponentId!);
     setCurComponentId(null);
+  }
+
+  function handleWrapContainer() {
+    if (!curComponentId) return;
+
+    const config = componentConfig.Container;
+    if (!config) return;
+
+    wrapComponent(curComponentId, {
+      id: Date.now(),
+      name: 'Container',
+      desc: config.desc,
+      props: config.defaultProps,
+    });
   }
 
   const parentComponents = useMemo(() => {
@@ -117,18 +176,13 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
   return createPortal((
     <>
       <div
+        className="editor-mask editor-mask-selected"
         style={{
-          position: "absolute",
           left: position.left,
           top: position.top,
-          backgroundColor: "rgba(0, 0, 255, 0.1)",
-          border: "1px dashed blue",
-          pointerEvents: "none",
           width: position.width,
           height: position.height,
           zIndex: 12,
-          borderRadius: 4,
-          boxSizing: 'border-box',
         }}
       />
       <div
@@ -142,7 +196,7 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
             transform: 'translate(-100%, -100%)',
           }}
         >
-          <Space>
+          <Space className="editor-mask-toolbar" size={3}>
             <Dropdown
               menu={{
                 items: parentComponents.map(item => ({
@@ -155,30 +209,43 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
               }}
               disabled={parentComponents.length === 0}
             >
-              <div
-                style={{
-                  padding: '0 8px',
-                  backgroundColor: 'blue',
-                  borderRadius: 4,
-                  color: '#fff',
-                  cursor: "pointer",
-                  whiteSpace: 'nowrap',
-                }}
-              >
+              <div className="editor-mask-label">
                 {curSelectedComponent?.desc}
               </div>
             </Dropdown>
             {curComponentId !== 1 && (
-              <div style={{ padding: '0 8px', backgroundColor: 'blue' }}>
+              <>
+                <Tooltip title="复制">
+                  <button className="editor-mask-action" type="button" onClick={() => duplicateComponent(curComponentId!)}>
+                    <CopyOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title="上移">
+                  <button className="editor-mask-action" type="button" onClick={() => moveComponentSibling(curComponentId!, -1)}>
+                    <ArrowUpOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title="下移">
+                  <button className="editor-mask-action" type="button" onClick={() => moveComponentSibling(curComponentId!, 1)}>
+                    <ArrowDownOutlined />
+                  </button>
+                </Tooltip>
+                <Tooltip title="包裹容器">
+                  <button className="editor-mask-action" type="button" onClick={handleWrapContainer}>
+                    <BorderOuterOutlined />
+                  </button>
+                </Tooltip>
                 <Popconfirm
                   title="确认删除？"
                   okText={'确认'}
                   cancelText={'取消'}
                   onConfirm={handleDelete}
                 >
-                  <DeleteOutlined style={{ color: '#fff' }}/>
+                  <button className="editor-mask-action is-danger" type="button">
+                    <DeleteOutlined />
+                  </button>
                 </Popconfirm>
-              </div>
+              </>
             )}
           </Space>
         </div>

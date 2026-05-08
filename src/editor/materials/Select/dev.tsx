@@ -1,0 +1,30 @@
+import { Select as AntdSelect } from 'antd';
+import { useMemo } from 'react';
+import { useDrag } from 'react-dnd';
+import { CommonComponentProps } from '../../interface';
+
+function toOptions(optionsText?: string) {
+    return (optionsText || '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(item => ({ label: item, value: item }));
+}
+
+const Select = ({ id, name, placeholder, optionsText, disabled, styles }: CommonComponentProps) => {
+    const [_, drag] = useDrag({
+        type: name,
+        item: {
+            type: name,
+            dragType: 'move',
+            id,
+        }
+    });
+    const options = useMemo(() => toOptions(optionsText), [optionsText]);
+
+    return <div ref={drag} data-component-id={id} style={styles} className="editor-component editor-field-shell">
+        <AntdSelect placeholder={placeholder} options={options} disabled={disabled} className="w-full" />
+    </div>
+}
+
+export default Select;

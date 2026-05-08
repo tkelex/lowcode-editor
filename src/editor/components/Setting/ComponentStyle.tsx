@@ -1,13 +1,17 @@
-import { Form, Input, InputNumber, Select } from 'antd';
-import { CSSProperties, useEffect, useState } from 'react';
+import { Alert, Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
+import { CSSProperties, useEffect, useMemo, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { ComponentSetter, useComponentConfigStore } from '../../stores/component-config';
+import { ComponentSetter, useComponentConfigStore } from '../../registry/component-config';
 import { useComponetsStore } from '../../stores/components';
 import CssEditor from './CssEditor';
 import { debounce } from 'lodash-es';
 import styleToObject from 'style-to-object';
 
-export function ComponentStyle() {
+interface ComponentStyleProps {
+  keyword?: string;
+}
+
+export function ComponentStyle({ keyword = '' }: ComponentStyleProps) {
 
   const [form] = Form.useForm();
 
@@ -21,12 +25,9 @@ export function ComponentStyle() {
 
   useEffect(() => {
     form.resetFields();
-
-    const data = form.getFieldsValue();
-    form.setFieldsValue({...data, ...curComponent?.styles});
-
-    setCss(toCSSStr(curComponent?.styles!))
-  }, [curComponent])
+    form.setFieldsValue(curComponent?.styles || {});
+    setCss(toCSSStr(curComponent?.styles || {}));
+  }, [curComponent, form])
 
   function toCSSStr(css: Record<string, any>) {
     let str = `.comp {\n`;
@@ -45,6 +46,17 @@ export function ComponentStyle() {
     return str;
   }
 
+  const setters = componentConfig[curComponent?.name || '']?.stylesSetter || [];
+  const searchText = keyword.trim().toLowerCase();
+  const filteredSetters = useMemo(() => {
+    if (!searchText) return setters;
+
+    return setters.filter(setter => {
+      return [setter.name, setter.label].join(' ').toLowerCase().includes(searchText);
+    });
+  }, [searchText, setters]);
+  const showCssEditor = !searchText || ['css', '样式', '源码', '自定义'].some(item => item.includes(searchText) || searchText.includes(item));
+
   if (!curComponentId || !curComponent) return null;
 
   function renderFormElememt(setting: ComponentSetter) {
@@ -55,8 +67,10 @@ export function ComponentStyle() {
     } else if (type === 'input') {
       return <Input />
     } else if (type === 'inputNumber') {
-        return <InputNumber />
+        return <InputNumber className="w-full" />
     }
+
+    return <Input />
   }
 
   function valueChange(changeValues: CSSProperties) {
@@ -66,14 +80,14 @@ export function ComponentStyle() {
   }
 
   const handleEditorChange = debounce((value) => {
-    setCss(value);
+    setCss(value || '');
 
     let css: Record<string, any> = {};
 
     try {
-        const cssStr = value.replace(/\/\*.*\*\//, '') // 去掉注释 /** */
-            .replace(/(\.?[^{]+{)/, '') // 去掉 .comp {
-            .replace('}', '');// 去掉 }
+        const cssStr = (value || '').replace(/\/\*.*\*\//, '')
+            .replace(/(\.?[^{]+{)/, '')
+            .replace('}', '');
         
         styleToObject(cssStr, (name, value) => {
             css[name.replace(/-\w/, (item) => item.toUpperCase().replace('-', ''))] = value;
@@ -87,19 +101,46 @@ export function ComponentStyle() {
     <Form
       form={form}
       onValuesChange={valueChange}
-      labelCol={{ span: 8 }}
-      wrapperCol={{ span: 14 }}
+      layout="vertical"
+      className="setting-form"
     >
-      {
-        componentConfig[curComponent.name]?.stylesSetter?.map(setter => (
-          <Form.Item key={setter.name} name={setter.name} label={setter.label}>
-            {renderFormElememt(setter)}
-          </Form.Item>
-        ))
-      }
-      <div className='h-[200px] border-[1px] border-[#ccc] z-10'>
-        <CssEditor value={ css } onChange={handleEditorChange}/>
-      </div>
+      <Collapse
+        defaultActiveKey={['quick', 'css']}
+        size="small"
+        items={[
+          {
+            key: 'quick',
+            label: `快捷样式 ${filteredSetters.length ? `(${filteredSetters.length})` : ''}`,
+            children: <div>
+              {filteredSetters.length === 0 && (
+                searchText
+                  ? <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的快捷样式" />
+                  : <Typography.Text type="secondary" className="text-[12px]">当前组件暂无快捷样式。</Typography.Text>
+              )}
+              {filteredSetters.map(setter => (
+                <Form.Item key={setter.name} name={setter.name} label={setter.label}>
+                  {renderFormElememt(setter)}
+                </Form.Item>
+              ))}
+            </div>,
+          },
+          {
+            key: 'css',
+            label: 'CSS 源码',
+            children: showCssEditor ? <div>
+              <Alert
+                className="mb-[10px]"
+                type="info"
+                showIcon
+                message="只需要编辑 .comp 选择器内部的 CSS 声明，保存后会同步为组件内联样式。"
+              />
+              <div className='relative z-20 h-[220px] w-full min-w-0 overflow-hidden rounded-[6px] border border-[#d1d5db]'>
+                <CssEditor value={ css } onChange={handleEditorChange}/>
+              </div>
+            </div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的 CSS 配置" />,
+          },
+        ]}
+      />
     </Form>
   )
 }

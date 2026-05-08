@@ -1,7 +1,7 @@
 import { Button, Card, Form, Input, Space, Typography, message } from 'antd';
 import { useState } from 'react';
-import { login, register } from '../../api/auth';
-import { User } from '../../api/types';
+import { login, register } from '../../shared/api/auth';
+import { User } from '../../shared/api/types';
 
 interface AuthViewProps {
   onAuthenticated: (user: User) => void;

@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useComponetsStore } from "../../../stores/components";
-import TextArea from "antd/es/input/TextArea";
+import { Input, Typography } from "antd";
+import { normalizeActionUrl } from "../../../events/normalize";
 
 export interface GoToLinkConfig {
-    type: 'goToLink',
-    url: string
+    actionType: 'url',
+    args: {
+        url: string
+    }
 }
 
 export interface GoToLinkProps {
@@ -20,8 +23,8 @@ export function GoToLink(props: GoToLinkProps) {
     const [value, setValue] = useState(defaultValue);
 
     useEffect(() => {
-        setValue(val);
-    }, [val]);
+        setValue(val || defaultValue || '');
+    }, [val, defaultValue]);
 
     function urlChange(value: string) {
         if (!curComponentId) return;
@@ -29,21 +32,29 @@ export function GoToLink(props: GoToLinkProps) {
         setValue(value);
 
         onChange?.({
-            type: 'goToLink',
-            url: value
+            actionType: 'url',
+            args: {
+                url: value.trim()
+            }
         });
     }
 
-    return <div className='mt-[40px]'>
-        <div className='flex items-center gap-[10px]'>
-            <div>跳转链接</div>
-            <div>
-                <TextArea
-                    style={{height: 200, width: 500, border: '1px solid #000'}}
-                    onChange={(e) => { urlChange(e.target.value) }}
-                    value={value || ''}
-                />
-            </div>
-        </div>
+    const normalizedUrl = normalizeActionUrl(value || '');
+
+    return <div className='mt-[28px]'>
+        <div className='mb-[8px] text-[13px] font-medium text-[#1f2937]'>跳转链接</div>
+        <Input
+            placeholder="例如 https://baidu.com、baidu.com 或 /publish/demo"
+            onChange={(e) => { urlChange(e.target.value) }}
+            value={value || ''}
+        />
+        <Typography.Text type="secondary" className="mt-[8px] block text-[12px]">
+            未填写协议时会自动补全为 https://，站内路径请以 / 开头。
+        </Typography.Text>
+        {normalizedUrl && (
+            <Typography.Text type="secondary" className="mt-[4px] block text-[12px]">
+                实际跳转：{normalizedUrl}
+            </Typography.Text>
+        )}
     </div>
 }

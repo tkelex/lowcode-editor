@@ -36,6 +36,8 @@ export default function CssEditor(props: Props) {
         value={value}
         options={
             {
+                automaticLayout: true,
+                fixedOverflowWidgets: true,
                 fontSize: 14,
                 scrollBeyondLastLine: false,
                 minimap: {

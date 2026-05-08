@@ -1,11 +1,16 @@
-import { Button, Drawer, List, Popconfirm, Space, Tag, Typography, message } from 'antd';
+import { Button, Drawer, List, Popconfirm, Space, Tag, Tooltip, Typography, message } from 'antd';
+import { BugOutlined, RedoOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { deletePageVersion, listPageVersions, rollbackPage, updatePage } from '../../../api/pages';
-import { PageVersion } from '../../../api/types';
+import { CURRENT_SCHEMA_VERSION, migratePageSchema } from '../../../../packages/lowcode-schema/src';
+import type { LowcodeComponentSchema, LowcodePageSchema } from '../../../../packages/lowcode-schema/src';
+import { deletePageVersion, listPageVersions, publishPage, rollbackPage, updatePage } from '../../../shared/api/pages';
+import { PageVersion } from '../../../shared/api/types';
+import { assertValidComponentTree } from '../../schema/validateComponents';
+import { useComponentConfigStore } from '../../registry/component-config';
 import { Component, useComponetsStore } from '../../stores/components';
-import { PerfPanel } from '../PerfPanel';
+import { useRuntimeLogsStore } from '../../stores/runtime-logs';
 
 interface HeaderProps {
   pageId?: number;
@@ -14,19 +19,64 @@ interface HeaderProps {
 
 export function Header({ pageId, onBack }: HeaderProps) {
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [versionDrawerOpen, setVersionDrawerOpen] = useState(false);
   const [versions, setVersions] = useState<PageVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
+  const [runtimeLogDrawerOpen, setRuntimeLogDrawerOpen] = useState(false);
   const [rollingBack, setRollingBack] = useState(false);
   const [deletingVersionId, setDeletingVersionId] = useState<number | null>(null);
 
-  const { mode, components, setMode, setCurComponentId, setComponents } = useComponetsStore((state) => ({
+  const {
+    mode,
+    components,
+    canRedo,
+    canUndo,
+    redo,
+    setMode,
+    setCurComponentId,
+    setComponents,
+    undo,
+  } = useComponetsStore((state) => ({
     mode: state.mode,
     components: state.components,
+    canRedo: state.futureComponents.length > 0,
+    canUndo: state.pastComponents.length > 0,
+    redo: state.redo,
     setMode: state.setMode,
     setCurComponentId: state.setCurComponentId,
     setComponents: state.setComponents,
+    undo: state.undo,
   }), shallow);
+  const componentConfig = useComponentConfigStore((state) => state.componentConfig);
+  const { runtimeLogs, clearRuntimeLogs } = useRuntimeLogsStore((state) => ({
+    runtimeLogs: state.logs,
+    clearRuntimeLogs: state.clearLogs,
+  }), shallow);
+  const runtimeErrorCount = runtimeLogs.filter((log) => log.level === 'error').length;
+
+  function buildPageSchema(): LowcodePageSchema {
+    return {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      pageId,
+      components: components.map(serializeComponent),
+      metadata: {
+        updatedAt: new Date().toISOString(),
+      },
+    };
+  }
+
+  async function saveCurrentPage() {
+    if (!pageId) {
+      throw new Error('Page id is required');
+    }
+
+    assertValidComponentTree(components, componentConfig);
+
+    return updatePage(pageId, {
+      schema: buildPageSchema(),
+    });
+  }
 
   async function handleSave() {
     if (!pageId) {
@@ -36,24 +86,52 @@ export function Header({ pageId, onBack }: HeaderProps) {
 
     setSaving(true);
     try {
-      await updatePage(pageId, {
-        schema: {
-          schemaVersion: '1.0.0',
-          pageId,
-          components,
-          metadata: {
-            updatedAt: new Date().toISOString(),
-          },
-        },
-      });
+      await saveCurrentPage();
       message.success('页面已保存，并生成历史版本');
       if (versionDrawerOpen) {
         await loadVersions();
       }
     } catch (error) {
-      message.error('保存失败，请稍后重试');
+      message.error(error instanceof Error ? error.message : '保存失败，请稍后重试');
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!pageId) {
+      message.warning('当前页面未绑定后端页面，无法发布');
+      return;
+    }
+
+    setPublishing(true);
+    try {
+      await saveCurrentPage();
+      const page = await publishPage(pageId);
+      if (!page.publicId) {
+        message.error('发布失败，未生成公开访问地址');
+        return;
+      }
+
+      if (versionDrawerOpen) {
+        await loadVersions();
+      }
+
+      const publishUrl = `${window.location.origin}/publish/${page.publicId}`;
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(publishUrl);
+          message.success(`页面已保存并发布，公开链接已复制：${publishUrl}`);
+          return;
+        } catch (error) {
+        }
+      }
+
+      message.success(`页面已保存并发布：${publishUrl}`);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '发布失败，请稍后重试');
+    } finally {
+      setPublishing(false);
     }
   }
 
@@ -87,7 +165,8 @@ export function Header({ pageId, onBack }: HeaderProps) {
     setRollingBack(true);
     try {
       const page = await rollbackPage(pageId, version.id);
-      setComponents(page.schema.components as Component[]);
+      const schema = migratePageSchema(page.schema, { pageId: page.id });
+      setComponents(schema.components as Component[], { recordHistory: false });
       message.success(`已回滚到 v${version.versionNo}，并生成新版本`);
       await loadVersions();
     } catch (error) {
@@ -113,21 +192,54 @@ export function Header({ pageId, onBack }: HeaderProps) {
   }
 
   return (
-    <div className='w-[100%] h-[100%]'>
-      <div className='h-[50px] flex justify-between items-center px-[20px]'>
+    <div className='flex h-full w-full items-center'>
+      <div className='flex h-[60px] w-full items-center justify-between px-[20px]'>
         <Space>
           {onBack && <Button onClick={onBack}>返回项目</Button>}
-          <div>低代码编辑器</div>
+          <div>
+            <Typography.Text strong className="text-[16px]">低代码编辑器</Typography.Text>
+            <Typography.Text type="secondary" className="ml-[8px] text-[12px]">可视化搭建页面</Typography.Text>
+          </div>
         </Space>
         <Space>
-          <PerfPanel />
+          {mode === 'edit' && (
+            <Tooltip title="撤销">
+              <Button
+                aria-label="撤销"
+                icon={<UndoOutlined />}
+                disabled={!canUndo}
+                onClick={undo}
+              />
+            </Tooltip>
+          )}
+          {mode === 'edit' && (
+            <Tooltip title="重做">
+              <Button
+                aria-label="重做"
+                icon={<RedoOutlined />}
+                disabled={!canRedo}
+                onClick={redo}
+              />
+            </Tooltip>
+          )}
           {mode === 'edit' && <Button loading={saving} onClick={handleSave}>保存</Button>}
+          {mode === 'edit' && <Button loading={publishing} onClick={handlePublish}>发布</Button>}
           {mode === 'edit' && <Button onClick={openVersionDrawer}>版本历史</Button>}
+          <Tooltip title="查看预览和事件动作运行日志">
+            <Button
+              icon={<BugOutlined />}
+              danger={runtimeErrorCount > 0}
+              onClick={() => setRuntimeLogDrawerOpen(true)}
+            >
+              运行日志{runtimeErrorCount > 0 ? ` ${runtimeErrorCount}` : ''}
+            </Button>
+          </Tooltip>
           {mode === 'edit' && (
             <Button
                 onClick={() => {
                     setMode('preview');
                     setCurComponentId(null);
+                    message.info('已进入预览模式');
                 }}
                 type='primary'
             >
@@ -136,7 +248,10 @@ export function Header({ pageId, onBack }: HeaderProps) {
           )}
           {mode === 'preview' && (
             <Button
-              onClick={() => { setMode('edit') }}
+              onClick={() => {
+                setMode('edit');
+                message.info('已退出预览模式');
+              }}
               type='primary'
             >
               退出预览
@@ -185,8 +300,8 @@ export function Header({ pageId, onBack }: HeaderProps) {
               <List.Item.Meta
                 title={<Space>
                   <Typography.Text strong>v{version.versionNo}</Typography.Text>
-                  <Tag color={version.source === 'rollback' ? 'purple' : 'blue'}>
-                    {version.source === 'rollback' ? '回滚' : '保存'}
+                  <Tag color={version.source === 'rollback' ? 'purple' : version.source === 'publish' ? 'green' : 'blue'}>
+                    {version.source === 'rollback' ? '回滚' : version.source === 'publish' ? '发布' : '保存'}
                   </Tag>
                 </Space>}
                 description={<Space direction="vertical" size={2}>
@@ -198,6 +313,83 @@ export function Header({ pageId, onBack }: HeaderProps) {
           )}
         />
       </Drawer>
+
+      <Drawer
+        title="运行日志"
+        open={runtimeLogDrawerOpen}
+        width={520}
+        onClose={() => setRuntimeLogDrawerOpen(false)}
+        extra={<Button onClick={clearRuntimeLogs} disabled={runtimeLogs.length === 0}>清空</Button>}
+      >
+        <List
+          dataSource={runtimeLogs}
+          locale={{ emptyText: '暂无运行日志' }}
+          renderItem={(log) => (
+            <List.Item>
+              <List.Item.Meta
+                title={<Space wrap>
+                  <Tag color={log.level === 'error' ? 'red' : log.level === 'warning' ? 'gold' : 'blue'}>
+                    {log.level === 'error' ? '错误' : log.level === 'warning' ? '警告' : '信息'}
+                  </Tag>
+                  <Typography.Text strong>{log.title}</Typography.Text>
+                  <Typography.Text type="secondary">{dayjs(log.createdAt).format('HH:mm:ss')}</Typography.Text>
+                </Space>}
+                description={<Space direction="vertical" size={6} className="w-full">
+                  <Typography.Text type="secondary">
+                    {[
+                      log.componentDesc || log.componentName ? `组件：${log.componentDesc || log.componentName}(${log.componentId})` : '',
+                      log.eventName ? `事件：${log.eventName}` : '',
+                      log.actionType ? `动作：${log.actionType}` : '',
+                    ].filter(Boolean).join(' / ') || '运行时'}
+                  </Typography.Text>
+                  <Typography.Text type="danger">{log.message}</Typography.Text>
+                  {log.stack && (
+                    <Typography.Paragraph
+                      className="max-h-[160px] overflow-auto rounded-[6px] bg-[#f8fafc] p-[8px] text-[12px]"
+                      copyable
+                    >
+                      {log.stack}
+                    </Typography.Paragraph>
+                  )}
+                </Space>}
+              />
+            </List.Item>
+          )}
+        />
+      </Drawer>
     </div>
   )
+}
+
+function serializeComponent(component: Component): LowcodeComponentSchema {
+  const nextComponent: LowcodeComponentSchema = {
+    id: component.id,
+    name: component.name,
+    props: isPlainObject(component.props) ? { ...component.props } : {},
+    desc: component.desc,
+  };
+
+  if (component.styles) {
+    nextComponent.styles = Object.entries(component.styles).reduce<Record<string, unknown>>((styles, [key, value]) => {
+      if (value !== undefined) {
+        styles[key] = value;
+      }
+
+      return styles;
+    }, {});
+  }
+
+  if (component.parentId !== undefined) {
+    nextComponent.parentId = component.parentId;
+  }
+
+  if (component.children) {
+    nextComponent.children = component.children.map(serializeComponent);
+  }
+
+  return nextComponent;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
 }

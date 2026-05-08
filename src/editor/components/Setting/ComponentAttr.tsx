@@ -1,10 +1,14 @@
-import { Form, Input, Select } from 'antd';
-import { useEffect } from 'react';
+import { Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
+import { useEffect, useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
-import { ComponentConfig, ComponentSetter, useComponentConfigStore } from '../../stores/component-config';
+import { ComponentConfig, ComponentSetter, useComponentConfigStore } from '../../registry/component-config';
 import { useComponetsStore } from '../../stores/components';
 
-export function ComponentAttr() {
+interface ComponentAttrProps {
+  keyword?: string;
+}
+
+export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
 
   const [form] = Form.useForm();
 
@@ -16,9 +20,19 @@ export function ComponentAttr() {
   const { componentConfig } = useComponentConfigStore();
 
   useEffect(() => {
-    const data = form.getFieldsValue();
-    form.setFieldsValue({...data, ...curComponent?.props});
-  }, [curComponent])
+    form.resetFields();
+    form.setFieldsValue(curComponent?.props || {});
+  }, [curComponent, form])
+
+  const setters = componentConfig[curComponent?.name || '']?.setter || [];
+  const searchText = keyword.trim().toLowerCase();
+  const filteredSetters = useMemo(() => {
+    if (!searchText) return setters;
+
+    return setters.filter(setter => {
+      return [setter.name, setter.label].join(' ').toLowerCase().includes(searchText);
+    });
+  }, [searchText, setters]);
 
   if (!curComponentId || !curComponent) return null;
   
@@ -29,7 +43,11 @@ export function ComponentAttr() {
       return <Select options={options} />
     } else if (type === 'input') {
       return <Input />
+    } else if (type === 'inputNumber') {
+      return <InputNumber className="w-full" />
     }
+
+    return <Input />
   }
 
   function valueChange(changeValues: ComponentConfig) {
@@ -38,29 +56,55 @@ export function ComponentAttr() {
     }
   }
 
+  const hasMatchedConfig = filteredSetters.length > 0 || !searchText;
+
   return (
     <Form
       form={form}
       onValuesChange={valueChange}
-      labelCol={{ span: 8 }}
-      wrapperCol={{ span: 14 }}
+      layout="vertical"
+      className="setting-form"
     >
-      <Form.Item label="组件id">
-        <Input value={curComponent.id} disabled />
-      </Form.Item>
-      <Form.Item label="组件名称">
-        <Input value={curComponent.name} disabled />
-      </Form.Item>
-      <Form.Item label="组件描述">
-        <Input value={curComponent.desc} disabled/>
-      </Form.Item>
-      {
-        componentConfig[curComponent.name]?.setter?.map(setter => (
-          <Form.Item key={setter.name} name={setter.name} label={setter.label}>
-            {renderFormElememt(setter)}
-          </Form.Item>
-        ))
-      }
+      <Collapse
+        defaultActiveKey={['base', 'props']}
+        size="small"
+        items={[
+          {
+            key: 'base',
+            label: '基础信息',
+            children: <div>
+              <Form.Item label="组件 ID">
+                <Input value={curComponent.id} disabled />
+              </Form.Item>
+              <Form.Item label="组件类型">
+                <Input value={curComponent.name} disabled />
+              </Form.Item>
+              <Form.Item label="显示名称">
+                <Input value={curComponent.desc} disabled/>
+              </Form.Item>
+            </div>,
+          },
+          {
+            key: 'props',
+            label: `属性配置 ${filteredSetters.length ? `(${filteredSetters.length})` : ''}`,
+            children: <div>
+              {!hasMatchedConfig && (
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的属性配置" />
+              )}
+              {filteredSetters.length === 0 && !searchText && (
+                <Typography.Text type="secondary" className="text-[12px]">
+                  当前组件暂无可配置属性。
+                </Typography.Text>
+              )}
+              {filteredSetters.map(setter => (
+                <Form.Item key={setter.name} name={setter.name} label={setter.label}>
+                  {renderFormElememt(setter)}
+                </Form.Item>
+              ))}
+            </div>,
+          },
+        ]}
+      />
     </Form>
   )
 }

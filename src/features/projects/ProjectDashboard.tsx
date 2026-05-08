@@ -1,8 +1,8 @@
 import { Button, Card, Form, Input, List, Modal, Space, Typography, message } from 'antd';
 import { useEffect, useState } from 'react';
-import { createPage, listPages } from '../../api/pages';
-import { createProject, listProjects } from '../../api/projects';
-import { EditorPage, Project, User } from '../../api/types';
+import { createPage, listPages } from '../../shared/api/pages';
+import { createProject, listProjects } from '../../shared/api/projects';
+import { EditorPage, Project, User } from '../../shared/api/types';
 
 interface ProjectDashboardProps {
   user: User;

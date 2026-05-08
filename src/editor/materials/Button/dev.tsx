@@ -14,7 +14,9 @@ const Button = ({id, type, text, styles}: CommonComponentProps) => {
   });
 
   return (
-    <AntdButton ref={drag} data-component-id={id} type={type} style={styles}>{text}</AntdButton>
+    <span ref={drag} data-component-id={id} style={styles} className="editor-component editor-inline-component rounded-[6px] p-[2px]">
+      <AntdButton type={type}>{text}</AntdButton>
+    </span>
   )
 }
 

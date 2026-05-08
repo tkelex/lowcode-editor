@@ -1,11 +1,12 @@
 import { useDrag } from 'react-dnd';
-import { useMaterailDrop } from '../../hooks/useMaterailDrop';
+import { useMaterialDrop } from '../../hooks/useMaterialDrop';
 import { CommonComponentProps } from '../../interface';
 import { useEffect, useRef } from 'react';
+import { COMMON_CHILDREN } from '../commonChildren';
 
 const Container = ({ id, name, children, styles }: CommonComponentProps) => {
 
-    const {canDrop, drop } = useMaterailDrop(['Button', 'Container', 'Table', 'Form'], id);
+    const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop(COMMON_CHILDREN, id);
 
     const divRef = useRef<HTMLDivElement>(null);
 
@@ -28,8 +29,8 @@ const Container = ({ id, name, children, styles }: CommonComponentProps) => {
             data-component-id={id}
             ref={divRef}
             style={styles}
-            className={`min-h-[100px] p-[20px] ${ canDrop ? 'border-[2px] border-[blue]' : 'border-[1px] border-[#000]'}`}
-        >{children}</div>
+            className={`editor-component editor-drop-zone min-h-[124px] p-[16px] ${canDrop ? 'can-drop' : ''} ${canDropCurrent ? 'is-drop-target' : ''} ${isOverCurrent && !canDropCurrent ? 'is-drop-disabled' : ''}`}
+        >{children || <div className="editor-empty">拖入组件</div>}</div>
     )
 }
 

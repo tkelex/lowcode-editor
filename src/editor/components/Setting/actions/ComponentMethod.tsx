@@ -1,20 +1,26 @@
 import { useEffect, useState } from "react";
 import { Component, getComponentById, useComponetsStore } from "../../../stores/components";
-import { Select, TreeSelect } from "antd";
-import { useComponentConfigStore } from "../../../stores/component-config";
+import { Input, Select, TreeSelect } from "antd";
+import { useComponentConfigStore } from "../../../registry/component-config";
 import { shallow } from 'zustand/shallow';
+import { formatJson } from "./utils";
 
 export interface ComponentMethodConfig {
-    type: 'componentMethod',
-    config: {
-        componentId: number,
+    actionType: 'componentAction',
+    componentId: number,
+    args: {
         method: string
+        params?: any[]
     }
 }
 
 export interface ComponentMethodProps {
-    value?: ComponentMethodConfig['config']
-    onChange?: (config: ComponentMethodConfig) => void
+    value?: {
+        componentId: number,
+        method: string
+        params?: any[]
+    }
+    onChange?: (config?: ComponentMethodConfig) => void
 }
 
 export function ComponentMethod(props: ComponentMethodProps) {
@@ -29,66 +35,109 @@ export function ComponentMethod(props: ComponentMethodProps) {
 
     const [curId, setCurId] = useState<number>();
     const [curMethod, setCurMethod] = useState<string>();
+    const [paramsText, setParamsText] = useState<string>('[]');
 
     useEffect(() => {
         if(value) {
             setCurId(value.componentId)
             setCurMethod(value.method)
+            setParamsText(formatJson(value.params || []))
 
             setSelectedComponent(getComponentById(value.componentId, components))
+        } else {
+            setCurId(undefined);
+            setCurMethod(undefined);
+            setParamsText('[]');
+            setSelectedComponent(undefined);
         }
-    }, [value]);
+    }, [value, components]);
 
     function componentChange(value: number) {
         if (!curComponentId) return;
+        const nextComponent = getComponentById(value, components);
+        const methods = componentConfig[nextComponent?.name || '']?.methods || [];
+        const nextMethod = methods.some((method) => method.name === curMethod) ? curMethod : undefined;
     
         setCurId(value);
-        setSelectedComponent(getComponentById(value, components))
+        setSelectedComponent(nextComponent)
+        setCurMethod(nextMethod);
+
+        if (nextMethod) {
+            emit(value, nextMethod, paramsText);
+        } else {
+            onChange?.(undefined);
+        }
     }
 
     function componentMethodChange(value: string) {
         if (!curComponentId || !selectedComponent) return;
 
         setCurMethod(value);
+        emit(selectedComponent.id, value, paramsText);
+    }
+
+    function parseParams(value: string) {
+        try {
+            const result = JSON.parse(value || '[]');
+            return Array.isArray(result) ? result : [];
+        } catch (error) {
+            return [];
+        }
+    }
+
+    function emit(componentId: number, method = curMethod, params = paramsText) {
+        if (!method) return;
 
         onChange?.({
-            type: 'componentMethod',
-            config: {
-                componentId: selectedComponent?.id,
-                method: value
+            actionType: 'componentAction',
+            componentId,
+            args: {
+                method,
+                params: parseParams(params),
             }
         })
     }
 
-    return <div className='mt-[40px]'>
-        <div  className='flex items-center gap-[10px]'>
-            <div>组件：</div>
-            <div>
+    return <div className='mt-[24px] space-y-[16px]'>
+        <div>
+            <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">目标组件</div>
                 <TreeSelect
-                    style={{ width: 500, height: 50 }}
+                    className="w-full"
                     treeData={components}
                     fieldNames={{
                         label: 'name',
                         value: 'id',
                     }}
+                    placeholder="请选择要调用方法的组件"
                     value={curId}
                     onChange={(value) => { componentChange(value) }}
                 />
-            </div>
         </div>
         {componentConfig[selectedComponent?.name || ''] && (
-            <div  className='flex items-center gap-[10px] mt-[20px]'>
-                <div>方法：</div>
-                <div>
+            <div>
+                <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">组件方法</div>
                     <Select
-                        style={{ width: 500, height: 50 }}
+                        className="w-full"
+                        placeholder="请选择要执行的方法"
                         options={componentConfig[selectedComponent?.name || ''].methods?.map(
                             method => ({ label: method.label, value: method.name })
                         )}
                         value={curMethod}
                         onChange={(value) => { componentMethodChange(value) }}
                     />
-                </div>
+            </div>
+        )}
+        {selectedComponent && curMethod && (
+            <div>
+                <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">方法参数 JSON 数组</div>
+                <Input.TextArea
+                    autoSize={{ minRows: 3, maxRows: 6 }}
+                    value={paramsText}
+                    onChange={(event) => {
+                        setParamsText(event.target.value);
+                        emit(selectedComponent.id, curMethod, event.target.value);
+                    }}
+                />
             </div>
         )}
     </div>

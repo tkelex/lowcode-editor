@@ -5,6 +5,11 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { getComponentById, useComponetsStore } from '../../stores/components';
+import {
+  getMaskComponentNode,
+  getMaskContainer,
+  getMaskPosition,
+} from '../maskPosition';
 
 interface HoverMaskProps {
   portalWrapperClassName: string;
@@ -38,33 +43,55 @@ function HoverMask({ containerClassName, portalWrapperClassName, componentId }: 
     setPortalEl(document.querySelector(`.${portalWrapperClassName}`));
   }, [portalWrapperClassName]);
 
-  function updatePosition() {
-    if (!componentId) return;
-
+  useEffect(() => {
     const container = document.querySelector(`.${containerClassName}`);
     if (!container) return;
 
-    const node = document.querySelector(`[data-component-id="${componentId}"]`);
+    let frame = 0;
+    const updateOnFrame = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(updatePosition);
+    };
+
+    container.addEventListener('scroll', updateOnFrame);
+    window.addEventListener('resize', updateOnFrame);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      container.removeEventListener('scroll', updateOnFrame);
+      window.removeEventListener('resize', updateOnFrame);
+    };
+  }, [componentId, containerClassName]);
+
+  useEffect(() => {
+    const container = getMaskContainer(containerClassName);
+    if (!container) return;
+
+    const node = getMaskComponentNode(container, componentId);
     if (!node) return;
 
-    const { top, left, width, height } = node.getBoundingClientRect();
-    const { top: containerTop, left: containerLeft } = container.getBoundingClientRect();
+    const updateOnFrame = () => {
+      window.requestAnimationFrame(updatePosition);
+    };
+    const observer = new ResizeObserver(updateOnFrame);
+    observer.observe(container);
+    observer.observe(node);
 
-    let labelTop = top - containerTop + container.scrollTop;
-    let labelLeft = left - containerLeft + width;
+    return () => {
+      observer.disconnect();
+    };
+  }, [componentId, containerClassName]);
 
-    if (labelTop <= 0) {
-      labelTop -= -20;
-    }
-  
-    setPosition({
-      top: top - containerTop + container.scrollTop,
-      left: left - containerLeft + container.scrollTop,
-      width,
-      height,
-      labelTop,
-      labelLeft,
-    });
+  function updatePosition() {
+    if (!componentId) return;
+
+    const container = getMaskContainer(containerClassName);
+    if (!container) return;
+
+    const node = getMaskComponentNode(container, componentId);
+    if (!node) return;
+
+    setPosition(getMaskPosition(container, node));
   }
 
   const curComponent = useMemo(() => {
@@ -78,18 +105,13 @@ function HoverMask({ containerClassName, portalWrapperClassName, componentId }: 
   return createPortal((
     <>
       <div
+        className="editor-mask editor-mask-hover"
         style={{
-          position: "absolute",
           left: position.left,
           top: position.top,
-          backgroundColor: "rgba(0, 0, 255, 0.05)",
-          border: "1px dashed blue",
-          pointerEvents: "none",
           width: position.width,
           height: position.height,
           zIndex: 12,
-          borderRadius: 4,
-          boxSizing: 'border-box',
         }}
       />
       <div
@@ -103,16 +125,7 @@ function HoverMask({ containerClassName, portalWrapperClassName, componentId }: 
             transform: 'translate(-100%, -100%)',
           }}
         >
-          <div
-            style={{
-              padding: '0 8px',
-              backgroundColor: 'blue',
-              borderRadius: 4,
-              color: '#fff',
-              cursor: "pointer",
-              whiteSpace: 'nowrap',
-            }}
-          >
+          <div className="editor-mask-label">
             {curComponent?.desc}
           </div>
         </div>

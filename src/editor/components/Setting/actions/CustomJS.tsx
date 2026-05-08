@@ -1,10 +1,13 @@
 import { useEffect, useState } from "react";
 import { useComponetsStore } from "../../../stores/components";
+import { Typography } from "antd";
 import MonacoEditor, { OnMount } from '@monaco-editor/react'
 
 export interface CustomJSConfig {
-    type: 'customJS',
-    code: string
+    actionType: 'custom',
+    args: {
+        script: string
+    }
 }
 
 export interface CustomJSProps {
@@ -20,8 +23,8 @@ export function CustomJS(props: CustomJSProps) {
     const [value, setValue] = useState(defaultValue);
 
     useEffect(() => {
-        setValue(val);
-    }, [val]);
+        setValue(val || defaultValue || '');
+    }, [val, defaultValue]);
 
     function codeChange(value?: string) {
         if (!curComponentId) return;
@@ -29,8 +32,10 @@ export function CustomJS(props: CustomJSProps) {
         setValue(value);
 
         onChange?.({
-            type: 'customJS',
-            code: value!
+            actionType: 'custom',
+            args: {
+                script: value!
+            }
         })
     }
 
@@ -42,13 +47,15 @@ export function CustomJS(props: CustomJSProps) {
         });
     }
 
-    return <div className='mt-[40px]'>
-        <div className='flex items-start gap-[20px]'>
-            <div>自定义 JS</div>
-            <div>
+    return <div className='mt-[24px]'>
+        <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">自定义 JS</div>
+        <Typography.Text type="secondary" className="mb-[8px] block text-[12px]">
+            可用变量：context、event、args、doAction。常用数据：event.value、event.checked、event.values、event.httpResponse。
+        </Typography.Text>
+        <div className="overflow-hidden rounded-[6px] border border-[#e5e7eb]">
                 <MonacoEditor
-                    width={'600px'}
-                    height={'400px'}
+                    width={'100%'}
+                    height={'360px'}
                     path='action.js'
                     language='javascript'
                     onMount={handleEditorMount}
@@ -68,8 +75,6 @@ export function CustomJS(props: CustomJSProps) {
                         }
                     }
                 />
-            </div>
         </div>
     </div>
 }
-
