@@ -51,6 +51,21 @@ export interface AuditLog {
 
 export type PageSchema = LowcodePageSchema;
 
+export interface PageTemplate {
+  id: number;
+  projectId?: number | null;
+  createdById: number;
+  type: 'page' | 'block';
+  title: string;
+  description?: string | null;
+  category?: string | null;
+  tags: string[];
+  schema: PageSchema;
+  visibility: 'project' | 'private' | string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface EditorPage {
   id: number;
   projectId: number;

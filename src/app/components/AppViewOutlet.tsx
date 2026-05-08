@@ -27,7 +27,12 @@ export function AppViewOutlet({
   }
 
   if (view.name === 'editor') {
-    return <LowcodeEditor pageId={view.pageId} projectRole={view.projectRole} onBack={onBackToDashboard} />;
+    return <LowcodeEditor
+      pageId={view.pageId}
+      projectId={view.projectId}
+      projectRole={view.projectRole}
+      onBack={onBackToDashboard}
+    />;
   }
 
   if (!user) {

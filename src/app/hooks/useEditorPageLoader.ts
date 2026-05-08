@@ -5,7 +5,7 @@ import { Component, useComponetsStore } from '../../editor/stores/components';
 import { getPage } from '../../shared/api/pages';
 import type { ProjectRole } from '../../shared/api/types';
 
-export function useEditorPageLoader(onPageLoaded: (pageId: number, projectRole?: ProjectRole) => void) {
+export function useEditorPageLoader(onPageLoaded: (pageId: number, projectId?: number, projectRole?: ProjectRole) => void) {
   const [loadingPage, setLoadingPage] = useState(false);
   const setComponents = useComponetsStore((state) => state.setComponents);
 
@@ -15,7 +15,7 @@ export function useEditorPageLoader(onPageLoaded: (pageId: number, projectRole?:
       const page = await getPage(pageId);
       const schema = migratePageSchema(page.schema, { pageId: page.id });
       setComponents(schema.components as Component[], { recordHistory: false });
-      onPageLoaded(pageId, projectRole);
+      onPageLoaded(pageId, page.projectId, projectRole);
     } catch {
       message.error('页面加载失败');
     } finally {

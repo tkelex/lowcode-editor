@@ -68,6 +68,8 @@ const auditActionText: Record<string, string> = {
   'page.rollback': '回滚页面',
   'page.delete': '删除页面',
   'page.version.delete': '删除版本',
+  'template.create': '创建模板',
+  'template.delete': '删除模板',
 };
 
 export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboardProps) {

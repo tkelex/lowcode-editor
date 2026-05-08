@@ -12,6 +12,7 @@ import type { ProjectRole } from '../shared/api/types';
 
 export interface LowcodeEditorProps {
     pageId?: number;
+    projectId?: number;
     projectRole?: ProjectRole;
     onBack?: () => void;
 }
@@ -63,7 +64,7 @@ class EditorBodyBoundary extends Component<EditorBodyBoundaryProps, EditorBodyBo
     }
 }
 
-export default function ReactPlayground({ pageId, projectRole, onBack }: LowcodeEditorProps) {
+export default function ReactPlayground({ pageId, projectId, projectRole, onBack }: LowcodeEditorProps) {
     const mode = useComponetsStore((state) => state.mode);
     const setMode = useComponetsStore((state) => state.setMode);
 
@@ -81,7 +82,7 @@ export default function ReactPlayground({ pageId, projectRole, onBack }: Lowcode
                     ? <div className="min-h-0 flex-1">
                         <Allotment>
                             <Allotment.Pane preferredSize={280} maxSize={420} minSize={240}>
-                                <MaterialWrapper />
+                                <MaterialWrapper projectId={projectId} projectRole={projectRole} />
                             </Allotment.Pane>
                             <Allotment.Pane>
                                 <EditArea />

@@ -17,8 +17,8 @@ function App() {
     disabled: isPublicRoute,
   });
 
-  const handlePageLoaded = useCallback((pageId: number, projectRole?: ProjectRole) => {
-    setView({ name: 'editor', pageId, projectRole });
+  const handlePageLoaded = useCallback((pageId: number, projectId?: number, projectRole?: ProjectRole) => {
+    setView({ name: 'editor', pageId, projectId, projectRole });
   }, []);
   const { loadingPage, openPage } = useEditorPageLoader(handlePageLoaded);
 
