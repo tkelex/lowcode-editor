@@ -17,5 +17,48 @@ services:
       timeout: 5s
       retries: 5
 
+  server:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.server
+    container_name: lowcode-editor-server
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/lowcode_editor?schema=public
+      JWT_SECRET: local-docker-change-me
+      JWT_EXPIRES_IN: 7d
+      PORT: 3000
+      FRONTEND_ORIGIN: http://localhost:8080
+      UPLOAD_DIR: /app/server/uploads
+      UPLOAD_MAX_SIZE: 5242880
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm run prisma:deploy && npm run start"
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads_data:/app/server/uploads
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: lowcode-editor-web
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      - "8080:80"
+
 volumes:
   postgres_data:
+  uploads_data:

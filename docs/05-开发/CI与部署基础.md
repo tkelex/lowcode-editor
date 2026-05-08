@@ -74,6 +74,12 @@ CI 失败时会上传：
 
 ## Docker 与 Nginx
 
+本地完整栈：
+
+```text
+docker-compose.yml
+```
+
 基础容器模板：
 
 ```text
@@ -86,6 +92,7 @@ infra/docker/docker-compose.prod.example.yml
 示例启动：
 
 ```bash
+docker compose up --build
 docker compose -f infra/docker/docker-compose.prod.example.yml up --build
 ```
 
@@ -102,5 +109,13 @@ docker compose -f infra/docker/docker-compose.prod.example.yml up --build
 - 数据库账号和密码
 - `FRONTEND_ORIGIN`
 - 对外端口和域名
+
+容器启动顺序：
+
+1. `postgres` 通过 `pg_isready` 健康检查。
+2. `server` 执行 `npm run prisma:deploy` 后启动 NestJS，并通过 `/api/health` 健康检查。
+3. `web` 使用 Nginx 托管前端静态资源，并把 `/api` 代理到 `server:3000/api`。
+
+上传素材会持久化到 `uploads_data` volume，本地源码启动时仍默认使用 `server/uploads/`。
 
 当前 Docker 配置是上线基础模板，不等于完整生产部署方案。后续还需要补 HTTPS、日志、备份、镜像版本管理、环境变量注入和灰度发布策略。
