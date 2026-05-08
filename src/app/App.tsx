@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PublishedPageView } from '../features/publish/PublishedPageView';
-import { User } from '../shared/api/types';
+import { ProjectRole, User } from '../shared/api/types';
 import { AppLoading } from './components/AppLoading';
 import { AppViewOutlet } from './components/AppViewOutlet';
 import { useAuthSession } from './hooks/useAuthSession';
@@ -17,8 +17,8 @@ function App() {
     disabled: isPublicRoute,
   });
 
-  const handlePageLoaded = useCallback((pageId: number) => {
-    setView({ name: 'editor', pageId });
+  const handlePageLoaded = useCallback((pageId: number, projectRole?: ProjectRole) => {
+    setView({ name: 'editor', pageId, projectRole });
   }, []);
   const { loadingPage, openPage } = useEditorPageLoader(handlePageLoaded);
 

@@ -8,9 +8,11 @@ import { Setting } from "./components/Setting";
 import { MaterialWrapper } from "./components/MaterialWrapper";
 import { useComponetsStore } from "./stores/components";
 import { Preview } from "./runtime/Preview";
+import type { ProjectRole } from '../shared/api/types';
 
 export interface LowcodeEditorProps {
     pageId?: number;
+    projectRole?: ProjectRole;
     onBack?: () => void;
 }
 
@@ -61,7 +63,7 @@ class EditorBodyBoundary extends Component<EditorBodyBoundaryProps, EditorBodyBo
     }
 }
 
-export default function ReactPlayground({ pageId, onBack }: LowcodeEditorProps) {
+export default function ReactPlayground({ pageId, projectRole, onBack }: LowcodeEditorProps) {
     const mode = useComponetsStore((state) => state.mode);
     const setMode = useComponetsStore((state) => state.setMode);
 
@@ -71,7 +73,7 @@ export default function ReactPlayground({ pageId, onBack }: LowcodeEditorProps) 
 
     return <div className='relative h-[100vh] flex flex-col bg-[#eef2f7]'>
         <div className='h-[60px] flex items-center border-b border-[#e5e7eb] bg-white shadow-sm'>
-            <Header pageId={pageId} onBack={onBack} />
+            <Header pageId={pageId} projectRole={projectRole} onBack={onBack} />
         </div>
         <EditorBodyBoundary mode={mode} onExitPreview={exitPreview} onBack={onBack}>
             {

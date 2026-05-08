@@ -3,18 +3,19 @@ import { useCallback, useState } from 'react';
 import { migratePageSchema } from '../../../packages/lowcode-schema/src';
 import { Component, useComponetsStore } from '../../editor/stores/components';
 import { getPage } from '../../shared/api/pages';
+import type { ProjectRole } from '../../shared/api/types';
 
-export function useEditorPageLoader(onPageLoaded: (pageId: number) => void) {
+export function useEditorPageLoader(onPageLoaded: (pageId: number, projectRole?: ProjectRole) => void) {
   const [loadingPage, setLoadingPage] = useState(false);
   const setComponents = useComponetsStore((state) => state.setComponents);
 
-  const openPage = useCallback(async (pageId: number) => {
+  const openPage = useCallback(async (pageId: number, projectRole?: ProjectRole) => {
     setLoadingPage(true);
     try {
       const page = await getPage(pageId);
       const schema = migratePageSchema(page.schema, { pageId: page.id });
       setComponents(schema.components as Component[], { recordHistory: false });
-      onPageLoaded(pageId);
+      onPageLoaded(pageId, projectRole);
     } catch {
       message.error('页面加载失败');
     } finally {

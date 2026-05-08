@@ -6,7 +6,7 @@ import { shallow } from 'zustand/shallow';
 import { CURRENT_SCHEMA_VERSION, migratePageSchema } from '../../../../packages/lowcode-schema/src';
 import type { LowcodeComponentSchema, LowcodePageSchema } from '../../../../packages/lowcode-schema/src';
 import { deletePageVersion, listPageVersions, publishPage, rollbackPage, updatePage } from '../../../shared/api/pages';
-import { PageVersion } from '../../../shared/api/types';
+import { PageVersion, ProjectRole } from '../../../shared/api/types';
 import { assertValidComponentTree } from '../../schema/validateComponents';
 import { useComponentConfigStore } from '../../registry/component-config';
 import { Component, useComponetsStore } from '../../stores/components';
@@ -14,10 +14,11 @@ import { useRuntimeLogsStore } from '../../stores/runtime-logs';
 
 interface HeaderProps {
   pageId?: number;
+  projectRole?: ProjectRole;
   onBack?: () => void;
 }
 
-export function Header({ pageId, onBack }: HeaderProps) {
+export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [versionDrawerOpen, setVersionDrawerOpen] = useState(false);
@@ -54,6 +55,7 @@ export function Header({ pageId, onBack }: HeaderProps) {
     clearRuntimeLogs: state.clearLogs,
   }), shallow);
   const runtimeErrorCount = runtimeLogs.filter((log) => log.level === 'error').length;
+  const canWritePage = projectRole === 'owner' || projectRole === 'editor';
 
   function buildPageSchema(): LowcodePageSchema {
     return {
@@ -83,6 +85,10 @@ export function Header({ pageId, onBack }: HeaderProps) {
       message.warning('当前页面未绑定后端页面，无法保存');
       return;
     }
+    if (!canWritePage) {
+      message.warning('当前角色只有查看权限，不能保存页面');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -101,6 +107,10 @@ export function Header({ pageId, onBack }: HeaderProps) {
   async function handlePublish() {
     if (!pageId) {
       message.warning('当前页面未绑定后端页面，无法发布');
+      return;
+    }
+    if (!canWritePage) {
+      message.warning('当前角色只有查看权限，不能发布页面');
       return;
     }
 
@@ -137,6 +147,10 @@ export function Header({ pageId, onBack }: HeaderProps) {
 
   async function loadVersions() {
     if (!pageId) return;
+    if (!canWritePage) {
+      message.warning('当前角色只有查看权限，不能回滚页面');
+      return;
+    }
 
     setLoadingVersions(true);
     try {
@@ -161,6 +175,10 @@ export function Header({ pageId, onBack }: HeaderProps) {
 
   async function handleRollback(version: PageVersion) {
     if (!pageId) return;
+    if (!canWritePage) {
+      message.warning('当前角色只有查看权限，不能删除版本');
+      return;
+    }
 
     setRollingBack(true);
     try {
@@ -222,8 +240,8 @@ export function Header({ pageId, onBack }: HeaderProps) {
               />
             </Tooltip>
           )}
-          {mode === 'edit' && <Button loading={saving} onClick={handleSave}>保存</Button>}
-          {mode === 'edit' && <Button loading={publishing} onClick={handlePublish}>发布</Button>}
+          {mode === 'edit' && <Button loading={saving} disabled={!canWritePage} onClick={handleSave}>保存</Button>}
+          {mode === 'edit' && <Button loading={publishing} disabled={!canWritePage} onClick={handlePublish}>发布</Button>}
           {mode === 'edit' && <Button onClick={openVersionDrawer}>版本历史</Button>}
           <Tooltip title="查看预览和事件动作运行日志">
             <Button
@@ -282,7 +300,7 @@ export function Header({ pageId, onBack }: HeaderProps) {
                   cancelText="取消"
                   onConfirm={() => void handleRollback(version)}
                 >
-                  <Button type="link" loading={rollingBack}>回滚</Button>
+                  <Button type="link" disabled={!canWritePage} loading={rollingBack}>回滚</Button>
                 </Popconfirm>,
                 <Popconfirm
                   key="delete"
@@ -293,7 +311,7 @@ export function Header({ pageId, onBack }: HeaderProps) {
                   okButtonProps={{ danger: true }}
                   onConfirm={() => void handleDeleteVersion(version)}
                 >
-                  <Button type="link" danger loading={deletingVersionId === version.id}>删除</Button>
+                  <Button type="link" danger disabled={!canWritePage} loading={deletingVersionId === version.id}>删除</Button>
                 </Popconfirm>,
               ]}
             >

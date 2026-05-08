@@ -1,7 +1,7 @@
 import LowcodeEditor from '../../editor/';
 import { AuthView } from '../../features/auth/AuthView';
 import { ProjectDashboard } from '../../features/projects/ProjectDashboard';
-import { User } from '../../shared/api/types';
+import { ProjectRole, User } from '../../shared/api/types';
 import type { AppView } from '../routes/types';
 import { AppLoading } from './AppLoading';
 
@@ -9,7 +9,7 @@ interface AppViewOutletProps {
   view: AppView;
   user: User | null;
   onAuthenticated: (user: User) => void;
-  onOpenPage: (pageId: number) => void;
+  onOpenPage: (pageId: number, projectRole?: ProjectRole) => void;
   onLogout: () => void;
   onBackToDashboard: () => void;
 }
@@ -27,7 +27,7 @@ export function AppViewOutlet({
   }
 
   if (view.name === 'editor') {
-    return <LowcodeEditor pageId={view.pageId} onBack={onBackToDashboard} />;
+    return <LowcodeEditor pageId={view.pageId} projectRole={view.projectRole} onBack={onBackToDashboard} />;
   }
 
   if (!user) {
