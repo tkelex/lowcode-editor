@@ -43,6 +43,8 @@ node_modules/.tmp/
 
 # generated reports
 reports/
+test-results/
+playwright-report/
 
 # Claude local settings
 .claude/settings.local.json

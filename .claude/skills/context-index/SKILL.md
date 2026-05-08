@@ -1,4 +1,4 @@
----
+﻿---
 name: context-index
 description: Generate and maintain concise project context indexes for future Claude Code sessions and other AI tools.
 ---
@@ -15,13 +15,13 @@ Generate durable, low-token Markdown indexes that let an AI understand this proj
 
 Update these files when running the skill:
 
-1. `docs/CONTEXT_INDEX.md` — first-read project map and recommended reading order.
-2. `docs/ARCHITECTURE.md` — stable architecture, data flow, and module boundaries.
-3. `docs/API.md` — backend API surface, auth behavior, and schema persistence contracts.
-4. `docs/DECISIONS.md` — important product and technical decisions with rationale.
+1. `docs/00-总览/项目上下文索引.md` — first-read project map and recommended reading order.
+2. `docs/02-架构/架构说明.md` — stable architecture, data flow, and module boundaries.
+3. `docs/03-接口/接口说明.md` — backend API surface, auth behavior, and schema persistence contracts.
+4. `docs/02-架构/技术决策记录.md` — important product and technical decisions with rationale.
 5. `.claude/context/FILE_MAP.md` — concise key-file map with ownership, purpose, and edit risks.
 6. `CLAUDE.md` — keep as a short operational entry and link to detailed context docs.
-7. `docs/development-progress-summary.md` — append milestone summary, verification, and learning notes when meaningful changes were made.
+7. `docs/08-复盘/开发进度与学习总结.md` — append milestone summary, verification, and learning notes when meaningful changes were made.
 
 ## Process
 
@@ -64,3 +64,4 @@ Update these files when running the skill:
 - Do not store secrets, `.env` values, tokens, passwords, or private credentials in generated docs.
 - Do not describe every file in the repository; only list files that future AI sessions are likely to need.
 - Do not invent APIs, routes, scripts, or deployment steps that are not present.
+
