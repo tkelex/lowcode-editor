@@ -8,6 +8,7 @@ import type { LowcodeComponentSchema, LowcodePageSchema } from '../../../../pack
 import { deletePageVersion, listPageVersions, publishPage, rollbackPage, updatePage } from '../../../shared/api/pages';
 import { PageVersion, ProjectRole } from '../../../shared/api/types';
 import { assertValidComponentTree } from '../../schema/validateComponents';
+import { ComponentDiffSummary, diffComponentTrees } from '../../schema/diffComponents';
 import { useComponentConfigStore } from '../../registry/component-config';
 import { Component, useComponetsStore } from '../../stores/components';
 import { useRuntimeLogsStore } from '../../stores/runtime-logs';
@@ -25,6 +26,9 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
   const [versions, setVersions] = useState<PageVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [runtimeLogDrawerOpen, setRuntimeLogDrawerOpen] = useState(false);
+  const [diffDrawerOpen, setDiffDrawerOpen] = useState(false);
+  const [diffTitle, setDiffTitle] = useState('');
+  const [diffSummary, setDiffSummary] = useState<ComponentDiffSummary | null>(null);
   const [rollingBack, setRollingBack] = useState(false);
   const [deletingVersionId, setDeletingVersionId] = useState<number | null>(null);
 
@@ -209,6 +213,19 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
     }
   }
 
+  function handleCompareVersion(version: PageVersion) {
+    const currentSchema = buildPageSchema();
+    const versionSchema = migratePageSchema(version.schema, { pageId });
+    const summary = diffComponentTrees(
+      versionSchema.components as LowcodeComponentSchema[],
+      currentSchema.components,
+    );
+
+    setDiffTitle(`v${version.versionNo} 与当前草稿对比`);
+    setDiffSummary(summary);
+    setDiffDrawerOpen(true);
+  }
+
   return (
     <div className='flex h-full w-full items-center'>
       <div className='flex h-[60px] w-full items-center justify-between px-[20px]'>
@@ -302,6 +319,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
                 >
                   <Button type="link" disabled={!canWritePage} loading={rollingBack}>回滚</Button>
                 </Popconfirm>,
+                <Button key="compare" type="link" onClick={() => handleCompareVersion(version)}>对比</Button>,
                 <Popconfirm
                   key="delete"
                   title={`确认删除 v${version.versionNo}？`}
@@ -375,8 +393,59 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
           )}
         />
       </Drawer>
+
+      <Drawer
+        title={diffTitle || '版本对比'}
+        open={diffDrawerOpen}
+        width={560}
+        onClose={() => setDiffDrawerOpen(false)}
+      >
+        {diffSummary && <VersionDiffSummary summary={diffSummary} />}
+      </Drawer>
     </div>
   )
+}
+
+function VersionDiffSummary({ summary }: { summary: ComponentDiffSummary }) {
+  const hasDiff = summary.added.length > 0 || summary.removed.length > 0 || summary.updated.length > 0;
+
+  if (!hasDiff) {
+    return <div className="rounded-[8px] border border-[#dbeafe] bg-[#eff6ff] p-[16px] text-[#1d4ed8]">
+      当前草稿和该历史版本没有组件结构、属性或样式差异。
+    </div>;
+  }
+
+  return <Space direction="vertical" size={16} className="w-full">
+    <DiffGroup title="新增组件" color="green" items={summary.added} />
+    <DiffGroup title="删除组件" color="red" items={summary.removed} />
+    <DiffGroup title="变更组件" color="blue" items={summary.updated} />
+  </Space>;
+}
+
+function DiffGroup({ title, color, items }: { title: string; color: string; items: ComponentDiffSummary[keyof ComponentDiffSummary] }) {
+  return <div>
+    <div className="mb-[8px] flex items-center gap-[8px]">
+      <Typography.Text strong>{title}</Typography.Text>
+      <Tag color={color}>{items.length}</Tag>
+    </div>
+    <List
+      size="small"
+      dataSource={items}
+      locale={{ emptyText: '无' }}
+      renderItem={(item) => (
+        <List.Item>
+          <List.Item.Meta
+            title={<Space>
+              <Typography.Text strong>#{item.id}</Typography.Text>
+              <Typography.Text>{item.desc || item.name}</Typography.Text>
+              <Typography.Text type="secondary">{item.name}</Typography.Text>
+            </Space>}
+            description={item.changes.join('、')}
+          />
+        </List.Item>
+      )}
+    />
+  </div>;
 }
 
 function serializeComponent(component: Component): LowcodeComponentSchema {
