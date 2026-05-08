@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
+import { BusinessException } from '../../common/errors/business.exception';
+import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
@@ -21,7 +23,11 @@ export class AuthService {
     ]);
 
     if (emailUser || usernameUser) {
-      throw new BadRequestException('Email or username already exists');
+      throw new BusinessException(
+        AppErrorCode.AUTH_ACCOUNT_EXISTS,
+        'Email or username already exists',
+        HttpStatus.BAD_REQUEST,
+      );
     }
 
     const passwordHash = await hash(dto.password, 12);
@@ -42,12 +48,20 @@ export class AuthService {
       : await this.usersService.findByUsername(dto.account);
 
     if (!user) {
-      throw new UnauthorizedException('Invalid account or password');
+      throw new BusinessException(
+        AppErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid account or password',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     const passwordMatched = await compare(dto.password, user.passwordHash);
     if (!passwordMatched) {
-      throw new UnauthorizedException('Invalid account or password');
+      throw new BusinessException(
+        AppErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid account or password',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     return this.createAuthResponse(user);
@@ -56,7 +70,11 @@ export class AuthService {
   async me(userId: number) {
     const user = await this.usersService.findById(userId);
     if (!user) {
-      throw new UnauthorizedException('User not found');
+      throw new BusinessException(
+        AppErrorCode.AUTH_USER_NOT_FOUND,
+        'User not found',
+        HttpStatus.UNAUTHORIZED,
+      );
     }
 
     return this.toSafeUser(user);

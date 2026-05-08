@@ -1,10 +1,12 @@
 import { ArgumentsHost, Catch, ExceptionFilter, HttpException, HttpStatus } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
+import { AppErrorCode } from '../errors/error-codes';
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
+    const request = ctx.getRequest<Request>();
     const response = ctx.getResponse<Response>();
     const status = exception instanceof HttpException
       ? exception.getStatus()
@@ -13,7 +15,10 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
     response.status(status).json({
       statusCode: status,
+      code: this.getCode(exceptionResponse, status),
       message: this.getMessage(exceptionResponse),
+      path: request.url,
+      method: request.method,
       timestamp: new Date().toISOString(),
     });
   }
@@ -32,5 +37,19 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     return 'Request failed';
+  }
+
+  private getCode(exceptionResponse: string | object | null, status: HttpStatus) {
+    if (exceptionResponse && typeof exceptionResponse === 'object' && 'code' in exceptionResponse) {
+      return exceptionResponse.code;
+    }
+
+    if (status === HttpStatus.BAD_REQUEST) return AppErrorCode.BAD_REQUEST;
+    if (status === HttpStatus.UNAUTHORIZED) return AppErrorCode.UNAUTHORIZED;
+    if (status === HttpStatus.FORBIDDEN) return AppErrorCode.FORBIDDEN;
+    if (status === HttpStatus.NOT_FOUND) return AppErrorCode.NOT_FOUND;
+    if (status === HttpStatus.CONFLICT) return AppErrorCode.CONFLICT;
+
+    return AppErrorCode.INTERNAL_ERROR;
   }
 }

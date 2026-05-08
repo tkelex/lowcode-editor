@@ -6,6 +6,16 @@ import { RollbackPageDto } from './dto/rollback-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
 import { PagesService } from './pages.service';
 
+@Controller('public/pages')
+export class PublicPagesController {
+  constructor(private readonly pagesService: PagesService) {}
+
+  @Get(':publicId')
+  getPublished(@Param('publicId') publicId: string) {
+    return this.pagesService.getPublished(publicId);
+  }
+}
+
 @UseGuards(JwtAuthGuard)
 @Controller()
 export class PagesController {
@@ -37,6 +47,16 @@ export class PagesController {
     @Body() dto: UpdatePageDto,
   ) {
     return this.pagesService.update(id, user.userId, dto);
+  }
+
+  @Post('pages/:id/publish')
+  publish(@CurrentUser() user: CurrentUserPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.pagesService.publish(id, user.userId);
+  }
+
+  @Post('pages/:id/unpublish')
+  unpublish(@CurrentUser() user: CurrentUserPayload, @Param('id', ParseIntPipe) id: number) {
+    return this.pagesService.unpublish(id, user.userId);
   }
 
   @Get('pages/:id/versions')

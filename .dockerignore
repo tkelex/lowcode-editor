@@ -1,0 +1,15 @@
+node_modules
+server/node_modules
+dist
+server/dist
+coverage
+reports
+.git
+.github
+.env
+.env.*
+server/.env
+server/.env.*
+*.log
+*.tsbuildinfo
+node_modules/.tmp

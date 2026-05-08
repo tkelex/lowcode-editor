@@ -1,32 +1,35 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { Prisma, ProjectMemberRole } from '@prisma/client';
+import { BusinessException } from '../../common/errors/business.exception';
+import { AppErrorCode } from '../../common/errors/error-codes';
+import { AuditLogsService } from '../audit/audit-logs.service';
+import {
+  EDITABLE_PROJECT_ROLES,
+  ProjectAccessService,
+  READABLE_PROJECT_ROLES,
+} from '../projects/project-access.service';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ProjectsService } from '../projects/projects.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
+import { PagePublishService } from './page-publish.service';
+import { PageSchemaService } from './page-schema.service';
+import { PageVersionsService } from './page-versions.service';
 
-const defaultSchema = {
-  schemaVersion: '1.0.0',
-  components: [
-    {
-      id: 1,
-      name: 'Page',
-      props: {},
-      desc: '页面',
-    },
-  ],
-  metadata: {},
-};
+type PageWithProject = Prisma.PageGetPayload<{ include: { project: true } }>;
 
 @Injectable()
 export class PagesService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly projectsService: ProjectsService,
+    private readonly projectAccessService: ProjectAccessService,
+    private readonly pageSchemaService: PageSchemaService,
+    private readonly pageVersionsService: PageVersionsService,
+    private readonly pagePublishService: PagePublishService,
+    private readonly auditLogsService: AuditLogsService,
   ) {}
 
-  async list(projectId: number, ownerId: number) {
-    await this.projectsService.getOwnedProject(projectId, ownerId);
+  async list(projectId: number, userId: number) {
+    await this.projectAccessService.requireProjectRole(projectId, userId, READABLE_PROJECT_ROLES);
 
     return this.prisma.page.findMany({
       where: { projectId },
@@ -34,178 +37,275 @@ export class PagesService {
     });
   }
 
-  async create(projectId: number, ownerId: number, dto: CreatePageDto) {
-    await this.projectsService.getOwnedProject(projectId, ownerId);
+  async create(projectId: number, userId: number, dto: CreatePageDto) {
+    await this.projectAccessService.requireProjectRole(projectId, userId, EDITABLE_PROJECT_ROLES);
+    const schema = this.pageSchemaService.normalizeSchema(dto.schema, undefined);
 
     try {
-      return await this.prisma.page.create({
-        data: {
-          projectId,
-          createdById: ownerId,
-          name: dto.name,
-          routePath: dto.routePath,
-          schema: this.normalizeSchema(dto.schema, undefined),
-        },
+      return await this.prisma.$transaction(async (tx) => {
+        const page = await tx.page.create({
+          data: {
+            projectId,
+            createdById: userId,
+            name: dto.name,
+            routePath: dto.routePath,
+            schema,
+          },
+        });
+
+        await this.auditLogsService.record(
+          {
+            actorId: userId,
+            projectId,
+            pageId: page.id,
+            action: 'page.create',
+            targetType: 'page',
+            targetId: page.id,
+            summary: `Create page ${page.name}`,
+            metadata: {
+              name: page.name,
+              routePath: page.routePath,
+            },
+          },
+          tx,
+        );
+
+        return page;
       });
     } catch (error) {
-      if (this.isUniqueConstraintError(error)) {
-        throw new ConflictException('Page route path already exists in this project');
-      }
-
+      this.throwRouteConflictIfNeeded(error);
       throw error;
     }
   }
 
-  async get(id: number, ownerId: number) {
-    return this.getOwnedPage(id, ownerId);
+  async get(id: number, userId: number) {
+    return this.getPageForAccess(id, userId, READABLE_PROJECT_ROLES);
   }
 
-  async update(id: number, ownerId: number, dto: UpdatePageDto) {
-    await this.getOwnedPage(id, ownerId);
+  async update(id: number, userId: number, dto: UpdatePageDto) {
+    const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
 
-    if (!dto.schema) {
-      return this.prisma.page.update({
-        where: { id },
-        data: {
-          name: dto.name,
-          routePath: dto.routePath,
-        },
-      });
-    }
+    try {
+      if (!dto.schema) {
+        return await this.prisma.$transaction(async (tx) => {
+          const updatedPage = await tx.page.update({
+            where: { id },
+            data: {
+              name: dto.name,
+              routePath: dto.routePath,
+            },
+          });
 
-    const schema = this.normalizeSchema(dto.schema, id);
+          await this.auditLogsService.record(
+            {
+              actorId: userId,
+              projectId: page.projectId,
+              pageId: id,
+              action: 'page.update',
+              targetType: 'page',
+              targetId: id,
+              summary: `Update page ${updatedPage.name}`,
+              metadata: this.getDefinedJson({
+                name: dto.name,
+                routePath: dto.routePath,
+                schemaChanged: false,
+              }),
+            },
+            tx,
+          );
 
-    return this.prisma.$transaction(async (tx) => {
-      const updatedPage = await tx.page.update({
-        where: { id },
-        data: {
-          name: dto.name,
-          routePath: dto.routePath,
-          schema,
-        },
-      });
+          return updatedPage;
+        });
+      }
 
-      await tx.pageVersion.create({
-        data: {
+      const schema = this.pageSchemaService.normalizeSchema(dto.schema, id);
+
+      return await this.prisma.$transaction(async (tx) => {
+        const updatedPage = await tx.page.update({
+          where: { id },
+          data: {
+            name: dto.name,
+            routePath: dto.routePath,
+            schema,
+          },
+        });
+
+        const version = await this.pageVersionsService.create(tx, {
           pageId: id,
-          createdById: ownerId,
-          versionNo: await this.getNextVersionNo(tx, id),
+          createdById: userId,
           schema,
           source: 'save',
-        },
+        });
+
+        await this.auditLogsService.record(
+          {
+            actorId: userId,
+            projectId: page.projectId,
+            pageId: id,
+            action: 'page.update',
+            targetType: 'page',
+            targetId: id,
+            summary: `Save page ${updatedPage.name}`,
+            metadata: this.getDefinedJson({
+              name: dto.name,
+              routePath: dto.routePath,
+              schemaChanged: true,
+              versionId: version.id,
+              versionNo: version.versionNo,
+            }),
+          },
+          tx,
+        );
+
+        return updatedPage;
       });
-
-      return updatedPage;
-    });
+    } catch (error) {
+      this.throwRouteConflictIfNeeded(error);
+      throw error;
+    }
   }
 
-  async listVersions(id: number, ownerId: number) {
-    await this.getOwnedPage(id, ownerId);
+  async publish(id: number, userId: number) {
+    const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
+    const publishedPage = await this.pagePublishService.publish(page, userId);
 
-    return this.prisma.pageVersion.findMany({
-      where: { pageId: id },
-      orderBy: { createdAt: 'desc' },
-    });
-  }
-
-  async rollback(id: number, versionId: number, ownerId: number) {
-    await this.getOwnedPage(id, ownerId);
-
-    const version = await this.prisma.pageVersion.findFirst({
-      where: {
-        id: versionId,
-        pageId: id,
+    await this.auditLogsService.record({
+      actorId: userId,
+      projectId: page.projectId,
+      pageId: id,
+      action: 'page.publish',
+      targetType: 'page',
+      targetId: id,
+      summary: `Publish page ${publishedPage.name}`,
+      metadata: {
+        publicId: publishedPage.publicId,
+        publishedVersionId: publishedPage.publishedVersionId,
       },
     });
 
-    if (!version) {
-      throw new NotFoundException('Page version not found');
-    }
+    return publishedPage;
+  }
 
-    const schema = this.normalizeSchema(version.schema as Record<string, unknown>, id);
+  async unpublish(id: number, userId: number) {
+    const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
+    const unpublishedPage = await this.pagePublishService.unpublish(id);
 
-    return this.prisma.$transaction(async (tx) => {
-      const updatedPage = await tx.page.update({
-        where: { id },
-        data: { schema },
-      });
+    await this.auditLogsService.record({
+      actorId: userId,
+      projectId: page.projectId,
+      pageId: id,
+      action: 'page.unpublish',
+      targetType: 'page',
+      targetId: id,
+      summary: `Unpublish page ${unpublishedPage.name}`,
+      metadata: {
+        publicId: unpublishedPage.publicId,
+        publishedVersionId: unpublishedPage.publishedVersionId,
+      },
+    });
 
-      await tx.pageVersion.create({
-        data: {
+    return unpublishedPage;
+  }
+
+  async getPublished(publicId: string) {
+    return this.pagePublishService.getPublished(publicId);
+  }
+
+  async listVersions(id: number, userId: number) {
+    await this.getPageForAccess(id, userId, READABLE_PROJECT_ROLES);
+    return this.pageVersionsService.list(id);
+  }
+
+  async rollback(id: number, versionId: number, userId: number) {
+    const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
+    const updatedPage = await this.pageVersionsService.rollback(id, versionId, userId);
+
+    await this.auditLogsService.record({
+      actorId: userId,
+      projectId: page.projectId,
+      pageId: id,
+      action: 'page.rollback',
+      targetType: 'page',
+      targetId: id,
+      summary: `Rollback page ${updatedPage.name}`,
+      metadata: { versionId },
+    });
+
+    return updatedPage;
+  }
+
+  async deleteVersion(pageId: number, versionId: number, userId: number) {
+    const page = await this.getPageForAccess(pageId, userId, EDITABLE_PROJECT_ROLES);
+    const result = await this.pageVersionsService.delete(pageId, versionId);
+
+    await this.auditLogsService.record({
+      actorId: userId,
+      projectId: page.projectId,
+      pageId,
+      action: 'page.version.delete',
+      targetType: 'pageVersion',
+      targetId: versionId,
+      summary: `Delete page version ${versionId}`,
+      metadata: { versionId },
+    });
+
+    return result;
+  }
+
+  async delete(id: number, userId: number) {
+    const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
+
+    await this.prisma.$transaction(async (tx) => {
+      await this.auditLogsService.record(
+        {
+          actorId: userId,
+          projectId: page.projectId,
           pageId: id,
-          createdById: ownerId,
-          versionNo: await this.getNextVersionNo(tx, id),
-          schema,
-          source: 'rollback',
-          message: `Rollback from version ${version.versionNo}`,
+          action: 'page.delete',
+          targetType: 'page',
+          targetId: id,
+          summary: `Delete page ${page.name}`,
+          metadata: {
+            name: page.name,
+            routePath: page.routePath,
+          },
         },
-      });
+        tx,
+      );
 
-      return updatedPage;
+      await tx.page.delete({ where: { id } });
     });
-  }
-
-  async deleteVersion(pageId: number, versionId: number, ownerId: number) {
-    await this.getOwnedPage(pageId, ownerId);
-
-    const result = await this.prisma.pageVersion.deleteMany({
-      where: {
-        id: versionId,
-        pageId,
-      },
-    });
-
-    if (result.count === 0) {
-      throw new NotFoundException('Page version not found');
-    }
 
     return { success: true };
   }
 
-  async delete(id: number, ownerId: number) {
-    await this.getOwnedPage(id, ownerId);
-    await this.prisma.page.delete({ where: { id } });
-    return { success: true };
-  }
-
-  private async getOwnedPage(id: number, ownerId: number) {
+  private async getPageForAccess(id: number, userId: number, allowedRoles: readonly ProjectMemberRole[]) {
     const page = await this.prisma.page.findUnique({
       where: { id },
       include: { project: true },
     });
 
-    if (!page || page.project.ownerId !== ownerId) {
-      throw new NotFoundException('Page not found');
+    if (!page) {
+      throw new BusinessException(AppErrorCode.PAGE_NOT_FOUND, 'Page not found', HttpStatus.NOT_FOUND);
     }
+
+    const role = await this.projectAccessService.getRoleForProject(page.project, userId);
+    this.projectAccessService.assertRole(role, allowedRoles, 'Page not found');
 
     return page;
   }
 
-  private async getNextVersionNo(tx: Prisma.TransactionClient, pageId: number) {
-    const latestVersion = await tx.pageVersion.findFirst({
-      where: { pageId },
-      orderBy: { versionNo: 'desc' },
-      select: { versionNo: true },
-    });
-
-    return (latestVersion?.versionNo ?? 0) + 1;
+  private throwRouteConflictIfNeeded(error: unknown) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new BusinessException(
+        AppErrorCode.PAGE_ROUTE_CONFLICT,
+        'Page route path already exists in this project',
+        HttpStatus.CONFLICT,
+      );
+    }
   }
 
-  private isUniqueConstraintError(error: unknown) {
-    return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
-  }
-
-  private normalizeSchema(schema: Record<string, unknown> | undefined, pageId: number | undefined): Prisma.InputJsonValue {
-    const nextSchema: Record<string, unknown> = schema ?? defaultSchema;
-
-    return {
-      ...nextSchema,
-      schemaVersion: typeof nextSchema.schemaVersion === 'string' ? nextSchema.schemaVersion : '1.0.0',
-      pageId: pageId ?? nextSchema.pageId ?? null,
-      metadata: {
-        ...(typeof nextSchema.metadata === 'object' && nextSchema.metadata !== null ? nextSchema.metadata : {}),
-        updatedAt: new Date().toISOString(),
-      },
-    } as Prisma.InputJsonValue;
+  private getDefinedJson(input: Record<string, unknown>) {
+    return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Prisma.InputJsonObject;
   }
 }

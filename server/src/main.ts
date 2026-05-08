@@ -16,7 +16,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
 
-  const port = configService.get<number>('PORT') ?? 3000;
+  const port = Number(configService.get<string>('PORT') ?? 3000);
   await app.listen(port);
 }
 
