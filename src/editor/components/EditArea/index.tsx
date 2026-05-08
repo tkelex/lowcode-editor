@@ -10,7 +10,7 @@ import { Dropdown, Segmented, Space, Typography } from "antd";
 import { useDragLayer } from "react-dnd";
 import { shallow } from 'zustand/shallow';
 import { useComponentConfigStore } from "../../registry/component-config";
-import { Component, useComponetsStore } from "../../stores/components"
+import { Component, getComponentById, useComponetsStore } from "../../stores/components"
 import HoverMask from "../HoverMask";
 import SelectedMask from "../SelectedMask";
 import "../../editorCanvas.css";
@@ -55,6 +55,10 @@ export function EditArea() {
         return components.map((component: Component) => {
             const config = componentConfig?.[component.name]
 
+            if (isHiddenComponent(component)) {
+                return null;
+            }
+
             if (!config?.dev) {
                 return null;
             }
@@ -92,7 +96,7 @@ export function EditArea() {
     const handleMouseOver: MouseEventHandler = (e)  => {
         const componentId = getEventComponentId(e);
 
-        if (componentId) {
+        if (componentId && !isLockedComponentId(componentId)) {
             setHoverComponentId(componentId);
         }
     }
@@ -100,7 +104,7 @@ export function EditArea() {
     const handleClick: MouseEventHandler = (e) => {
         const componentId = getEventComponentId(e);
 
-        if (componentId) {
+        if (componentId && !isLockedComponentId(componentId)) {
             setCurComponentId(componentId);
         }
     }
@@ -110,12 +114,20 @@ export function EditArea() {
         if (!componentId) return;
 
         e.preventDefault();
+        if (isLockedComponentId(componentId)) {
+            setContextMenu(null);
+            return;
+        }
         setCurComponentId(componentId);
         setContextMenu({
             componentId,
             x: e.clientX,
             y: e.clientY,
         });
+    }
+
+    function isLockedComponentId(componentId: number) {
+        return Boolean(getComponentById(componentId, components)?.props?.locked);
     }
 
     function handleWrapContainer(componentId: number) {
@@ -131,7 +143,7 @@ export function EditArea() {
     }
 
     const contextMenuComponentId = contextMenu?.componentId;
-    const contextMenuDisabled = !contextMenuComponentId || contextMenuComponentId === 1;
+    const contextMenuDisabled = !contextMenuComponentId || contextMenuComponentId === 1 || isLockedComponentId(contextMenuComponentId);
 
     return <div
         className={`relative h-full overflow-auto px-[32px] py-[24px] edit-area ${isDragging ? 'is-dragging' : ''}`}
@@ -273,4 +285,8 @@ export function EditArea() {
             />
         </Dropdown>
     </div>
+}
+
+function isHiddenComponent(component: Component) {
+    return component.id !== 1 && Boolean(component.props?.hidden);
 }

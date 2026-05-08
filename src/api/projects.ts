@@ -8,5 +8,6 @@ export {
   listProjectAuditLogs,
   listProjectMembers,
   removeProjectMember,
+  updateProject,
   updateProjectMember,
 } from '../shared/api/projects';

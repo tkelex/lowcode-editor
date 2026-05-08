@@ -205,6 +205,10 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
         return components.map((component: Component) => {
             const config = componentConfig?.[component.name]
 
+            if (component.id !== 1 && component.props?.hidden) {
+                return null;
+            }
+
             if (!config?.prod) {
                 return <div key={component.id} className="m-2 border border-red-300 bg-red-50 p-2 text-red-600">
                     未找到 {component.name} 的预览组件

@@ -52,7 +52,6 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
     getPublishedPage(publicId)
       .then((data) => {
         setPage(data);
-        document.title = data.name;
       })
       .catch(() => setFailed(true))
       .finally(() => setLoading(false));
@@ -76,11 +75,80 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
     return <PublishedPageErrorFallback title="页面数据异常" />;
   }
 
+  const pageProps = components[0]?.name === 'Page' ? components[0].props || {} : {};
+  const seoTitle = getTextMeta(pageProps.seoTitle) || page.name;
+  const seoDescription = getTextMeta(pageProps.seoDescription);
+  const favicon = getTextMeta(pageProps.favicon);
+
   return <PublishedPageErrorBoundary>
+    <PublishedPageSeo title={seoTitle} description={seoDescription} favicon={favicon} />
     <div className="min-h-screen bg-slate-50">
       <Preview components={components} allowCustomJS={false} />
     </div>
   </PublishedPageErrorBoundary>;
+}
+
+function PublishedPageSeo({ title, description, favicon }: { title: string; description?: string; favicon?: string }) {
+  useEffect(() => {
+    document.title = title;
+
+    const descriptionMeta = ensureMetaDescription();
+    const previousDescription = descriptionMeta.getAttribute('content') || '';
+    if (description) {
+      descriptionMeta.setAttribute('content', description);
+    } else {
+      descriptionMeta.removeAttribute('content');
+    }
+
+    const faviconLink = ensureFaviconLink();
+    const previousFavicon = faviconLink.getAttribute('href') || '';
+    if (favicon) {
+      faviconLink.setAttribute('href', favicon);
+    } else {
+      faviconLink.removeAttribute('href');
+    }
+
+    return () => {
+      restoreOptionalAttribute(descriptionMeta, 'content', previousDescription);
+      restoreOptionalAttribute(faviconLink, 'href', previousFavicon);
+    };
+  }, [description, favicon, title]);
+
+  return null;
+}
+
+function ensureMetaDescription() {
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.setAttribute('name', 'description');
+    document.head.appendChild(meta);
+  }
+
+  return meta;
+}
+
+function ensureFaviconLink() {
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.setAttribute('rel', 'icon');
+    document.head.appendChild(link);
+  }
+
+  return link;
+}
+
+function getTextMeta(value: unknown) {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function restoreOptionalAttribute(element: Element, name: string, value: string) {
+  if (value) {
+    element.setAttribute(name, value);
+  } else {
+    element.removeAttribute(name);
+  }
 }
 
 function PublishedPageErrorFallback({ title = '页面运行异常' }: { title?: string }) {

@@ -11,6 +11,11 @@ export async function createProject(input: { name: string; description?: string 
   return data;
 }
 
+export async function updateProject(projectId: number, input: { name?: string; description?: string }) {
+  const { data } = await http.patch<Project>(`/projects/${projectId}`, input);
+  return data;
+}
+
 export async function listProjectMembers(projectId: number) {
   const { data } = await http.get<ProjectMember[]>(`/projects/${projectId}/members`);
   return data;

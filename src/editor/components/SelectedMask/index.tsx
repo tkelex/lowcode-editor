@@ -138,12 +138,15 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
   }, [componentId, components]);
 
   function handleDelete() {
+    if (curComponent?.props?.locked) return;
+
     deleteComponent(curComponentId!);
     setCurComponentId(null);
   }
 
   function handleWrapContainer() {
     if (!curComponentId) return;
+    if (curComponent?.props?.locked) return;
 
     const config = componentConfig.Container;
     if (!config) return;
@@ -172,6 +175,8 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
   if (!portalEl) {
     return null;
   }
+
+  const isLocked = Boolean(curComponent?.props?.locked);
 
   return createPortal((
     <>
@@ -216,22 +221,22 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
             {curComponentId !== 1 && (
               <>
                 <Tooltip title="复制">
-                  <button className="editor-mask-action" type="button" onClick={() => duplicateComponent(curComponentId!)}>
+                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={() => duplicateComponent(curComponentId!)}>
                     <CopyOutlined />
                   </button>
                 </Tooltip>
                 <Tooltip title="上移">
-                  <button className="editor-mask-action" type="button" onClick={() => moveComponentSibling(curComponentId!, -1)}>
+                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={() => moveComponentSibling(curComponentId!, -1)}>
                     <ArrowUpOutlined />
                   </button>
                 </Tooltip>
                 <Tooltip title="下移">
-                  <button className="editor-mask-action" type="button" onClick={() => moveComponentSibling(curComponentId!, 1)}>
+                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={() => moveComponentSibling(curComponentId!, 1)}>
                     <ArrowDownOutlined />
                   </button>
                 </Tooltip>
                 <Tooltip title="包裹容器">
-                  <button className="editor-mask-action" type="button" onClick={handleWrapContainer}>
+                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={handleWrapContainer}>
                     <BorderOuterOutlined />
                   </button>
                 </Tooltip>
@@ -241,7 +246,7 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
                   cancelText={'取消'}
                   onConfirm={handleDelete}
                 >
-                  <button className="editor-mask-action is-danger" type="button">
+                  <button className="editor-mask-action is-danger" type="button" disabled={isLocked}>
                     <DeleteOutlined />
                   </button>
                 </Popconfirm>

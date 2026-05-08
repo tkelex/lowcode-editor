@@ -43,6 +43,8 @@ export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
       return <Select options={options} />
     } else if (type === 'input') {
       return <Input />
+    } else if (type === 'textarea') {
+      return <Input.TextArea rows={4} autoSize={{ minRows: 3, maxRows: 8 }} />
     } else if (type === 'inputNumber') {
       return <InputNumber className="w-full" />
     }

@@ -1,4 +1,4 @@
-import { AimOutlined, EditOutlined } from '@ant-design/icons';
+import { AimOutlined, EditOutlined, EyeInvisibleOutlined, EyeOutlined, LockOutlined, UnlockOutlined } from '@ant-design/icons';
 import { Button, Input, Space, Tooltip, Tree, Typography, message } from "antd";
 import { useState } from 'react';
 import { shallow } from 'zustand/shallow';
@@ -12,18 +12,32 @@ export function Outline() {
         setCurComponentId,
         moveComponentTo,
         renameComponent,
+        toggleComponentHidden,
+        toggleComponentLocked,
     } = useComponetsStore((state) => ({
         components: state.components,
         curComponentId: state.curComponentId,
         setCurComponentId: state.setCurComponentId,
         moveComponentTo: state.moveComponentTo,
         renameComponent: state.renameComponent,
+        toggleComponentHidden: state.toggleComponentHidden,
+        toggleComponentLocked: state.toggleComponentLocked,
     }), shallow);
     const componentConfig = useComponentConfigStore((state) => state.componentConfig);
     const [editingId, setEditingId] = useState<number | null>(null);
     const [editingValue, setEditingValue] = useState('');
 
     function locateComponent(componentId: number) {
+        const component = getComponentById(componentId, components);
+        if (component?.props?.hidden) {
+            message.info('组件已隐藏，可在大纲中取消隐藏后定位');
+            return;
+        }
+        if (component?.props?.locked) {
+            message.info('组件已锁定，可在大纲中解锁后选择');
+            return;
+        }
+
         setCurComponentId(componentId);
 
         window.requestAnimationFrame(() => {
@@ -68,6 +82,10 @@ export function Outline() {
         const targetComponent = getComponentById(targetId, components);
 
         if (!dragComponent || !targetComponent || dragId === 1) return;
+        if (dragComponent.props?.locked || targetComponent.props?.locked) {
+            message.warning('锁定组件不能移动，也不能接收其它组件');
+            return;
+        }
 
         if (info.dropToGap) {
             const parentId = targetComponent.parentId;
@@ -114,6 +132,9 @@ export function Outline() {
             titleRender={(nodeData: any) => {
                 const component = nodeData as Component;
                 const isEditing = editingId === component.id;
+                const hidden = Boolean(component.props?.hidden);
+                const locked = Boolean(component.props?.locked);
+                const systemNode = component.id === 1;
 
                 return <div className="flex min-w-0 items-center justify-between gap-[6px] py-[2px]">
                     {isEditing ? (
@@ -128,11 +149,13 @@ export function Outline() {
                         />
                     ) : (
                         <div className="min-w-0">
-                            <Typography.Text className="block max-w-full truncate text-[13px] text-[#111827]">
+                            <Typography.Text className={`block max-w-full truncate text-[13px] ${hidden ? 'text-[#94a3b8]' : 'text-[#111827]'}`}>
                                 {component.desc}
                             </Typography.Text>
                             <Typography.Text type="secondary" className="block max-w-full truncate text-[11px]">
                                 {component.name} #{component.id}
+                                {hidden ? ' / 已隐藏' : ''}
+                                {locked ? ' / 已锁定' : ''}
                             </Typography.Text>
                         </div>
                     )}
@@ -149,10 +172,35 @@ export function Outline() {
                                     }}
                                 />
                             </Tooltip>
+                            <Tooltip title={hidden ? '显示组件' : '隐藏组件'}>
+                                <Button
+                                    size="small"
+                                    type="text"
+                                    disabled={systemNode}
+                                    icon={hidden ? <EyeInvisibleOutlined /> : <EyeOutlined />}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        toggleComponentHidden(component.id);
+                                    }}
+                                />
+                            </Tooltip>
+                            <Tooltip title={locked ? '解锁组件' : '锁定组件'}>
+                                <Button
+                                    size="small"
+                                    type="text"
+                                    disabled={systemNode}
+                                    icon={locked ? <LockOutlined /> : <UnlockOutlined />}
+                                    onClick={(event) => {
+                                        event.stopPropagation();
+                                        toggleComponentLocked(component.id);
+                                    }}
+                                />
+                            </Tooltip>
                             <Tooltip title="重命名">
                                 <Button
                                     size="small"
                                     type="text"
+                                    disabled={locked}
                                     icon={<EditOutlined />}
                                     onClick={(event) => {
                                         event.stopPropagation();

@@ -19,7 +19,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
-import { createPage, listPages } from '../../shared/api/pages';
+import { createPage, listPages, listPageVersions } from '../../shared/api/pages';
 import {
   addProjectMember,
   createProject,
@@ -27,9 +27,10 @@ import {
   listProjectMembers,
   listProjects,
   removeProjectMember,
+  updateProject,
   updateProjectMember,
 } from '../../shared/api/projects';
-import { AuditLog, EditorPage, Project, ProjectMember, ProjectRole, User } from '../../shared/api/types';
+import { AuditLog, EditorPage, PageVersion, Project, ProjectMember, ProjectRole, User } from '../../shared/api/types';
 
 interface ProjectDashboardProps {
   user: User;
@@ -79,20 +80,27 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
   const [pages, setPages] = useState<EditorPage[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [publishVersions, setPublishVersions] = useState<PageVersion[]>([]);
+  const [publishRecordPage, setPublishRecordPage] = useState<EditorPage | null>(null);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projectModalOpen, setProjectModalOpen] = useState(false);
   const [pageModalOpen, setPageModalOpen] = useState(false);
+  const [projectSettingsOpen, setProjectSettingsOpen] = useState(false);
+  const [publishRecordDrawerOpen, setPublishRecordDrawerOpen] = useState(false);
   const [memberDrawerOpen, setMemberDrawerOpen] = useState(false);
   const [auditDrawerOpen, setAuditDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingPages, setLoadingPages] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [loadingAuditLogs, setLoadingAuditLogs] = useState(false);
+  const [loadingPublishRecords, setLoadingPublishRecords] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
+  const [savingProjectSettings, setSavingProjectSettings] = useState(false);
   const [updatingMemberId, setUpdatingMemberId] = useState<number | null>(null);
   const [removingMemberId, setRemovingMemberId] = useState<number | null>(null);
   const [pageForm] = Form.useForm<{ name: string; routePath: string }>();
   const [memberForm] = Form.useForm<AddMemberFormValues>();
+  const [projectSettingsForm] = Form.useForm<{ name: string; description?: string }>();
 
   const currentRole = selectedProject?.currentUserRole ?? 'viewer';
   const canManageProject = currentRole === 'owner';
@@ -161,6 +169,18 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
     }
   }
 
+  async function loadPublishRecords(page: EditorPage) {
+    setLoadingPublishRecords(true);
+    try {
+      const data = await listPageVersions(page.id);
+      setPublishVersions(data.filter((version) => version.source === 'publish'));
+    } catch {
+      message.error('加载发布记录失败');
+    } finally {
+      setLoadingPublishRecords(false);
+    }
+  }
+
   function getNextPageRoutePath() {
     const existingRoutePaths = new Set(pages.map((page) => page.routePath));
     let index = pages.length + 1;
@@ -202,6 +222,27 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
     await loadAuditLogs(selectedProject.id);
   }
 
+  function openProjectSettings() {
+    if (!selectedProject) return;
+
+    if (!canManageProject) {
+      message.warning('只有项目拥有者可以修改项目设置');
+      return;
+    }
+
+    projectSettingsForm.setFieldsValue({
+      name: selectedProject.name,
+      description: selectedProject.description || undefined,
+    });
+    setProjectSettingsOpen(true);
+  }
+
+  async function openPublishRecordDrawer(page: EditorPage) {
+    setPublishRecordPage(page);
+    setPublishRecordDrawerOpen(true);
+    await loadPublishRecords(page);
+  }
+
   async function handleCreateProject(values: { name: string; description?: string }) {
     try {
       const project = await createProject(values);
@@ -227,6 +268,25 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
       message.success('页面创建成功');
     } catch {
       message.error('页面创建失败，路径可能重复或格式不正确');
+    }
+  }
+
+  async function handleUpdateProjectSettings(values: { name: string; description?: string }) {
+    if (!selectedProject || !canManageProject) return;
+
+    setSavingProjectSettings(true);
+    try {
+      const updatedProject = await updateProject(selectedProject.id, values);
+      setProjects((currentProjects) => currentProjects.map((project) => (
+        project.id === updatedProject.id ? updatedProject : project
+      )));
+      setSelectedProject(updatedProject);
+      setProjectSettingsOpen(false);
+      message.success('项目设置已更新');
+    } catch {
+      message.error('更新项目设置失败');
+    } finally {
+      setSavingProjectSettings(false);
     }
   }
 
@@ -412,6 +472,9 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
         <Card
           title={selectedProject ? `${selectedProject.name} / 页面` : '页面'}
           extra={<Space>
+            <Tooltip title={canManageProject ? '修改项目名称和描述' : '只有项目拥有者可以修改项目设置'}>
+              <Button disabled={!selectedProject || !canManageProject} onClick={openProjectSettings}>项目设置</Button>
+            </Tooltip>
             <Button disabled={!selectedProject} onClick={() => void openMemberDrawer()}>成员</Button>
             <Tooltip title={canManageProject ? '查看项目关键操作记录' : '只有项目拥有者可以查看审计日志'}>
               <Button disabled={!selectedProject || !canManageProject} onClick={() => void openAuditDrawer()}>审计日志</Button>
@@ -433,6 +496,9 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
             dataSource={pages}
             locale={{ emptyText: selectedProject ? '暂无页面，请新建页面' : '请先选择项目' }}
             renderItem={(page) => <List.Item actions={[
+              <Button type="link" onClick={() => void openPublishRecordDrawer(page)}>
+                发布记录
+              </Button>,
               <Button type="link" onClick={() => onOpenPage(page.id, currentRole)}>
                 {canCreatePage ? '打开编辑器' : '查看页面'}
               </Button>,
@@ -473,6 +539,30 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
         <Button type="primary" htmlType="submit">创建</Button>
       </Form>
     </Modal>
+
+    <Drawer
+      title={selectedProject ? `${selectedProject.name} / 项目设置` : '项目设置'}
+      open={projectSettingsOpen}
+      width={480}
+      onClose={() => setProjectSettingsOpen(false)}
+    >
+      <Form
+        form={projectSettingsForm}
+        layout="vertical"
+        onFinish={handleUpdateProjectSettings}
+      >
+        <Form.Item name="name" label="项目名称" rules={[{ required: true, message: '请输入项目名称' }]}>
+          <Input maxLength={60} showCount />
+        </Form.Item>
+        <Form.Item name="description" label="项目描述">
+          <Input.TextArea rows={4} maxLength={300} showCount />
+        </Form.Item>
+        <Space>
+          <Button type="primary" htmlType="submit" loading={savingProjectSettings}>保存设置</Button>
+          <Button onClick={() => setProjectSettingsOpen(false)}>取消</Button>
+        </Space>
+      </Form>
+    </Drawer>
 
     <Drawer
       title={selectedProject ? `${selectedProject.name} / 成员` : '成员'}
@@ -527,6 +617,34 @@ export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboar
         columns={auditColumns}
         dataSource={auditLogs}
         pagination={{ pageSize: 12 }}
+      />
+    </Drawer>
+
+    <Drawer
+      title={publishRecordPage ? `${publishRecordPage.name} / 发布记录` : '发布记录'}
+      open={publishRecordDrawerOpen}
+      width={520}
+      onClose={() => setPublishRecordDrawerOpen(false)}
+      extra={<Button onClick={() => publishRecordPage && void loadPublishRecords(publishRecordPage)} loading={loadingPublishRecords}>刷新</Button>}
+    >
+      <List
+        loading={loadingPublishRecords}
+        dataSource={publishVersions}
+        locale={{ emptyText: publishRecordPage?.isPublished ? '暂无发布版本记录' : '当前页面尚未发布' }}
+        renderItem={(version) => (
+          <List.Item>
+            <List.Item.Meta
+              title={<Space>
+                <Typography.Text strong>v{version.versionNo}</Typography.Text>
+                <Tag color="green">发布</Tag>
+              </Space>}
+              description={<Space direction="vertical" size={2}>
+                <Typography.Text>{dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Typography.Text>
+                {version.message && <Typography.Text type="secondary">{version.message}</Typography.Text>}
+              </Space>}
+            />
+          </List.Item>
+        )}
       />
     </Drawer>
   </div>;

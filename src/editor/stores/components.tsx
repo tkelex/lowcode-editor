@@ -33,6 +33,8 @@ interface Action {
   duplicateComponent: (componentId: number) => void;
   renameComponent: (componentId: number, desc: string) => void;
   wrapComponent: (componentId: number, wrapperComponent: Component) => void;
+  toggleComponentHidden: (componentId: number) => void;
+  toggleComponentLocked: (componentId: number) => void;
   updateComponentProps: (componentId: number, props: any) => void;
   updateComponentStyles: (componentId: number, styles: CSSProperties, replace?: boolean) => void;
   setCurComponentId: (componentId: number | null) => void;
@@ -144,6 +146,10 @@ function getMaxComponentId(components: Component[]): number {
   }, 0);
 }
 
+function isComponentLocked(component: Component | null | undefined) {
+  return Boolean(component?.props?.locked);
+}
+
 function createComponentIdFactory(components: Component[]) {
   let currentId = Math.max(Date.now(), getMaxComponentId(components));
 
@@ -229,7 +235,7 @@ const creator: StateCreator<State & Action> = (set, get) => ({
 
       if (parentId) {
         const parentComponent = getComponentById(parentId, nextComponents);
-        if (!parentComponent) return state;
+        if (!parentComponent || isComponentLocked(parentComponent)) return state;
 
         nextComponent.parentId = parentId;
         parentComponent.children = [...(parentComponent.children || []), nextComponent];
@@ -246,6 +252,9 @@ const creator: StateCreator<State & Action> = (set, get) => ({
 
     set((state) => {
       const nextComponents = cloneComponents(state.components);
+      const component = getComponentById(componentId, nextComponents);
+      if (isComponentLocked(component)) return state;
+
       const removed = removeComponentById(nextComponents, componentId);
       if (!removed) return state;
 
@@ -272,6 +281,10 @@ const creator: StateCreator<State & Action> = (set, get) => ({
         return state;
       }
 
+      if (isComponentLocked(component) || isComponentLocked(parentComponent)) {
+        return state;
+      }
+
       component.parentId = parentId;
       parentComponent.children = [...(parentComponent.children || []), component];
 
@@ -292,6 +305,10 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const parentComponent = getComponentById(parentId, nextComponents);
 
       if (!component || !parentComponent) {
+        return state;
+      }
+
+      if (isComponentLocked(component) || isComponentLocked(parentComponent)) {
         return state;
       }
 
@@ -317,6 +334,7 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const nextComponents = cloneComponents(state.components);
       const info = getParentInfo(componentId, nextComponents);
       if (!info?.parent) return state;
+      if (isComponentLocked(info.component)) return state;
 
       const targetIndex = info.index + direction;
       if (targetIndex < 0 || targetIndex >= info.siblings.length) return state;
@@ -337,6 +355,7 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const nextComponents = cloneComponents(state.components);
       const info = getParentInfo(componentId, nextComponents);
       if (!info?.parent) return state;
+      if (isComponentLocked(info.component)) return state;
 
       const nextComponent = cloneComponentWithFreshIds(info.component, createComponentIdFactory(nextComponents), info.parent.id);
       info.siblings.splice(info.index + 1, 0, nextComponent);
@@ -356,6 +375,7 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const nextComponents = cloneComponents(state.components);
       const component = getComponentById(componentId, nextComponents);
       if (!component || component.desc === nextDesc) return state;
+      if (isComponentLocked(component)) return state;
 
       component.desc = nextDesc;
 
@@ -372,6 +392,7 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const nextComponents = cloneComponents(state.components);
       const info = getParentInfo(componentId, nextComponents);
       if (!info?.parent) return state;
+      if (isComponentLocked(info.component)) return state;
 
       const [component] = info.siblings.splice(info.index, 1);
       const wrapper = cloneComponents([wrapperComponent])[0];
@@ -385,6 +406,50 @@ const creator: StateCreator<State & Action> = (set, get) => ({
         ...pushHistory(state, nextComponents),
         curComponentId: wrapper.id,
         curComponent: wrapper,
+      };
+    });
+  },
+  toggleComponentHidden: (componentId) => {
+    if (!componentId || componentId === 1) return;
+
+    set((state) => {
+      const nextComponents = cloneComponents(state.components);
+      const component = getComponentById(componentId, nextComponents);
+      if (!component) return state;
+
+      component.props = {
+        ...(component.props || {}),
+        hidden: !component.props?.hidden,
+      };
+
+      return {
+        ...pushHistory(state, nextComponents),
+        curComponentId: state.curComponentId === componentId && component.props.hidden ? null : state.curComponentId,
+        curComponent: state.curComponentId === componentId
+          ? (component.props.hidden ? null : component)
+          : state.curComponent,
+      };
+    });
+  },
+  toggleComponentLocked: (componentId) => {
+    if (!componentId || componentId === 1) return;
+
+    set((state) => {
+      const nextComponents = cloneComponents(state.components);
+      const component = getComponentById(componentId, nextComponents);
+      if (!component) return state;
+
+      component.props = {
+        ...(component.props || {}),
+        locked: !component.props?.locked,
+      };
+
+      return {
+        ...pushHistory(state, nextComponents),
+        curComponentId: state.curComponentId === componentId && component.props.locked ? null : state.curComponentId,
+        curComponent: state.curComponentId === componentId
+          ? (component.props.locked ? null : component)
+          : state.curComponent,
       };
     });
   },

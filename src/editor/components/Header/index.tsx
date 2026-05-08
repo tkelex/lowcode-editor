@@ -1,7 +1,7 @@
 import { Button, Drawer, List, Popconfirm, Space, Tag, Tooltip, Typography, message } from 'antd';
-import { BugOutlined, RedoOutlined, UndoOutlined } from '@ant-design/icons';
+import { BugOutlined, QuestionCircleOutlined, RedoOutlined, UndoOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { CURRENT_SCHEMA_VERSION, migratePageSchema } from '../../../../packages/lowcode-schema/src';
 import type { LowcodeComponentSchema, LowcodePageSchema } from '../../../../packages/lowcode-schema/src';
@@ -26,6 +26,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
   const [versions, setVersions] = useState<PageVersion[]>([]);
   const [loadingVersions, setLoadingVersions] = useState(false);
   const [runtimeLogDrawerOpen, setRuntimeLogDrawerOpen] = useState(false);
+  const [shortcutDrawerOpen, setShortcutDrawerOpen] = useState(false);
   const [diffDrawerOpen, setDiffDrawerOpen] = useState(false);
   const [diffTitle, setDiffTitle] = useState('');
   const [diffSummary, setDiffSummary] = useState<ComponentDiffSummary | null>(null);
@@ -107,6 +108,73 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
       setSaving(false);
     }
   }
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName?.toLowerCase();
+      const typing = Boolean(
+        target?.isContentEditable
+        || tagName === 'input'
+        || tagName === 'textarea'
+        || tagName === 'select',
+      );
+      const modifier = event.ctrlKey || event.metaKey;
+
+      if (event.key === 'Escape' && mode === 'preview') {
+        event.preventDefault();
+        setMode('edit');
+        return;
+      }
+
+      if (typing || !modifier) {
+        return;
+      }
+
+      const key = event.key.toLowerCase();
+
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        if (mode === 'edit' && canUndo) {
+          undo();
+        }
+      }
+
+      if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        if (mode === 'edit' && canRedo) {
+          redo();
+        }
+      }
+
+      if (key === 's') {
+        event.preventDefault();
+        if (mode === 'edit' && canWritePage && !saving) {
+          void handleSave();
+        }
+      }
+
+      if (key === 'p') {
+        event.preventDefault();
+        if (mode === 'edit') {
+          setMode('preview');
+          setCurComponentId(null);
+        } else {
+          setMode('edit');
+        }
+      }
+
+      if (key === '/') {
+        event.preventDefault();
+        setShortcutDrawerOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [canRedo, canUndo, canWritePage, handleSave, mode, redo, saving, setCurComponentId, setMode, undo]);
 
   async function handlePublish() {
     if (!pageId) {
@@ -269,6 +337,13 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
               运行日志{runtimeErrorCount > 0 ? ` ${runtimeErrorCount}` : ''}
             </Button>
           </Tooltip>
+          <Tooltip title="查看编辑器快捷键">
+            <Button
+              aria-label="快捷键帮助"
+              icon={<QuestionCircleOutlined />}
+              onClick={() => setShortcutDrawerOpen(true)}
+            />
+          </Tooltip>
           {mode === 'edit' && (
             <Button
                 onClick={() => {
@@ -387,6 +462,34 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
                       {log.stack}
                     </Typography.Paragraph>
                   )}
+                </Space>}
+              />
+            </List.Item>
+          )}
+        />
+      </Drawer>
+
+      <Drawer
+        title="快捷键"
+        open={shortcutDrawerOpen}
+        width={420}
+        onClose={() => setShortcutDrawerOpen(false)}
+      >
+        <List
+          dataSource={[
+            { keys: 'Ctrl / Cmd + S', label: '保存当前页面' },
+            { keys: 'Ctrl / Cmd + Z', label: '撤销上一步编辑' },
+            { keys: 'Ctrl / Cmd + Shift + Z / Ctrl + Y', label: '重做编辑' },
+            { keys: 'Ctrl / Cmd + P', label: '进入或退出预览模式' },
+            { keys: 'Esc', label: '预览模式下退出预览' },
+            { keys: 'Ctrl / Cmd + /', label: '打开快捷键帮助' },
+          ]}
+          renderItem={(item) => (
+            <List.Item>
+              <List.Item.Meta
+                title={<Space>
+                  <Tag color="blue">{item.keys}</Tag>
+                  <Typography.Text>{item.label}</Typography.Text>
                 </Space>}
               />
             </List.Item>

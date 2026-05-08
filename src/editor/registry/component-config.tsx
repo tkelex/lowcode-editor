@@ -190,6 +190,10 @@ function inputSetter(name: string, label: string): ComponentSetter {
     return { name, label, type: 'input' };
 }
 
+function textareaSetter(name: string, label: string): ComponentSetter {
+    return { name, label, type: 'textarea' };
+}
+
 function numberSetter(name: string, label: string): ComponentSetter {
     return { name, label, type: 'inputNumber' };
 }
@@ -1230,6 +1234,9 @@ export const useComponentConfigStore = create<State & Action>((set) => ({
             defaultProps: {
                 variables: '{\n  "form": {},\n  "table": {}\n}',
                 dataSources: '{\n  "items": []\n}',
+                seoTitle: '',
+                seoDescription: '',
+                favicon: '',
             },
             desc: '页面',
             acceptsChildren: baseContainerAccepts(),
@@ -1238,8 +1245,11 @@ export const useComponentConfigStore = create<State & Action>((set) => ({
             keywords: ['page', '页面'],
             sort: 0,
             setter: [
-                inputSetter('variables', '页面变量 JSON'),
-                inputSetter('dataSources', '数据源 JSON'),
+                inputSetter('seoTitle', 'SEO 标题'),
+                textareaSetter('seoDescription', 'SEO 描述'),
+                inputSetter('favicon', 'Favicon 地址'),
+                textareaSetter('variables', '页面变量 JSON'),
+                textareaSetter('dataSources', '数据源 JSON'),
             ],
             stylesSetter: commonStyleSetters,
             dev: PageDev,
