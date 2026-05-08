@@ -8,6 +8,7 @@ dist-ssr/
 server/dist/
 build/
 coverage/
+server/uploads/
 
 # env files
 .env

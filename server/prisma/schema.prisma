@@ -19,6 +19,7 @@ model User {
   pages        Page[]        @relation("PageCreator")
   pageVersions PageVersion[] @relation("PageVersionCreator")
   pageTemplates PageTemplate[] @relation("PageTemplateCreator")
+  assets       Asset[]       @relation("AssetUploader")
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 }
@@ -33,6 +34,7 @@ model Project {
   pages       Page[]
   members     ProjectMember[]
   templates   PageTemplate[]
+  assets      Asset[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -130,6 +132,26 @@ model PageTemplate {
   @@index([projectId, type])
   @@index([createdById])
   @@index([visibility, type])
+}
+
+model Asset {
+  id           Int      @id @default(autoincrement())
+  projectId    Int
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedById Int
+  uploadedBy   User     @relation("AssetUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  url          String
+  storageKey   String
+  category     String   @default("file")
+  createdAt    DateTime @default(now())
+
+  @@index([projectId, createdAt])
+  @@index([uploadedById])
+  @@index([category])
 }
 
 enum ProjectMemberRole {

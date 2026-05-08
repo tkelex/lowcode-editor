@@ -70,6 +70,8 @@ const auditActionText: Record<string, string> = {
   'page.version.delete': '删除版本',
   'template.create': '创建模板',
   'template.delete': '删除模板',
+  'asset.upload': '上传素材',
+  'asset.delete': '删除素材',
 };
 
 export function ProjectDashboard({ user, onOpenPage, onLogout }: ProjectDashboardProps) {

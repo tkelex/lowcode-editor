@@ -66,6 +66,20 @@ export interface PageTemplate {
   updatedAt: string;
 }
 
+export interface Asset {
+  id: number;
+  projectId: number;
+  uploadedById: number;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  storageKey: string;
+  category: 'image' | 'file' | string;
+  createdAt: string;
+}
+
 export interface EditorPage {
   id: number;
   projectId: number;

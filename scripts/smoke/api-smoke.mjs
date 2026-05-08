@@ -197,6 +197,32 @@ async function main() {
   });
   assertEqual(viewerTemplateDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not create templates');
 
+  const asset = await uploadAsset(`/projects/${project.id}/assets`, {
+    token: editor.token,
+    filename: `smoke-${runId}.txt`,
+    content: 'hello asset',
+    type: 'text/plain',
+  });
+  assertEqual(asset.category, 'file', 'text upload should create file asset');
+
+  const assets = await request(`/projects/${project.id}/assets`, { token: viewer.token });
+  assertIncludes(assets.map((item) => item.id), asset.id, 'viewer should read project assets');
+
+  const publicAssetResponse = await fetch(`${apiBaseUrl.replace(/\/api$/, '')}${asset.url}`);
+  if (!publicAssetResponse.ok) {
+    throw new Error(`public asset should be readable: ${publicAssetResponse.status}`);
+  }
+  assertEqual(await publicAssetResponse.text(), 'hello asset', 'public asset should return uploaded content');
+
+  const viewerUploadDenied = await uploadAsset(`/projects/${project.id}/assets`, {
+    token: viewer.token,
+    filename: `denied-${runId}.txt`,
+    content: 'denied',
+    type: 'text/plain',
+    expectedStatus: 403,
+  });
+  assertEqual(viewerUploadDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not upload assets');
+
   await request(`/projects/${project.id}/members/${editorMember.id}`, {
     method: 'PATCH',
     token: owner.token,
@@ -223,6 +249,7 @@ async function main() {
   assertIncludes(actions, 'page.update', 'audit logs should include page save');
   assertIncludes(actions, 'page.publish', 'audit logs should include publish');
   assertIncludes(actions, 'template.create', 'audit logs should include template create');
+  assertIncludes(actions, 'asset.upload', 'audit logs should include asset upload');
 
   const auditDenied = await request(`/projects/${project.id}/audit-logs`, {
     token: editor.token,
@@ -239,6 +266,7 @@ async function main() {
     projectId: project.id,
     pageId: page.id,
     templateId: template.id,
+    assetId: asset.id,
     publicId: publishedPage.publicId,
     auditLogCount: auditLogs.length,
   }, null, 2));
@@ -293,6 +321,36 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     throw new Error(`${options.method || 'GET'} ${path} failed: ${response.status} ${JSON.stringify(data)}`);
+  }
+
+  return data;
+}
+
+async function uploadAsset(path, options) {
+  const formData = new FormData();
+  formData.append('file', new Blob([options.content], { type: options.type }), options.filename);
+
+  const response = await fetch(`${apiBaseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+    },
+    body: formData,
+  });
+
+  const text = await response.text();
+  const data = text ? JSON.parse(text) : null;
+
+  if (options.expectedStatus !== undefined) {
+    if (response.status !== options.expectedStatus) {
+      throw new Error(`POST ${path} upload failed: expected ${options.expectedStatus}, received ${response.status} ${JSON.stringify(data)}`);
+    }
+
+    return data;
+  }
+
+  if (!response.ok) {
+    throw new Error(`POST ${path} upload failed: ${response.status} ${JSON.stringify(data)}`);
   }
 
   return data;
