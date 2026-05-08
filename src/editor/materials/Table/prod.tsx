@@ -6,6 +6,7 @@ import { CommonComponentProps } from '../../interface';
 
 const Table = ({
   url,
+  dataSourceId,
   dataText,
   children,
   pagination = false,
@@ -14,8 +15,10 @@ const Table = ({
   rowKey = 'id',
   styles,
   onChange,
+  runtimeDataSources,
 }: CommonComponentProps) => {
 
+  const runtimeDataSource = dataSourceId ? runtimeDataSources?.[dataSourceId] : undefined;
   const [data, setData] = useState<Array<Record<string, any>>>(() => parseDataSource(dataText));
   const [loading, setLoading] = useState(false);
 
@@ -37,8 +40,13 @@ const Table = ({
   }
 
   useEffect(() => {
+    if (runtimeDataSource) {
+      setData(normalizeTableData(runtimeDataSource.data));
+      return;
+    }
+
     void getData();
-  }, [url, dataText]);
+  }, [url, dataText, runtimeDataSource?.data]);
 
   const columns = useMemo(() => {
     return React.Children.map(children, (item: any) => {
@@ -80,12 +88,23 @@ const Table = ({
         dataSource={data}
         pagination={pagination ? { pageSize: Number(pageSize) || 10 } : false}
         rowKey={(record) => String(record[rowKey] || record.id || record.key)}
-        loading={loading}
+        loading={loading || runtimeDataSource?.loading}
         locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} /> }}
         onChange={onChange}
       />
     </div>
   );
+}
+
+function normalizeTableData(data: unknown) {
+    if (Array.isArray(data)) return data as Array<Record<string, any>>;
+    if (data && typeof data === 'object') {
+        const record = data as Record<string, any>;
+        const list = record.list || record.data || record.items;
+        return Array.isArray(list) ? list : [];
+    }
+
+    return [];
 }
 
 function parseDataSource(dataText?: string) {

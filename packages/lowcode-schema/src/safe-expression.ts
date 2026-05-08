@@ -17,6 +17,7 @@ interface Token {
 export interface SafeExpressionContext {
   context: Record<string, any>;
   event: Record<string, any>;
+  variables?: Record<string, any>;
   args: any[];
 }
 
@@ -293,6 +294,7 @@ class SafeExpressionParser {
   private readRootValue(name: string) {
     if (name === 'event') return this.context.event;
     if (name === 'context') return this.context.context;
+    if (name === 'variables') return this.context.variables || {};
     if (name === 'args') return this.context.args;
 
     throw new Error(`不支持的变量：${name}`);

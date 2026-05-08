@@ -28,6 +28,8 @@ export interface LowcodeActionRuntimeContext {
   allowCustomJS: boolean;
   updateComponentProps?: (componentId: number, props: Record<string, any>) => void;
   updateComponentStyles?: (componentId: number, styles: Record<string, any>) => void;
+  variables?: Record<string, any>;
+  setVariable?: (path: string, value: unknown) => void;
   getAuthToken?: () => string | undefined;
 }
 
@@ -133,6 +135,11 @@ export async function runLowcodeAction(
     return;
   }
 
+  if (action.actionType === 'setVariable') {
+    runSetVariableAction(action, context, adapters);
+    return;
+  }
+
   if (action.actionType === 'componentControl') {
     runComponentControlAction(action, context);
     return;
@@ -184,6 +191,7 @@ function evaluateCondition(
       return Boolean(evaluateSafeExpression(expression, {
         context: buildScriptContext(context),
         event: context.eventData,
+        variables: context.variables,
         args: context.args,
       }));
     }
@@ -257,6 +265,7 @@ function interpolateTemplates(value: unknown, context: LowcodeActionRuntimeConte
       const result = evaluateSafeExpression(expression, {
         context: buildScriptContext(context),
         event: context.eventData,
+        variables: context.variables,
         args: context.args,
       });
 
@@ -290,6 +299,33 @@ function getHttpAuthHeader(action: HttpAction, context: LowcodeActionRuntimeCont
   }
 
   return '';
+}
+
+function runSetVariableAction(
+  action: LowcodeAction,
+  context: LowcodeActionRuntimeContext,
+  adapters: LowcodeActionRuntimeAdapters,
+) {
+  if (action.actionType !== 'setVariable') return;
+
+  const path = action.args?.path?.trim();
+  if (!path) return;
+
+  try {
+    const value = action.args.expression?.trim()
+      ? evaluateSafeExpression(action.args.expression, {
+        context: buildScriptContext(context),
+        event: context.eventData,
+        variables: context.variables,
+        args: context.args,
+      })
+      : action.args.value;
+
+    context.setVariable?.(path, value);
+  } catch (error) {
+    adapters.showMessage?.('变量表达式执行失败', 'error');
+    adapters.onError?.(error, context, action);
+  }
 }
 
 function runComponentAction(action: ComponentAction, context: LowcodeActionRuntimeContext) {
@@ -387,11 +423,15 @@ function buildScriptContext(context: LowcodeActionRuntimeContext) {
     args: context.args,
     components: context.components,
     componentRefs: context.componentRefs,
+    variables: context.variables || {},
     updateComponentProps(componentId: number, props: Record<string, any>) {
       context.updateComponentProps?.(componentId, props);
     },
     updateComponentStyles(componentId: number, styles: Record<string, any>) {
       context.updateComponentStyles?.(componentId, styles);
+    },
+    setVariable(path: string, value: unknown) {
+      context.setVariable?.(path, value);
     },
   };
 }

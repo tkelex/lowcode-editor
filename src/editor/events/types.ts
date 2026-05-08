@@ -12,6 +12,7 @@ export type {
   LowcodeAction,
   LowcodeEventConfig,
   LowcodeEvents,
+  SetVariableAction,
   SetComponentPropsAction,
   SetComponentStylesAction,
   ToastAction,
@@ -30,6 +31,8 @@ export interface LowcodeEventRuntimeContext {
   components: Component[];
   componentRefs: Record<string, any>;
   allowCustomJS: boolean;
+  variables?: Record<string, any>;
+  setVariable?: (path: string, value: unknown) => void;
   updateComponentProps?: (componentId: number, props: Record<string, any>) => void;
   updateComponentStyles?: (componentId: number, styles: Record<string, any>) => void;
   getAuthToken?: () => string | undefined;

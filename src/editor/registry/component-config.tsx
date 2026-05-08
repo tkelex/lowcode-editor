@@ -134,11 +134,11 @@ interface Action {
 }
 
 const ACTIONS = {
-    ui: ['toast', 'url', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'custom'] as ActionType[],
-    value: ['toast', 'componentAction', 'componentControl', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'custom'] as ActionType[],
-    submit: ['toast', 'url', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'custom'] as ActionType[],
-    overlay: ['toast', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'custom'] as ActionType[],
-    lifecycle: ['toast', 'componentAction', 'componentControl', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'custom'] as ActionType[],
+    ui: ['toast', 'url', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
+    value: ['toast', 'componentAction', 'componentControl', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
+    submit: ['toast', 'url', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
+    overlay: ['toast', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
+    lifecycle: ['toast', 'componentAction', 'componentControl', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
 };
 
 function defineEvent(
@@ -839,6 +839,7 @@ export const useComponentConfigStore = create<State & Action>((set) => ({
         Table: {
             name: 'Table',
             defaultProps: {
+                dataSourceId: '',
                 dataText: '[{"id":1,"name":"张三","status":"启用","createdAt":"2026-05-08"},{"id":2,"name":"李四","status":"停用","createdAt":"2026-05-07"}]',
                 pagination: false,
                 pageSize: 10,
@@ -852,6 +853,7 @@ export const useComponentConfigStore = create<State & Action>((set) => ({
             keywords: ['table', 'data', '表格', '数据'],
             sort: 10,
             setter: [
+                inputSetter('dataSourceId', '数据源 ID'),
                 inputSetter('url', '数据接口'),
                 inputSetter('dataText', '静态数据'),
                 selectSetter('pagination', '开启分页', boolOptions),
@@ -1225,13 +1227,20 @@ export const useComponentConfigStore = create<State & Action>((set) => ({
         },
         Page: {
             name: 'Page',
-            defaultProps: {},
+            defaultProps: {
+                variables: '{\n  "form": {},\n  "table": {}\n}',
+                dataSources: '{\n  "items": []\n}',
+            },
             desc: '页面',
             acceptsChildren: baseContainerAccepts(),
             category: 'layout',
             icon: '▤',
             keywords: ['page', '页面'],
             sort: 0,
+            setter: [
+                inputSetter('variables', '页面变量 JSON'),
+                inputSetter('dataSources', '数据源 JSON'),
+            ],
             stylesSetter: commonStyleSetters,
             dev: PageDev,
             prod: PageProd

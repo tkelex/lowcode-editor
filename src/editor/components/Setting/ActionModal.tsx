@@ -9,6 +9,7 @@ import { ConditionActionForm } from "./actions/ConditionAction";
 import { HttpActionForm } from "./actions/HttpAction";
 import { SetComponentData } from "./actions/SetComponentData";
 import { ComponentControl } from "./actions/ComponentControl";
+import { SetVariable } from "./actions/SetVariable";
 import type { ActionType, LowcodeAction } from "../../events/types";
 import type { ComponentEvent } from "../../registry/component-config";
 
@@ -34,6 +35,7 @@ const actionTypeLabelMap: Record<ActionType, string> = {
     componentControl: '组件联动',
     setComponentProps: '设置属性',
     setComponentStyles: '设置样式',
+    setVariable: '设置变量',
 };
 
 const actionTypeDescriptionMap: Record<ActionType, string> = {
@@ -47,6 +49,7 @@ const actionTypeDescriptionMap: Record<ActionType, string> = {
     componentControl: '显示隐藏、启用禁用、设置/清空值，或打开弹窗、提交表单。',
     setComponentProps: '修改目标组件属性，例如文本、禁用状态或数据源。',
     setComponentStyles: '修改目标组件样式，例如颜色、间距或显示状态。',
+    setVariable: '把事件数据、固定值或表达式结果写入页面级变量。',
 };
 
 const defaultActionOrder: ActionType[] = [
@@ -59,6 +62,7 @@ const defaultActionOrder: ActionType[] = [
     'componentControl',
     'setComponentProps',
     'setComponentStyles',
+    'setVariable',
     'custom',
 ];
 
@@ -187,6 +191,11 @@ export function ActionModal(props: ActionModalProps) {
             }
             {
                 key === 'setComponentStyles' && <SetComponentData key="setComponentStyles" actionType="setComponentStyles" value={action?.actionType === 'setComponentStyles' ? action : undefined} onChange={(config) => {
+                    setCurConfig(config as ActionFormConfig);
+                }} />
+            }
+            {
+                key === 'setVariable' && <SetVariable key="setVariable" value={action?.actionType === 'setVariable' ? action : undefined} onChange={(config) => {
                     setCurConfig(config as ActionFormConfig);
                 }} />
             }

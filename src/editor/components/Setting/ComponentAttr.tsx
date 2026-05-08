@@ -1,4 +1,4 @@
-import { Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
+import { Alert, Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
 import { ComponentConfig, ComponentSetter, useComponentConfigStore } from '../../registry/component-config';
@@ -88,6 +88,12 @@ export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
             key: 'props',
             label: `属性配置 ${filteredSetters.length ? `(${filteredSetters.length})` : ''}`,
             children: <div>
+              <Alert
+                className="mb-[10px]"
+                type="info"
+                showIcon
+                message="属性支持 {{variables.xxx}} 表达式；Page 组件可配置页面变量和数据源 JSON。"
+              />
               {!hasMatchedConfig && (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的属性配置" />
               )}

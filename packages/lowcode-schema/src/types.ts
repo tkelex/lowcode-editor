@@ -39,7 +39,8 @@ export type ActionType =
   | 'http'
   | 'componentControl'
   | 'setComponentProps'
-  | 'setComponentStyles';
+  | 'setComponentStyles'
+  | 'setVariable';
 export type EventCategory = 'ui' | 'value' | 'submit' | 'overlay' | 'lifecycle';
 export type HttpAuthType = 'none' | 'currentUser' | 'bearer';
 export type ComponentControlOperation =
@@ -157,6 +158,15 @@ export interface SetComponentStylesAction extends LowcodeActionBase {
   };
 }
 
+export interface SetVariableAction extends LowcodeActionBase {
+  actionType: 'setVariable';
+  args: {
+    path: string;
+    value?: unknown;
+    expression?: string;
+  };
+}
+
 export type LowcodeAction =
   | ToastAction
   | UrlAction
@@ -167,7 +177,8 @@ export type LowcodeAction =
   | HttpAction
   | ComponentControlAction
   | SetComponentPropsAction
-  | SetComponentStylesAction;
+  | SetComponentStylesAction
+  | SetVariableAction;
 
 export interface LowcodeEventConfig {
   actions?: LowcodeAction[];

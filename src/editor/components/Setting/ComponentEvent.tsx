@@ -29,6 +29,7 @@ const actionLabelMap = {
     componentControl: '联动',
     setComponentProps: '属性',
     setComponentStyles: '样式',
+    setVariable: '变量',
     custom: 'JS',
 };
 
@@ -42,6 +43,7 @@ const actionColorMap = {
     componentControl: 'lime',
     setComponentProps: 'magenta',
     setComponentStyles: 'volcano',
+    setVariable: 'cyan',
     custom: 'orange',
 };
 
@@ -206,6 +208,10 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         if (action.actionType === 'setComponentProps' || action.actionType === 'setComponentStyles') {
             const target = getComponentById(action.componentId, components);
             return `${target?.desc || '未选择组件'} / ${action.actionType === 'setComponentProps' ? '属性' : '样式'}`;
+        }
+
+        if (action.actionType === 'setVariable') {
+            return `${action.args.path || '未配置变量'} = ${action.args.expression || JSON.stringify(action.args.value ?? '')}`;
         }
 
         if (action.actionType === 'componentControl') {

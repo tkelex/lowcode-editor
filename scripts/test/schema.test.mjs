@@ -291,6 +291,17 @@ describe('safe expression evaluator', () => {
     assert.equal(evaluateSafeExpression("args[1].label === 'second'", context), true);
   });
 
+  it('supports page variables', () => {
+    assert.equal(evaluateSafeExpression("variables.form.keyword === 'Ada'", {
+      ...context,
+      variables: {
+        form: {
+          keyword: 'Ada',
+        },
+      },
+    }), true);
+  });
+
   it('rejects unsafe expressions instead of executing code', () => {
     assert.throws(
       () => evaluateSafeExpression('globalThis.process.exit()', context),
@@ -749,6 +760,32 @@ describe('lowcode action runtime', () => {
       { componentId: 3, props: { value: 'Ada' } },
     ]);
     assert.deepEqual(harness.componentCalls, [['open'], ['submit']]);
+  });
+
+  it('sets page variables from event expressions', async () => {
+    const harness = createRuntimeHarness({
+      context: {
+        eventData: {
+          value: 'Ada',
+        },
+        variables: {},
+        setVariable: (path, value) => {
+          harness.context.variables[path] = value;
+        },
+      },
+    });
+
+    await runLowcodeActions([
+      {
+        actionType: 'setVariable',
+        args: {
+          path: 'keyword',
+          expression: 'event.value',
+        },
+      },
+    ], harness.context, harness.adapters);
+
+    assert.equal(harness.context.variables.keyword, 'Ada');
   });
 
   it('stores http error and shows error message', async () => {

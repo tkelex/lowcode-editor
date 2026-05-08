@@ -8,6 +8,14 @@ import { useComponentConfigStore } from "../../registry/component-config";
 import { Component, useComponetsStore } from "../../stores/components"
 import { getStoredToken } from "../../../shared/api/auth";
 import {
+    parseRuntimeDataSources,
+    parseRuntimeJsonObject,
+    requestRuntimeDataSource,
+    resolveRuntimeProps,
+    RuntimeDataSourceState,
+    setPathValue,
+} from "../runtimeData";
+import {
     formatRuntimeErrorMessage,
     formatRuntimeErrorStack,
     useRuntimeLogsStore,
@@ -64,6 +72,8 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
     const updateStoreComponentProps = useComponetsStore((state) => state.updateComponentProps);
     const updateStoreComponentStyles = useComponetsStore((state) => state.updateComponentStyles);
     const [runtimeComponents, setRuntimeComponents] = useState<Component[]>(() => cloneComponents(propsComponents || []));
+    const [variables, setVariables] = useState<Record<string, any>>({});
+    const [dataSourceState, setDataSourceState] = useState<RuntimeDataSourceState>({});
     const usingExternalComponents = propsComponents !== undefined;
     const components = usingExternalComponents ? runtimeComponents : storeComponents;
     const { componentConfig } = useComponentConfigStore();
@@ -75,6 +85,64 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
             setRuntimeComponents(cloneComponents(propsComponents));
         }
     }, [propsComponents]);
+
+    const pageProps = components[0]?.name === 'Page' ? components[0].props || {} : {};
+    const dataSources = parseRuntimeDataSources(pageProps.dataSources);
+
+    useEffect(() => {
+        setVariables(parseRuntimeJsonObject(pageProps.variables));
+    }, [pageProps.variables]);
+
+    useEffect(() => {
+        if (dataSources.length === 0) {
+            setDataSourceState({});
+            return;
+        }
+
+        let disposed = false;
+        dataSources.forEach((dataSource) => {
+            setDataSourceState((current) => ({
+                ...current,
+                [dataSource.id]: {
+                    loading: true,
+                    data: current[dataSource.id]?.data,
+                },
+            }));
+
+            requestRuntimeDataSource(dataSource, {
+                apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
+                allowedOrigins: parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS),
+                variables,
+                dataSources: dataSourceState,
+                getAuthToken: () => getStoredToken() || undefined,
+            })
+                .then((data) => {
+                    if (disposed) return;
+                    setDataSourceState((current) => ({
+                        ...current,
+                        [dataSource.id]: {
+                            loading: false,
+                            data,
+                        },
+                    }));
+                })
+                .catch((error) => {
+                    if (disposed) return;
+                    setDataSourceState((current) => ({
+                        ...current,
+                        [dataSource.id]: {
+                            loading: false,
+                            data: current[dataSource.id]?.data,
+                            error: error instanceof Error ? error.message : '数据源请求失败',
+                        },
+                    }));
+                });
+        });
+
+        return () => {
+            disposed = true;
+        };
+    }, [pageProps.dataSources, variables]);
 
     function updateRuntimeComponentProps(componentId: number, props: Record<string, any>) {
         setRuntimeComponents((currentComponents) => updateComponents(currentComponents, componentId, (component) => {
@@ -91,6 +159,10 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
         setRuntimeComponents((currentComponents) => updateComponents(currentComponents, componentId, (component) => {
             component.styles = { ...component.styles, ...styles };
         }));
+    }
+
+    function setRuntimeVariable(path: string, value: unknown) {
+        setVariables((currentVariables) => setPathValue(currentVariables, path, value));
     }
 
     function handleEvent(component: Component) {
@@ -115,6 +187,8 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
                         components,
                         componentRefs: componentRefs.current,
                         allowCustomJS,
+                        variables,
+                        setVariable: setRuntimeVariable,
                         updateComponentProps: usingExternalComponents ? updateRuntimeComponentProps : updateStoreComponentProps,
                         updateComponentStyles: usingExternalComponents ? updateRuntimeComponentStyles : updateStoreComponentStyles,
                         getAuthToken: () => getStoredToken() || undefined,
@@ -142,17 +216,23 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
                     return key !== 'onEvent' && !declaredEventProps.has(key);
                 })
             );
+            const resolvedComponentProps = resolveRuntimeProps(componentProps, {
+                variables,
+                dataSources: dataSourceState,
+                component,
+            });
 
             const canRenderChildren = Boolean(config.acceptsChildren);
             const children = canRenderChildren ? renderComponents(component.children || []) : null;
-            const props = {
+            const props: Record<string, any> = {
                 key: component.id,
                 id: component.id,
                 name: component.name,
                 styles: component.styles,
                 ref: (ref: Record<string, any>) => { componentRefs.current[component.id] = ref; },
                 ...config.defaultProps,
-                ...componentProps,
+                ...resolvedComponentProps,
+                ...getInternalRuntimeProps(component.name),
                 ...handleEvent(component)
             };
 
@@ -170,6 +250,24 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
     return <div className="h-full bg-slate-50">
         {renderComponents(components)}
     </div>
+
+    function getInternalRuntimeProps(componentName: string) {
+        if (['Table', 'List', 'Chart', 'Descriptions', 'Select'].includes(componentName)) {
+            return {
+                runtimeVariables: variables,
+                runtimeDataSources: dataSourceState,
+            };
+        }
+
+        return {};
+    }
+}
+
+function parseAllowedOrigins(value: string | undefined) {
+    return (value || '')
+        .split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean);
 }
 
 function cloneComponents(components: Component[]) {
