@@ -58,6 +58,7 @@ async function loadPreviewRuntime() {
     external: ['react', 'react-dom', 'react/jsx-runtime'],
     define: {
       'import.meta.env.VITE_API_BASE_URL': '"http://localhost:3000/api"',
+      'import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS': '""',
     },
   });
 

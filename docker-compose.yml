@@ -25,7 +25,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/lowcode_editor?schema=public
-      JWT_SECRET: local-docker-change-me
+      JWT_SECRET: local-docker-development-secret-at-least-32-chars
       JWT_EXPIRES_IN: 7d
       PORT: 3000
       FRONTEND_ORIGIN: http://localhost:8080

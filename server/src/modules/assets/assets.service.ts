@@ -1,6 +1,6 @@
 import { createReadStream } from 'fs';
 import { mkdir, unlink, writeFile } from 'fs/promises';
-import { join, normalize } from 'path';
+import { isAbsolute, join, normalize, relative, resolve } from 'path';
 import { HttpStatus, Injectable, StreamableFile } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ProjectMemberRole } from '@prisma/client';
@@ -171,15 +171,17 @@ export class AssetsService {
   }
 
   private getUploadRoot() {
-    return normalize(this.configService.get<string>('UPLOAD_DIR') ?? join(process.cwd(), 'uploads'));
+    const configuredUploadDir = this.configService.get<string>('UPLOAD_DIR') ?? join(process.cwd(), 'uploads');
+    return normalize(isAbsolute(configuredUploadDir) ? configuredUploadDir : resolve(process.cwd(), configuredUploadDir));
   }
 
   private resolveStoragePath(storageKey: string) {
     const uploadRoot = this.getUploadRoot();
     const normalizedStorageKey = normalize(storageKey);
-    const targetPath = normalize(join(uploadRoot, normalizedStorageKey));
+    const targetPath = normalize(resolve(uploadRoot, normalizedStorageKey));
+    const relativePath = relative(uploadRoot, targetPath);
 
-    if (!targetPath.startsWith(uploadRoot)) {
+    if (isAbsolute(normalizedStorageKey) || relativePath.startsWith('..') || isAbsolute(relativePath)) {
       throw new BusinessException(AppErrorCode.BAD_REQUEST, 'Invalid asset path', HttpStatus.BAD_REQUEST);
     }
 

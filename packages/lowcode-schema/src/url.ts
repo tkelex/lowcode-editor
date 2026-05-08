@@ -19,6 +19,7 @@ export function normalizeActionUrl(rawUrl: string) {
 
 export interface NormalizeHttpActionUrlOptions {
   apiBaseUrl?: string;
+  allowedOrigins?: string[];
 }
 
 export function normalizeHttpActionUrl(rawUrl: string, options: NormalizeHttpActionUrlOptions = {}) {
@@ -48,6 +49,33 @@ export function normalizeHttpActionUrl(rawUrl: string, options: NormalizeHttpAct
   return url.startsWith('/') ? url : `/${url}`;
 }
 
+export function isHttpActionUrlAllowed(url: string, options: NormalizeHttpActionUrlOptions = {}) {
+  const allowedOrigins = (options.allowedOrigins || [])
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (allowedOrigins.length === 0) {
+    return true;
+  }
+
+  if (!isAbsoluteHttpUrl(url)) {
+    return true;
+  }
+
+  const targetOrigin = readOrigin(url);
+  if (!targetOrigin) {
+    return false;
+  }
+
+  return allowedOrigins.some((allowedOrigin) => {
+    if (allowedOrigin === '*') {
+      return true;
+    }
+
+    return targetOrigin === readOrigin(allowedOrigin);
+  });
+}
+
 function isLocalhostUrl(url: string) {
   return /^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:[/?#]|$)/i.test(url);
 }
@@ -74,4 +102,16 @@ function joinUrl(baseUrl: string, path: string) {
   }
 
   return `${normalizedBase}/${normalizedPath}`;
+}
+
+function isAbsoluteHttpUrl(url: string) {
+  return /^https?:\/\//i.test(url);
+}
+
+function readOrigin(url: string) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
 }

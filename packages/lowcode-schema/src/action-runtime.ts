@@ -13,6 +13,7 @@ import {
 import { evaluateSafeExpression } from './safe-expression';
 import {
   NormalizeHttpActionUrlOptions,
+  isHttpActionUrlAllowed,
   normalizeActionUrl,
   normalizeHttpActionUrl,
 } from './url';
@@ -209,6 +210,10 @@ async function runHttpAction(
   if (!url || !fetcher) return;
 
   try {
+    if (!isHttpActionUrlAllowed(url, adapters.normalizeHttpUrlOptions)) {
+      throw new Error('HTTP action url is not in allowed origins');
+    }
+
     const templatedHeaders = interpolateTemplates(action.args?.headers, context) as Record<string, string> | undefined;
     const templatedBody = interpolateTemplates(action.args?.body, context);
     const headers = buildHttpActionRequestHeaders(templatedHeaders, templatedBody) || {};

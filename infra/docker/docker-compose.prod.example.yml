@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/lowcode_editor?schema=public
-      JWT_SECRET: change-me-before-production
+      JWT_SECRET: replace-with-a-random-production-secret-at-least-32-chars
       JWT_EXPIRES_IN: 7d
       PORT: 3000
       FRONTEND_ORIGIN: http://localhost:8080

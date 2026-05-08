@@ -13,6 +13,7 @@ const {
   migratePageSchema,
   normalizeActionUrl,
   normalizeHttpActionUrl,
+  isHttpActionUrlAllowed,
   runLowcodeActions,
   validateComponentTree,
 } = require('../../server/dist/packages/lowcode-schema/src/index.js');
@@ -248,6 +249,17 @@ describe('http action url normalization', () => {
     assert.equal(normalizeHttpActionUrl('https://example.com/api', options), 'https://example.com/api');
     assert.equal(normalizeHttpActionUrl('example.com/api', options), 'https://example.com/api');
     assert.equal(normalizeHttpActionUrl('localhost:3000/api/users', options), 'http://localhost:3000/api/users');
+  });
+
+  it('checks http action origin allowlist after normalization', () => {
+    const options = {
+      apiBaseUrl: 'http://localhost:3000/api',
+      allowedOrigins: ['http://localhost:3000', 'https://api.example.com'],
+    };
+
+    assert.equal(isHttpActionUrlAllowed(normalizeHttpActionUrl('users', options), options), true);
+    assert.equal(isHttpActionUrlAllowed('https://api.example.com/users', options), true);
+    assert.equal(isHttpActionUrlAllowed('https://evil.example.com/users', options), false);
   });
 });
 
@@ -767,6 +779,34 @@ describe('lowcode action runtime', () => {
     });
     assert.equal(harness.context.eventData.httpError instanceof Error, true);
     assert.deepEqual(harness.messages, [{ content: 'failed', type: 'error' }]);
+    assert.equal(harness.errors.length, 1);
+  });
+
+  it('blocks http actions outside the configured origin allowlist', async () => {
+    const harness = createRuntimeHarness({
+      adapters: {
+        normalizeHttpUrlOptions: {
+          apiBaseUrl: 'http://localhost:3000/api',
+          allowedOrigins: ['http://localhost:3000'],
+        },
+        fetch: async () => {
+          throw new Error('fetch should not run');
+        },
+      },
+    });
+
+    await runLowcodeActions([
+      {
+        actionType: 'http',
+        args: {
+          url: 'https://evil.example.com/users',
+          errorMsg: 'blocked',
+        },
+      },
+    ], harness.context, harness.adapters);
+
+    assert.equal(harness.context.eventData.httpError instanceof Error, true);
+    assert.deepEqual(harness.messages, [{ content: 'blocked', type: 'error' }]);
     assert.equal(harness.errors.length, 1);
   });
 

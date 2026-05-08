@@ -1,4 +1,4 @@
-import { Input, Select, Typography } from "antd";
+import { Alert, Input, Select, Typography } from "antd";
 import { useEffect, useState } from "react";
 import type { HttpAction, HttpAuthType } from "../../../events/types";
 import { formatJson, parseJsonObject, parseJsonValue } from "./utils";
@@ -86,6 +86,11 @@ export function HttpActionForm(props: HttpActionProps) {
     }
 
     return <div className="mt-[24px] space-y-[16px]">
+        <Alert
+            type="warning"
+            showIcon
+            message="HTTP 动作会从用户浏览器发起请求。生产环境可通过 VITE_LOWCODE_HTTP_ALLOWED_ORIGINS 限制允许访问的域名。"
+        />
         <div>
             <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">请求地址</div>
             <Input placeholder="例如 /api/user、users 或 https://example.com/api" value={url} onChange={(event) => {

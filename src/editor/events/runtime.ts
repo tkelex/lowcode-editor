@@ -56,6 +56,7 @@ const runtimeAdapters = {
   },
   normalizeHttpUrlOptions: {
     apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
+    allowedOrigins: parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS),
   },
 };
 
@@ -71,4 +72,11 @@ export function runLowcodeAction(action: LowcodeAction, context: LowcodeEventRun
     runtimeAdapters.onError(error, context as LowcodeActionRuntimeContext, action);
     throw error;
   });
+}
+
+function parseAllowedOrigins(value: string | undefined) {
+  return (value || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
