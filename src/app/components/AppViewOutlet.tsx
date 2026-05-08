@@ -1,9 +1,15 @@
-import LowcodeEditor from '../../editor/';
-import { AuthView } from '../../features/auth/AuthView';
-import { ProjectDashboard } from '../../features/projects/ProjectDashboard';
+import { lazy, Suspense } from 'react';
 import { ProjectRole, User } from '../../shared/api/types';
 import type { AppView } from '../routes/types';
 import { AppLoading } from './AppLoading';
+
+const LowcodeEditor = lazy(() => import('../../editor/'));
+const AuthView = lazy(() => import('../../features/auth/AuthView').then((module) => ({
+  default: module.AuthView,
+})));
+const ProjectDashboard = lazy(() => import('../../features/projects/ProjectDashboard').then((module) => ({
+  default: module.ProjectDashboard,
+})));
 
 interface AppViewOutletProps {
   view: AppView;
@@ -23,21 +29,27 @@ export function AppViewOutlet({
   onBackToDashboard,
 }: AppViewOutletProps) {
   if (view.name === 'auth') {
-    return <AuthView onAuthenticated={onAuthenticated} />;
+    return <Suspense fallback={<AppLoading />}>
+      <AuthView onAuthenticated={onAuthenticated} />
+    </Suspense>;
   }
 
   if (view.name === 'editor') {
-    return <LowcodeEditor
-      pageId={view.pageId}
-      projectId={view.projectId}
-      projectRole={view.projectRole}
-      onBack={onBackToDashboard}
-    />;
+    return <Suspense fallback={<AppLoading />}>
+      <LowcodeEditor
+        pageId={view.pageId}
+        projectId={view.projectId}
+        projectRole={view.projectRole}
+        onBack={onBackToDashboard}
+      />
+    </Suspense>;
   }
 
   if (!user) {
     return <AppLoading />;
   }
 
-  return <ProjectDashboard user={user} onOpenPage={onOpenPage} onLogout={onLogout} />;
+  return <Suspense fallback={<AppLoading />}>
+    <ProjectDashboard user={user} onOpenPage={onOpenPage} onLogout={onLogout} />
+  </Suspense>;
 }

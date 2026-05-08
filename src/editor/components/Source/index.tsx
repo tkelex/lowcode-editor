@@ -1,4 +1,3 @@
-import MonacoEditor, { OnMount } from '@monaco-editor/react'
 import {
   Alert,
   Button,
@@ -15,6 +14,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
+import { LazyMonacoEditor, type LazyMonacoOnMount } from '../../../shared/components/LazyMonacoEditor';
 import { assertValidComponentTree, validateComponentTree } from '../../schema/validateComponents';
 import { useComponentConfigStore } from '../../registry/component-config';
 import { useComponetsStore } from '../../stores/components';
@@ -113,7 +113,7 @@ export function Source() {
     message.success('源码已重置为当前画布');
   }
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
+  const handleEditorMount: LazyMonacoOnMount = (editor, monaco) => {
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => {
         editor.getAction('editor.action.formatDocument')?.run()
     });
@@ -158,7 +158,7 @@ export function Source() {
       </Space>
     </div>
     <div className="min-h-[280px] flex-1 overflow-hidden rounded-[8px] border border-[#e5e7eb] bg-white">
-      <MonacoEditor
+      <LazyMonacoEditor
           height={'100%'}
           path='components.json'
           language='json'

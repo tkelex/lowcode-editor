@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { PublishedPageView } from '../features/publish/PublishedPageView';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { ProjectRole, User } from '../shared/api/types';
 import { AppLoading } from './components/AppLoading';
 import { AppViewOutlet } from './components/AppViewOutlet';
@@ -8,6 +7,10 @@ import { useEditorPageLoader } from './hooks/useEditorPageLoader';
 import { getInitialAppView } from './routes/initialView';
 import { getPublishPublicId } from './routes/publicRoutes';
 import type { AppView } from './routes/types';
+
+const PublishedPageView = lazy(() => import('../features/publish/PublishedPageView').then((module) => ({
+  default: module.PublishedPageView,
+})));
 
 function App() {
   const publishPublicId = useMemo(() => getPublishPublicId(), []);
@@ -50,7 +53,9 @@ function App() {
   }, []);
 
   if (publishPublicId) {
-    return <PublishedPageView publicId={publishPublicId} />;
+    return <Suspense fallback={<AppLoading />}>
+      <PublishedPageView publicId={publishPublicId} />
+    </Suspense>;
   }
 
   if (initializing || loadingPage) {

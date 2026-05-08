@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useComponetsStore } from "../../../stores/components";
 import { Typography } from "antd";
-import MonacoEditor, { OnMount } from '@monaco-editor/react'
+import { LazyMonacoEditor, type LazyMonacoOnMount } from "../../../../shared/components/LazyMonacoEditor";
 
 export interface CustomJSConfig {
     actionType: 'custom',
@@ -39,7 +39,7 @@ export function CustomJS(props: CustomJSProps) {
         })
     }
 
-    const handleEditorMount: OnMount = (editor, monaco) => {
+    const handleEditorMount: LazyMonacoOnMount = (editor, monaco) => {
         editor.focus();
 
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => {
@@ -53,7 +53,7 @@ export function CustomJS(props: CustomJSProps) {
             可用变量：context、event、args、doAction。常用数据：event.value、event.checked、event.values、event.httpResponse。
         </Typography.Text>
         <div className="overflow-hidden rounded-[6px] border border-[#e5e7eb]">
-                <MonacoEditor
+                <LazyMonacoEditor
                     width={'100%'}
                     height={'360px'}
                     path='action.js'

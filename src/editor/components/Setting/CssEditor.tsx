@@ -1,5 +1,5 @@
-import MonacoEditor, { type EditorProps, type OnMount } from '@monaco-editor/react'
 import { type editor } from 'monaco-editor'
+import { LazyMonacoEditor, type LazyMonacoEditorProps, type LazyMonacoOnMount } from '../../../shared/components/LazyMonacoEditor'
 
 export interface EditorFile {
     name: string
@@ -9,7 +9,7 @@ export interface EditorFile {
 
 interface Props {
     value: string
-    onChange?: EditorProps['onChange']
+    onChange?: LazyMonacoEditorProps['onChange']
     options?: editor.IStandaloneEditorConstructionOptions
 }
 
@@ -21,13 +21,13 @@ export default function CssEditor(props: Props) {
         options
     } = props;
 
-    const handleEditorMount: OnMount = (editor, monaco) => {
+    const handleEditorMount: LazyMonacoOnMount = (editor, monaco) => {
       editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyJ, () => {
           editor.getAction('editor.action.formatDocument')?.run()
       });
     }
 
-    return <MonacoEditor
+    return <LazyMonacoEditor
         height={'100%'}
         path='component.css'
         language='css'
