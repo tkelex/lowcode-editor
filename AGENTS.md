@@ -8,6 +8,7 @@ For low-token project onboarding or after context compaction, read these first:
 
 - `docs/00-总览/AI快速上手.md` — AI-focused quick start, task routing, high-risk files, and validation strategy.
 - `docs/00-总览/项目上下文索引.md` — project overview, reading order, current verified state.
+- `docs/00-总览/UI需求表达指南.md` — how to describe UI targets, screenshots, layout specs, and visual acceptance criteria for Codex.
 - `.claude/context/FILE_MAP.md` — key files, responsibilities, and edit risks.
 - `docs/02-架构/架构说明.md` — frontend/backend/database architecture and data flow.
 - `docs/03-接口/接口说明.md` — backend routes, auth, and schema persistence contracts.
@@ -16,6 +17,12 @@ For low-token project onboarding or after context compaction, read these first:
 Use the `/context-index` skill to refresh these docs when project structure, API, or architecture changes.
 
 GitHub Copilot and path-specific agent instructions live in `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md`; keep them aligned when changing AI workflows or validation expectations.
+
+## Language Policy
+
+- Natural-language content must be written in Simplified Chinese by default, including assistant replies, project documentation, OpenSpec proposals/designs/specs/tasks, comments in planning docs, review notes, and user-facing explanatory text.
+- Keep code identifiers, file paths, commands, API route names, dependency names, TypeScript types, and existing third-party terms in their original language when that is clearer or required by the toolchain.
+- When editing an existing English-only tool template or generated instruction, preserve required keywords and machine-parsed headings, but write the human-authored body text in Chinese where possible.
 
 ## Commands
 
