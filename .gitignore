@@ -54,5 +54,13 @@ playwright-report/
 backups/
 *.dump
 
+# external notes repository
+PRPs/
+docs/08-复盘/
+docs/09-学习资料/
+docs/10-协作/
+docs/99-归档/
+docs/01-产品/产品路线图.md
+
 # Claude local settings
 .claude/settings.local.json
