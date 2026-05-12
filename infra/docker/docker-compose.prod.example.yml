@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: lowcode_editor
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-lowcode_editor}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d lowcode_editor"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -19,20 +19,23 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.server
     restart: unless-stopped
+    env_file:
+      - path: ../../server/.env.production
+        required: false
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/lowcode_editor?schema=public
-      JWT_SECRET: replace-with-a-random-production-secret-at-least-32-chars
-      JWT_EXPIRES_IN: 7d
-      PORT: 3000
-      FRONTEND_ORIGIN: http://localhost:8080
-      UPLOAD_DIR: /app/server/uploads
-      UPLOAD_MAX_SIZE: 5242880
+      DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-lowcode_editor}?schema=public
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?FRONTEND_ORIGIN is required}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/app/server/uploads}
+      UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-5242880}
     depends_on:
       postgres:
         condition: service_healthy
     command: sh -c "npm run prisma:deploy && npm run start"
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     volumes:
       - uploads_data:/app/server/uploads
     healthcheck:
@@ -46,13 +49,14 @@ services:
       context: ../..
       dockerfile: infra/docker/Dockerfile.web
       args:
-        VITE_API_BASE_URL: /api
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+        VITE_LOWCODE_HTTP_ALLOWED_ORIGINS: ${VITE_LOWCODE_HTTP_ALLOWED_ORIGINS:?VITE_LOWCODE_HTTP_ALLOWED_ORIGINS is required}
     restart: unless-stopped
     depends_on:
       server:
         condition: service_healthy
     ports:
-      - "8080:80"
+      - "${WEB_PORT:-8080}:80"
 
 volumes:
   postgres_data:

@@ -10,9 +10,12 @@
     "preview": "vite preview",
     "pretest": "npm run build --prefix server",
     "test": "node --test scripts/test/*.test.mjs",
+    "check:architecture": "node scripts/architecture/check-boundaries.mjs",
     "test:e2e": "playwright test",
+    "test:e2e:editor": "playwright test e2e/editor-regression.spec.ts",
     "smoke:api": "node scripts/smoke/api-smoke.mjs",
-    "check": "npm run lint && npm run build && npm run test"
+    "check": "npm run lint && npm run check:architecture && npm run build && npm run test",
+    "preflight": "npm run check && npm run test:e2e"
   },
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",

@@ -1,13 +1,33 @@
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { PrismaClient, UserRole, UserStatus } = require('../../server/node_modules/@prisma/client');
+
 const apiBaseUrl = (process.env.API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 const runId = Date.now();
+const prisma = new PrismaClient();
 
 async function main() {
   const owner = await registerUser('owner');
   const editor = await registerUser('editor');
   const viewer = await registerUser('viewer');
 
+  const adminDenied = await request('/admin/overview', {
+    token: editor.token,
+    expectedStatus: 403,
+  });
+  assertEqual(adminDenied.code, 'FORBIDDEN', 'non-admin should not access admin overview');
+
+  await grantAdminRole(owner.email);
+
   const me = await request('/auth/me', { token: owner.token });
   assertEqual(me.email, owner.email, 'auth/me should return registered owner');
+  assertEqual(me.role, 'admin', 'granted owner should become platform admin');
+
+  const adminOverview = await request('/admin/overview', { token: owner.token });
+  if (adminOverview.users.total < 3) {
+    throw new Error('admin overview should include registered smoke users');
+  }
 
   const project = await request('/projects', {
     method: 'POST',
@@ -138,10 +158,18 @@ async function main() {
   const publicPage = await request(`/public/pages/${publishedPage.publicId}`);
   assertEqual(publicPage.schema.components[0].children[0].props.text, 'Smoke Test', 'public page should read published snapshot');
 
-  await request(`/pages/${page.id}/unpublish`, {
+  const publishedPages = await request('/admin/published-pages', { token: owner.token });
+  assertIncludes(publishedPages.map((item) => item.id), page.id, 'admin should list published page');
+
+  await request(`/admin/pages/${page.id}/unpublish`, {
     method: 'POST',
-    token: editor.token,
+    token: owner.token,
   });
+
+  const unpublishedPublicPage = await request(`/public/pages/${publishedPage.publicId}`, {
+    expectedStatus: 404,
+  });
+  assertEqual(unpublishedPublicPage.code, 'PUBLISHED_PAGE_NOT_FOUND', 'admin unpublished page should no longer be public');
 
   const template = await request(`/projects/${project.id}/templates`, {
     method: 'POST',
@@ -257,6 +285,53 @@ async function main() {
   });
   assertEqual(auditDenied.code, 'PROJECT_FORBIDDEN', 'non-owner should not read audit logs');
 
+  const republishedPage = await request(`/pages/${page.id}/publish`, {
+    method: 'POST',
+    token: owner.token,
+  });
+  if (!republishedPage.publicId) {
+    throw new Error('owner should be able to republish page before admin disable project');
+  }
+
+  await request(`/admin/projects/${project.id}/status`, {
+    method: 'PATCH',
+    token: owner.token,
+    body: {
+      status: 'disabled',
+    },
+  });
+
+  const disabledProjectReadDenied = await request(`/projects/${project.id}/pages`, {
+    token: editor.token,
+    expectedStatus: 403,
+  });
+  assertEqual(disabledProjectReadDenied.code, 'PROJECT_FORBIDDEN', 'disabled project should reject member page reads');
+
+  const disabledProjectPublicDenied = await request(`/public/pages/${republishedPage.publicId}`, {
+    expectedStatus: 404,
+  });
+  assertEqual(disabledProjectPublicDenied.code, 'PUBLISHED_PAGE_NOT_FOUND', 'disabled project should hide public page');
+
+  await request(`/admin/users/${viewer.user.id}/status`, {
+    method: 'PATCH',
+    token: owner.token,
+    body: {
+      status: 'disabled',
+    },
+  });
+
+  const disabledViewerDenied = await request('/auth/me', {
+    token: viewer.token,
+    expectedStatus: 401,
+  });
+  assertEqual(disabledViewerDenied.code, 'AUTH_ACCOUNT_DISABLED', 'disabled user token should stop working');
+
+  const globalAuditLogs = await request('/admin/audit-logs', { token: owner.token });
+  const globalActions = globalAuditLogs.map((log) => log.action);
+  assertIncludes(globalActions, 'admin.page.unpublish', 'global audit should include admin unpublish');
+  assertIncludes(globalActions, 'admin.project.disable', 'global audit should include project disable');
+  assertIncludes(globalActions, 'admin.user.disable', 'global audit should include user disable');
+
   console.log(JSON.stringify({
     ok: true,
     apiBaseUrl,
@@ -268,8 +343,19 @@ async function main() {
     templateId: template.id,
     assetId: asset.id,
     publicId: publishedPage.publicId,
+    adminAuditLogCount: globalAuditLogs.length,
     auditLogCount: auditLogs.length,
   }, null, 2));
+}
+
+async function grantAdminRole(email) {
+  await prisma.user.update({
+    where: { email },
+    data: {
+      role: UserRole.ADMIN,
+      status: UserStatus.ACTIVE,
+    },
+  });
 }
 
 async function registerUser(prefix) {
@@ -368,7 +454,11 @@ function assertIncludes(values, expected, message) {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
