@@ -35,6 +35,7 @@ export class ProjectsService {
   async list(userId: number) {
     const projects = await this.prisma.project.findMany({
       where: {
+        status: PROJECT_STATUS_ACTIVE,
         OR: [
           { ownerId: userId },
           {
@@ -53,12 +54,12 @@ export class ProjectsService {
       orderBy: { updatedAt: 'desc' },
     });
 
-    return projects.map(({ members, ...project }) => ({
-      ...project,
-      currentUserRole: this.projectAccessService.toApiRole(
+    return projects.map(({ members, ...project }) => this.toProjectResponse(
+      project,
+      this.projectAccessService.toApiRole(
         project.ownerId === userId ? ProjectMemberRole.OWNER : members[0]?.role ?? ProjectMemberRole.VIEWER,
       ),
-    }));
+    ));
   }
 
   create(ownerId: number, dto: CreateProjectDto) {
@@ -90,19 +91,13 @@ export class ProjectsService {
         tx,
       );
 
-      return {
-        ...project,
-        currentUserRole: this.projectAccessService.toApiRole(ProjectMemberRole.OWNER),
-      };
+      return this.toProjectResponse(project, this.projectAccessService.toApiRole(ProjectMemberRole.OWNER));
     });
   }
 
   async get(id: number, userId: number) {
     const { project, role } = await this.projectAccessService.requireProjectRole(id, userId, READABLE_PROJECT_ROLES);
-    return {
-      ...project,
-      currentUserRole: this.projectAccessService.toApiRole(role),
-    };
+    return this.toProjectResponse(project, this.projectAccessService.toApiRole(role));
   }
 
   async update(id: number, userId: number, dto: UpdateProjectDto) {
@@ -127,10 +122,7 @@ export class ProjectsService {
         tx,
       );
 
-      return {
-        ...project,
-        currentUserRole: this.projectAccessService.toApiRole(ProjectMemberRole.OWNER),
-      };
+      return this.toProjectResponse(project, this.projectAccessService.toApiRole(ProjectMemberRole.OWNER));
     });
   }
 
@@ -407,4 +399,20 @@ export class ProjectsService {
   private getDefinedJson(input: object) {
     return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Prisma.InputJsonObject;
   }
+
+  private toProjectResponse<T extends { status: unknown }>(project: T, currentUserRole: string) {
+    return {
+      ...project,
+      status: this.toApiProjectStatus(project.status),
+      currentUserRole,
+    };
+  }
+
+  private toApiProjectStatus(status: unknown) {
+    const value = String(status);
+    return value === PROJECT_STATUS_DISABLED || value === 'disabled' ? 'disabled' : 'active';
+  }
 }
+
+const PROJECT_STATUS_ACTIVE = 'ACTIVE';
+const PROJECT_STATUS_DISABLED = 'DISABLED';

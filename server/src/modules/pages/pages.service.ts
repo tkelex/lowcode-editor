@@ -289,6 +289,8 @@ export class PagesService {
       throw new BusinessException(AppErrorCode.PAGE_NOT_FOUND, 'Page not found', HttpStatus.NOT_FOUND);
     }
 
+    this.projectAccessService.assertProjectActive(page.project);
+
     const role = await this.projectAccessService.getRoleForProject(page.project, userId);
     this.projectAccessService.assertRole(role, allowedRoles, 'Page not found');
 

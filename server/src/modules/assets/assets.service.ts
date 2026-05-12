@@ -144,7 +144,14 @@ export class AssetsService {
   }
 
   async read(storageKey: string) {
-    const asset = await this.prisma.asset.findFirst({ where: { storageKey } });
+    const asset = await this.prisma.asset.findFirst({
+      where: {
+        storageKey,
+        project: {
+          status: PROJECT_STATUS_ACTIVE,
+        },
+      },
+    });
     if (!asset) {
       throw new BusinessException(AppErrorCode.NOT_FOUND, 'Asset not found', HttpStatus.NOT_FOUND);
     }
@@ -188,6 +195,8 @@ export class AssetsService {
     return targetPath;
   }
 }
+
+const PROJECT_STATUS_ACTIVE = 'ACTIVE';
 
 function getSafeExtension(filename: string) {
   const matched = filename.match(/\.[a-zA-Z0-9]+$/);

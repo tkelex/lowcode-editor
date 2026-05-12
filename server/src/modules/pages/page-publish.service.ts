@@ -52,6 +52,9 @@ export class PagePublishService {
       where: {
         publicId,
         isPublished: true,
+        project: {
+          status: PROJECT_STATUS_ACTIVE,
+        },
       },
     });
 
@@ -87,3 +90,5 @@ export class PagePublishService {
     };
   }
 }
+
+const PROJECT_STATUS_ACTIVE = 'ACTIVE';

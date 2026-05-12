@@ -1,5 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { UserRole, UserStatus } from '@prisma/client';
 import { compare, hash } from 'bcryptjs';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
@@ -55,6 +56,8 @@ export class AuthService {
       );
     }
 
+    this.assertActiveUser(user);
+
     const passwordMatched = await compare(dto.password, user.passwordHash);
     if (!passwordMatched) {
       throw new BusinessException(
@@ -77,14 +80,17 @@ export class AuthService {
       );
     }
 
+    this.assertActiveUser(user);
+
     return this.toSafeUser(user);
   }
 
-  private createAuthResponse(user: { id: number; email: string; username: string; nickname: string | null; avatarUrl: string | null }) {
+  private createAuthResponse(user: SafeUserSource) {
     const accessToken = this.jwtService.sign({
       sub: user.id,
       email: user.email,
       username: user.username,
+      role: this.toApiUserRole(user.role),
     });
 
     return {
@@ -93,13 +99,39 @@ export class AuthService {
     };
   }
 
-  private toSafeUser(user: { id: number; email: string; username: string; nickname: string | null; avatarUrl: string | null }) {
+  private toSafeUser(user: SafeUserSource) {
     return {
       id: user.id,
       email: user.email,
       username: user.username,
       nickname: user.nickname,
       avatarUrl: user.avatarUrl,
+      role: this.toApiUserRole(user.role),
+      status: this.toApiUserStatus(user.status),
     };
   }
+
+  private assertActiveUser(user: Pick<SafeUserSource, 'status'>) {
+    if (user.status !== UserStatus.ACTIVE) {
+      throw new BusinessException(AppErrorCode.AUTH_ACCOUNT_DISABLED, 'Account is disabled', HttpStatus.UNAUTHORIZED);
+    }
+  }
+
+  private toApiUserRole(role: UserRole) {
+    return role === UserRole.ADMIN ? 'admin' : 'user';
+  }
+
+  private toApiUserStatus(status: UserStatus) {
+    return status === UserStatus.DISABLED ? 'disabled' : 'active';
+  }
+}
+
+interface SafeUserSource {
+  id: number;
+  email: string;
+  username: string;
+  role: UserRole;
+  status: UserStatus;
+  nickname: string | null;
+  avatarUrl: string | null;
 }

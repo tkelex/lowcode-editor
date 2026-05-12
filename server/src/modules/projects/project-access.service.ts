@@ -45,6 +45,8 @@ export class ProjectAccessService {
       throw new BusinessException(AppErrorCode.PROJECT_NOT_FOUND, 'Project not found', HttpStatus.NOT_FOUND);
     }
 
+    this.assertProjectActive(project);
+
     const role = await this.getRoleForProject(project, userId);
     if (!role || !allowedRoles.includes(role)) {
       throw new BusinessException(
@@ -75,6 +77,13 @@ export class ProjectAccessService {
     return member?.role ?? null;
   }
 
+  assertProjectActive(project: Pick<Project, 'status'>) {
+    const status = String(project.status);
+    if (status !== PROJECT_STATUS_ACTIVE && status !== 'active') {
+      throw new BusinessException(AppErrorCode.PROJECT_FORBIDDEN, 'Project is disabled', HttpStatus.FORBIDDEN);
+    }
+  }
+
   assertRole(role: ProjectMemberRole | null, allowedRoles: readonly ProjectMemberRole[], notFoundMessage = 'Project not found') {
     if (!role) {
       throw new BusinessException(AppErrorCode.PAGE_NOT_FOUND, notFoundMessage, HttpStatus.NOT_FOUND);
@@ -89,3 +98,5 @@ export class ProjectAccessService {
     }
   }
 }
+
+const PROJECT_STATUS_ACTIVE = 'ACTIVE';
