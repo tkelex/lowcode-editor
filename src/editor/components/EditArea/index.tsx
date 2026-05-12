@@ -157,7 +157,7 @@ export function EditArea() {
 
         const componentId = getEventComponentId(e);
 
-        if (componentId && !isLockedComponentId(componentId)) {
+        if (componentId && componentId !== 1 && !isLockedComponentId(componentId)) {
             setCurComponentId(componentId);
             return;
         }

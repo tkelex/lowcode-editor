@@ -282,7 +282,7 @@ test('editor context menu only opens for editable components and closes on blank
   expect(secondBox).not.toBeNull();
   expect(Math.abs((secondBox?.x || 0) - (firstBox?.x || 0))).toBeGreaterThan(20);
 
-  await page.locator('.editor-page').click({ position: { x: 520, y: 260 } });
+  await clickBlankCanvas(page);
   await expect(contextMenu).toHaveCount(0);
 
   await page.locator('.editor-page').click({ button: 'right', position: { x: 520, y: 260 } });
@@ -302,7 +302,7 @@ test('editor clears selected component when clicking blank canvas', async ({ pag
   await expect(page.locator('.editor-mask-selected')).toBeVisible();
   await expect(settingPanelLocator(page).locator('.setting-component-id')).toHaveText('#1002');
 
-  await page.locator('.editor-page').click({ position: { x: 720, y: 320 } });
+  await page.locator('.editor-page').click({ position: { x: 520, y: 260 } });
 
   await expect(page.locator('.editor-mask-selected')).toHaveCount(0);
   await expect(settingPanelLocator(page).locator('.ant-empty-description')).toBeVisible();
