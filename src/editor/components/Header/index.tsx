@@ -1,6 +1,5 @@
-import { Button, Drawer, List, Popconfirm, Space, Tag, Tooltip, Typography, message } from 'antd';
+import { Button, Drawer, Space, Tooltip, Typography, message } from 'antd';
 import { BugOutlined, QuestionCircleOutlined, RedoOutlined, UndoOutlined } from '@ant-design/icons';
-import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { shallow } from 'zustand/shallow';
 import { migratePageSchema } from '../../../../packages/lowcode-schema/src';
@@ -12,7 +11,10 @@ import { ComponentDiffSummary, diffComponentTrees } from '../../schema/diffCompo
 import { useComponentConfigStore } from '../../registry/component-config';
 import { Component, useComponetsStore } from '../../stores/components';
 import { useRuntimeLogsStore } from '../../stores/runtime-logs';
+import { RuntimeLogDrawer } from './RuntimeLogDrawer';
 import { buildPageSchema } from './schema';
+import { ShortcutDrawer } from './ShortcutDrawer';
+import { VersionHistoryDrawer } from './VersionHistoryDrawer';
 import { VersionDiffSummary } from './VersionDiffSummary';
 
 interface HeaderProps {
@@ -363,132 +365,31 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
         </Space>
       </div>
 
-      <Drawer
-        title="版本历史"
+      <VersionHistoryDrawer
         open={versionDrawerOpen}
-        width={420}
+        versions={versions}
+        loadingVersions={loadingVersions}
+        canWritePage={canWritePage}
+        rollingBack={rollingBack}
+        deletingVersionId={deletingVersionId}
         onClose={() => setVersionDrawerOpen(false)}
-        extra={<Button onClick={loadVersions} loading={loadingVersions}>刷新</Button>}
-      >
-        <List
-          loading={loadingVersions}
-          dataSource={versions}
-          locale={{ emptyText: '暂无历史版本，请先保存页面' }}
-          renderItem={(version) => (
-            <List.Item
-              actions={[
-                <Popconfirm
-                  key="rollback"
-                  title={`确认回滚到 v${version.versionNo}？`}
-                  description="当前页面会恢复为该版本，系统会同时生成一条新的回滚版本。"
-                  okText="回滚"
-                  cancelText="取消"
-                  onConfirm={() => void handleRollback(version)}
-                >
-                  <Button type="link" disabled={!canWritePage} loading={rollingBack}>回滚</Button>
-                </Popconfirm>,
-                <Button key="compare" type="link" onClick={() => handleCompareVersion(version)}>对比</Button>,
-                <Popconfirm
-                  key="delete"
-                  title={`确认删除 v${version.versionNo}？`}
-                  description="删除后该历史版本不可再回滚，当前页面内容不会受影响。"
-                  okText="删除"
-                  cancelText="取消"
-                  okButtonProps={{ danger: true }}
-                  onConfirm={() => void handleDeleteVersion(version)}
-                >
-                  <Button type="link" danger disabled={!canWritePage} loading={deletingVersionId === version.id}>删除</Button>
-                </Popconfirm>,
-              ]}
-            >
-              <List.Item.Meta
-                title={<Space>
-                  <Typography.Text strong>v{version.versionNo}</Typography.Text>
-                  <Tag color={version.source === 'rollback' ? 'purple' : version.source === 'publish' ? 'green' : 'blue'}>
-                    {version.source === 'rollback' ? '回滚' : version.source === 'publish' ? '发布' : '保存'}
-                  </Tag>
-                </Space>}
-                description={<Space direction="vertical" size={2}>
-                  <span>{dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss')}</span>
-                  {version.message && <Typography.Text type="secondary">{version.message}</Typography.Text>}
-                </Space>}
-              />
-            </List.Item>
-          )}
-        />
-      </Drawer>
+        onRefresh={loadVersions}
+        onRollback={handleRollback}
+        onDelete={handleDeleteVersion}
+        onCompare={handleCompareVersion}
+      />
 
-      <Drawer
-        title="运行日志"
+      <RuntimeLogDrawer
         open={runtimeLogDrawerOpen}
-        width={520}
+        logs={runtimeLogs}
         onClose={() => setRuntimeLogDrawerOpen(false)}
-        extra={<Button onClick={clearRuntimeLogs} disabled={runtimeLogs.length === 0}>清空</Button>}
-      >
-        <List
-          dataSource={runtimeLogs}
-          locale={{ emptyText: '暂无运行日志' }}
-          renderItem={(log) => (
-            <List.Item>
-              <List.Item.Meta
-                title={<Space wrap>
-                  <Tag color={log.level === 'error' ? 'red' : log.level === 'warning' ? 'gold' : 'blue'}>
-                    {log.level === 'error' ? '错误' : log.level === 'warning' ? '警告' : '信息'}
-                  </Tag>
-                  <Typography.Text strong>{log.title}</Typography.Text>
-                  <Typography.Text type="secondary">{dayjs(log.createdAt).format('HH:mm:ss')}</Typography.Text>
-                </Space>}
-                description={<Space direction="vertical" size={6} className="w-full">
-                  <Typography.Text type="secondary">
-                    {[
-                      log.componentDesc || log.componentName ? `组件：${log.componentDesc || log.componentName}(${log.componentId})` : '',
-                      log.eventName ? `事件：${log.eventName}` : '',
-                      log.actionType ? `动作：${log.actionType}` : '',
-                    ].filter(Boolean).join(' / ') || '运行时'}
-                  </Typography.Text>
-                  <Typography.Text type="danger">{log.message}</Typography.Text>
-                  {log.stack && (
-                    <Typography.Paragraph
-                      className="max-h-[160px] overflow-auto rounded-[6px] bg-[#f8fafc] p-[8px] text-[12px]"
-                      copyable
-                    >
-                      {log.stack}
-                    </Typography.Paragraph>
-                  )}
-                </Space>}
-              />
-            </List.Item>
-          )}
-        />
-      </Drawer>
+        onClear={clearRuntimeLogs}
+      />
 
-      <Drawer
-        title="快捷键"
+      <ShortcutDrawer
         open={shortcutDrawerOpen}
-        width={420}
         onClose={() => setShortcutDrawerOpen(false)}
-      >
-        <List
-          dataSource={[
-            { keys: 'Ctrl / Cmd + S', label: '保存当前页面' },
-            { keys: 'Ctrl / Cmd + Z', label: '撤销上一步编辑' },
-            { keys: 'Ctrl / Cmd + Shift + Z / Ctrl + Y', label: '重做编辑' },
-            { keys: 'Ctrl / Cmd + P', label: '进入或退出预览模式' },
-            { keys: 'Esc', label: '预览模式下退出预览' },
-            { keys: 'Ctrl / Cmd + /', label: '打开快捷键帮助' },
-          ]}
-          renderItem={(item) => (
-            <List.Item>
-              <List.Item.Meta
-                title={<Space>
-                  <Tag color="blue">{item.keys}</Tag>
-                  <Typography.Text>{item.label}</Typography.Text>
-                </Space>}
-              />
-            </List.Item>
-          )}
-        />
-      </Drawer>
+      />
 
       <Drawer
         title={diffTitle || '版本对比'}
