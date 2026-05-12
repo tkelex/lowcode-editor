@@ -311,43 +311,62 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
     onRemoveMember: handleRemoveMember,
   });
 
-  return <div className="min-h-screen bg-slate-100 p-6">
-    <div className="mx-auto max-w-[1180px]">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Typography.Title level={3} className="!mb-1">低代码项目</Typography.Title>
-          <Typography.Text type="secondary">当前用户：{user.username}</Typography.Text>
+  return <div className="min-h-screen bg-[#eef2f7] px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1240px]">
+      <div className="mb-5 flex flex-col gap-4 rounded-lg border border-white/80 bg-white/85 p-5 shadow-[0_10px_30px_rgba(15,23,42,0.06)] sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <Typography.Title level={3} className="!mb-1 !text-[#0f172a]">低代码项目</Typography.Title>
+          <Typography.Text className="text-[13px] text-slate-500">当前用户：{user.username}</Typography.Text>
         </div>
-        <Space>
+        <Space wrap className="justify-start sm:justify-end">
           {user.role === 'admin' && <Button onClick={onOpenAdmin}>管理后台</Button>}
           <Button onClick={() => setProjectModalOpen(true)} type="primary">新建项目</Button>
           <Button onClick={onLogout}>退出登录</Button>
         </Space>
       </div>
 
-      <div className="grid grid-cols-[320px_1fr] gap-4">
-        <Card title="项目列表" loading={loading}>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Card
+          title={<div className="flex flex-col gap-1">
+            <Typography.Text strong className="!text-[16px] !text-slate-900">项目列表</Typography.Text>
+            <Typography.Text className="text-[12px] leading-5 !text-slate-500">选择项目后管理页面与协作</Typography.Text>
+          </div>}
+          loading={loading}
+          className="border border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.05)] [&_.ant-card-body]:p-5 [&_.ant-card-head]:min-h-[68px] [&_.ant-card-head]:px-7 [&_.ant-card-head-title]:py-4"
+        >
           <List
+            className="[&_.ant-list-empty-text]:py-10"
             dataSource={projects}
             locale={{ emptyText: '暂无项目，请先新建项目' }}
             renderItem={(project) => <List.Item
-              className={`cursor-pointer rounded px-2 ${selectedProject?.id === project.id ? 'bg-blue-50' : ''}`}
+              className={`mb-3 cursor-pointer rounded-md border !px-5 !py-4 transition hover:border-blue-200 hover:bg-slate-50 ${
+                selectedProject?.id === project.id
+                  ? 'border-blue-300 bg-[#eff6ff] shadow-[inset_4px_0_0_#2563eb,0_8px_18px_rgba(37,99,235,0.08)]'
+                  : 'border-transparent bg-white'
+              }`}
               onClick={() => void handleSelectProject(project)}
             >
               <List.Item.Meta
-                title={<Space>
-                  <span>{project.name}</span>
-                  {project.currentUserRole && <Tag color={roleColor[project.currentUserRole]}>{roleText[project.currentUserRole]}</Tag>}
-                </Space>}
-                description={project.description || '暂无描述'}
+                title={<div className="flex min-w-0 items-center gap-2">
+                  <Typography.Text strong className="min-w-0 truncate !text-slate-900">{project.name}</Typography.Text>
+                  {project.currentUserRole && <Tag className="m-0 shrink-0" color={roleColor[project.currentUserRole]}>{roleText[project.currentUserRole]}</Tag>}
+                </div>}
+                description={<Typography.Text className="mt-2 block truncate text-[12px] leading-5 !text-slate-400">
+                  {project.description || '暂无描述'}
+                </Typography.Text>}
               />
             </List.Item>}
           />
         </Card>
 
         <Card
-          title={selectedProject ? `${selectedProject.name} / 页面` : '页面'}
-          extra={<Space>
+          title={<div className="flex min-w-0 flex-col gap-1">
+            <Typography.Text strong className="truncate !text-[16px] !text-slate-900">
+              {selectedProject ? `${selectedProject.name} / 页面` : '页面'}
+            </Typography.Text>
+            <Typography.Text className="text-[12px] leading-5 !text-slate-500">维护页面、发布记录与项目协作信息</Typography.Text>
+          </div>}
+          extra={<Space wrap className="justify-start sm:justify-end">
             <Tooltip title={canManageProject ? '修改项目名称和描述' : '只有项目拥有者可以修改项目设置'}>
               <Button disabled={!selectedProject || !canManageProject} onClick={openProjectSettings}>项目设置</Button>
             </Tooltip>
@@ -357,9 +376,14 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
             </Tooltip>
             <Button type="primary" disabled={!selectedProject || !canCreatePage} onClick={openPageModal}>新建页面</Button>
           </Space>}
+          className="min-w-0 border border-slate-200 shadow-[0_8px_24px_rgba(15,23,42,0.05)] [&_.ant-card-extra]:ml-0 [&_.ant-card-extra]:mt-3 [&_.ant-card-head]:min-h-[68px] [&_.ant-card-head]:px-7 [&_.ant-card-head-title]:overflow-visible [&_.ant-card-head-title]:py-4 [&_.ant-card-head-title]:whitespace-normal [&_.ant-card-head-wrapper]:flex-wrap [&_.ant-card-head-wrapper]:items-center"
         >
           {selectedProject && (
-            <Descriptions size="small" column={3} className="mb-4">
+            <Descriptions
+              size="small"
+              column={{ xs: 1, sm: 2, lg: 3 }}
+              className="mb-4 rounded-md border border-slate-100 bg-slate-50 px-4 py-3"
+            >
               <Descriptions.Item label="当前角色">
                 <Tag color={roleColor[currentRole]}>{roleText[currentRole]}</Tag>
               </Descriptions.Item>
@@ -368,24 +392,33 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
             </Descriptions>
           )}
           <List
+            className="[&_.ant-list-empty-text]:py-12"
             loading={loadingPages}
             dataSource={pages}
             locale={{ emptyText: selectedProject ? '暂无页面，请新建页面' : '请先选择项目' }}
-            renderItem={(page) => <List.Item actions={[
-              <Button type="link" onClick={() => void openPublishRecordDrawer(page)}>
-                发布记录
-              </Button>,
-              <Button type="link" onClick={() => onOpenPage(page.id, currentRole)}>
-                {canCreatePage ? '打开编辑器' : '查看页面'}
-              </Button>,
-            ]}>
-              <List.Item.Meta
-                title={<Space>
-                  <span>{page.name}</span>
-                  {page.isPublished && <Tag color="green">已发布</Tag>}
-                </Space>}
-                description={`路径：${page.routePath}`}
-              />
+            renderItem={(page) => <List.Item className="rounded-md border border-slate-100 px-0 py-0 transition hover:border-blue-100 hover:bg-slate-50">
+              <div className="flex w-full flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between">
+                <div className="min-w-0">
+                  <div className="mb-1 flex min-w-0 flex-wrap items-center gap-2">
+                    <Typography.Text strong className="min-w-0 truncate !text-slate-900">{page.name}</Typography.Text>
+                    <Tag className="m-0" color={page.isPublished ? 'green' : 'default'}>
+                      {page.isPublished ? '已发布' : '未发布'}
+                    </Tag>
+                  </div>
+                  <Space size={12} wrap className="text-[13px] text-slate-500">
+                    <span>路径：{page.routePath}</span>
+                    <span>更新：{dayjs(page.updatedAt).format('YYYY-MM-DD HH:mm')}</span>
+                  </Space>
+                </div>
+                <Space wrap className="shrink-0">
+                  <Button type="link" onClick={() => void openPublishRecordDrawer(page)}>
+                    发布记录
+                  </Button>
+                  <Button type="link" onClick={() => onOpenPage(page.id, currentRole)}>
+                    {canCreatePage ? '打开编辑器' : '查看页面'}
+                  </Button>
+                </Space>
+              </div>
             </List.Item>}
           />
         </Card>
