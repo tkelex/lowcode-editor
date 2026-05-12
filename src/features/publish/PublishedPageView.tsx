@@ -1,6 +1,8 @@
-import { Button, Result, Spin } from 'antd';
+import { Spin } from 'antd';
+import { isAxiosError } from 'axios';
 import { Component as ReactComponent, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
 import { migratePageSchema } from '../../../packages/lowcode-schema/src';
+import { RuntimeErrorFallback } from '../../shared/components/RuntimeErrorFallback';
 import { Component } from '../../editor/stores/components';
 import { Preview } from '../../editor/runtime/Preview';
 import { getPublishedPage } from '../../shared/api/pages';
@@ -36,7 +38,7 @@ class PublishedPageErrorBoundary extends ReactComponent<
 
   render() {
     if (this.state.hasError) {
-      return <PublishedPageErrorFallback />;
+      return <RuntimeErrorFallback description="发布页渲染失败，请刷新页面重试，或返回首页重新进入。" />;
     }
 
     return this.props.children;
@@ -47,13 +49,23 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
   const [page, setPage] = useState<PublishedPage | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [loadRequestId, setLoadRequestId] = useState('');
 
   useEffect(() => {
+    setLoading(true);
+    setFailed(false);
+    setLoadRequestId('');
+    setPage(null);
+
     getPublishedPage(publicId)
       .then((data) => {
         setPage(data);
       })
-      .catch(() => setFailed(true))
+      .catch((error: unknown) => {
+        console.error('Published page load failed', error);
+        setLoadRequestId(getApiRequestId(error));
+        setFailed(true);
+      })
       .finally(() => setLoading(false));
   }, [publicId]);
 
@@ -62,7 +74,11 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
   }
 
   if (failed || !page) {
-    return <PublishedPageErrorFallback title="页面不存在或已取消发布" />;
+    return <RuntimeErrorFallback
+      title="页面不存在或已取消发布"
+      description="请确认公开链接仍然有效，或返回首页重新进入。"
+      requestId={loadRequestId}
+    />;
   }
 
   let components: Component[];
@@ -72,7 +88,7 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
     components = schema.components as Component[];
   } catch (error) {
     console.error('Published page schema migration failed', error);
-    return <PublishedPageErrorFallback title="页面数据异常" />;
+    return <RuntimeErrorFallback title="页面数据异常" description="发布快照无法正常解析，请联系管理员重新发布页面。" />;
   }
 
   const pageProps = components[0]?.name === 'Page' ? components[0].props || {} : {};
@@ -143,28 +159,24 @@ function getTextMeta(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function getApiRequestId(error: unknown) {
+  if (!isAxiosError(error)) {
+    return '';
+  }
+
+  const data = error.response?.data;
+  if (!data || typeof data !== 'object' || !('requestId' in data)) {
+    return '';
+  }
+
+  const requestId = (data as { requestId?: unknown }).requestId;
+  return typeof requestId === 'string' ? requestId : '';
+}
+
 function restoreOptionalAttribute(element: Element, name: string, value: string) {
   if (value) {
     element.setAttribute(name, value);
   } else {
     element.removeAttribute(name);
   }
-}
-
-function PublishedPageErrorFallback({ title = '页面运行异常' }: { title?: string }) {
-  return <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-    <Result
-      status="error"
-      title={title}
-      subTitle="请刷新页面重试，或返回首页重新进入。"
-      extra={[
-        <Button key="home" type="primary" onClick={() => { window.location.href = '/'; }}>
-          返回首页
-        </Button>,
-        <Button key="reload" onClick={() => window.location.reload()}>
-          刷新页面
-        </Button>,
-      ]}
-    />
-  </div>;
 }

@@ -1,4 +1,4 @@
-import React, { MouseEventHandler, useMemo, useState } from "react";
+import React, { MouseEventHandler, useEffect, useMemo, useRef, useState } from "react";
 import {
     ArrowDownOutlined,
     ArrowUpOutlined,
@@ -45,11 +45,42 @@ export function EditArea() {
     const [hoverComponentId, setHoverComponentId] = useState<number>();
     const [viewportMode, setViewportMode] = useState<ViewportMode>('desktop');
     const [contextMenu, setContextMenu] = useState<{ componentId: number; x: number; y: number } | null>(null);
+    const [areaWidth, setAreaWidth] = useState(0);
     const isDragging = useDragLayer((monitor) => monitor.isDragging());
+    const areaRef = useRef<HTMLDivElement | null>(null);
 
     const viewportWidth = useMemo(() => {
         return viewportOptions.find(item => item.value === viewportMode)?.width || 1080;
     }, [viewportMode]);
+
+    useEffect(() => {
+        const node = areaRef.current;
+        if (!node) return;
+
+        setAreaWidth(node.clientWidth);
+
+        const resizeObserver = new ResizeObserver((entries) => {
+            const entry = entries[0];
+            if (entry) {
+                setAreaWidth(entry.contentRect.width);
+            }
+        });
+        resizeObserver.observe(node);
+
+        return () => resizeObserver.disconnect();
+    }, []);
+
+    const canvasScale = useMemo(() => {
+        if (!areaWidth) return 1;
+        const horizontalPadding = 48;
+        const availableWidth = Math.max(320, areaWidth - horizontalPadding);
+        return Math.min(1, availableWidth / viewportWidth);
+    }, [areaWidth, viewportWidth]);
+
+    const scaledCanvasHeight = useMemo(() => {
+        const minCanvasHeight = Math.max(560, window.innerHeight - 132);
+        return minCanvasHeight * canvasScale;
+    }, [canvasScale]);
 
     function renderComponents(components: Component[]): React.ReactNode {
         return components.map((component: Component) => {
@@ -146,7 +177,8 @@ export function EditArea() {
     const contextMenuDisabled = !contextMenuComponentId || contextMenuComponentId === 1 || isLockedComponentId(contextMenuComponentId);
 
     return <div
-        className={`relative h-full overflow-auto px-[32px] py-[24px] edit-area ${isDragging ? 'is-dragging' : ''}`}
+        ref={areaRef}
+        className={`relative h-full overflow-y-auto overflow-x-hidden px-[24px] py-[18px] edit-area ${isDragging ? 'is-dragging' : ''}`}
         onMouseOver={handleMouseOver}
         onMouseLeave={() => {
             setHoverComponentId(undefined);
@@ -157,8 +189,7 @@ export function EditArea() {
         <div
             className="editor-canvas-ruler"
             style={{
-                width: viewportWidth,
-                minWidth: viewportWidth,
+                width: Math.min(viewportWidth, Math.max(320, areaWidth - 48 || viewportWidth)),
             }}
         >
             <div className="flex min-w-0 items-center gap-[10px]">
@@ -179,14 +210,17 @@ export function EditArea() {
                 />
             </Space>
         </div>
-        <div
-            className="editor-page-shell mx-auto"
-            style={{
-                width: viewportWidth,
-                minWidth: viewportWidth,
-            }}
-        >
-            {renderComponents(components)}
+        <div className="editor-page-stage" style={{ width: viewportWidth * canvasScale, height: scaledCanvasHeight }}>
+            <div
+                className="editor-page-shell"
+                style={{
+                    width: viewportWidth,
+                    minHeight: Math.max(560, window.innerHeight - 132),
+                    transform: `scale(${canvasScale})`,
+                }}
+            >
+                {renderComponents(components)}
+            </div>
         </div>
         {hoverComponentId && hoverComponentId !== curComponentId && (
             <HoverMask

@@ -40,16 +40,35 @@ function App() {
 
   const handleAuthenticated = useCallback((nextUser: User) => {
     authenticate(nextUser);
+    if (window.location.pathname === '/admin' && nextUser.role === 'admin') {
+      setView({ name: 'admin' });
+      return;
+    }
+
+    if (window.location.pathname === '/admin') {
+      window.history.pushState(null, '', '/');
+    }
     setView({ name: 'dashboard' });
   }, [authenticate]);
 
   const handleLogout = useCallback(() => {
+    if (window.location.pathname === '/admin') {
+      window.history.pushState(null, '', '/');
+    }
     signOut();
     setView({ name: 'auth' });
   }, [signOut]);
 
   const handleBackToDashboard = useCallback(() => {
+    if (window.location.pathname === '/admin') {
+      window.history.pushState(null, '', '/');
+    }
     setView({ name: 'dashboard' });
+  }, []);
+
+  const handleOpenAdmin = useCallback(() => {
+    window.history.pushState(null, '', '/admin');
+    setView({ name: 'admin' });
   }, []);
 
   if (publishPublicId) {
@@ -68,6 +87,7 @@ function App() {
     onAuthenticated={handleAuthenticated}
     onOpenPage={openPage}
     onLogout={handleLogout}
+    onOpenAdmin={handleOpenAdmin}
     onBackToDashboard={handleBackToDashboard}
   />;
 }

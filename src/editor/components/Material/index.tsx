@@ -1,46 +1,28 @@
 import { Button, Empty, Form, Input, Modal, Segmented, Select, Space, Typography, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
-import { CURRENT_SCHEMA_VERSION, migratePageSchema } from "../../../../packages/lowcode-schema/src";
-import type { LowcodeComponentSchema } from "../../../../packages/lowcode-schema/src";
+import { CURRENT_SCHEMA_VERSION } from "../../../../packages/lowcode-schema/src";
 import { createProjectTemplate, listProjectTemplates } from "../../../shared/api/templates";
 import type { PageTemplate, ProjectRole } from "../../../shared/api/types";
 import { ComponentCategory, ComponentConfig, useComponentConfigStore } from "../../registry/component-config";
-import { Component, useComponetsStore } from "../../stores/components";
+import { useComponetsStore } from "../../stores/components";
 import { MaterialItem } from "../MaterialItem";
-
-const favoriteStorageKey = 'lowcode-editor-material-favorites';
-
-const categoryLabels: Record<ComponentCategory, string> = {
-    layout: '布局容器',
-    basic: '基础组件',
-    form: '表单组件',
-    data: '数据展示',
-    feedback: '反馈组件',
-};
-
-const categoryOrder: ComponentCategory[] = ['layout', 'basic', 'form', 'data', 'feedback'];
-
-type MaterialView = 'all' | 'favorite' | 'template';
-
-interface TemplateConfig {
-    key: string;
-    title: string;
-    description: string;
-    keywords: string[];
-    create: () => Component;
-}
+import {
+    categoryLabels,
+    categoryOrder,
+    createIdFactory,
+    favoriteStorageKey,
+    SaveTemplateFormValues,
+    serializeComponent,
+    TemplateConfig,
+    toTemplateConfig,
+    MaterialView,
+    withParentIds,
+} from './model';
 
 interface MaterialProps {
     projectId?: number;
     projectRole?: ProjectRole;
 }
-
-type SaveTemplateFormValues = {
-    title: string;
-    description?: string;
-    type: 'page' | 'block';
-    visibility: 'project' | 'private';
-};
 
 const templates: TemplateConfig[] = [
     {
@@ -646,93 +628,4 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
             </Form>
         </Modal>
     </div>
-}
-
-function toTemplateConfig(template: PageTemplate): TemplateConfig {
-    return {
-        key: `remote-${template.id}`,
-        title: template.title,
-        description: template.description || (template.type === 'page' ? '项目页面模板' : '项目区块模板'),
-        keywords: [template.title, template.category || '', ...template.tags].filter(Boolean),
-        create: () => {
-            const schema = migratePageSchema(template.schema);
-            const component = schema.components[0] as Component | undefined;
-            if (!component) {
-                throw new Error('模板内容为空');
-            }
-
-            if (component.name === 'Page') {
-                return withFreshIds({
-                    id: component.id,
-                    name: 'Container',
-                    desc: template.title,
-                    props: {},
-                    styles: { padding: 24 },
-                    children: component.children,
-                });
-            }
-
-            return withFreshIds(component);
-        },
-    };
-}
-
-function serializeComponent(component: Component): LowcodeComponentSchema {
-    const nextComponent: LowcodeComponentSchema = {
-        id: component.id,
-        name: component.name,
-        props: component.props || {},
-        desc: component.desc,
-    };
-
-    if (component.styles) {
-        nextComponent.styles = component.styles as Record<string, unknown>;
-    }
-    if (component.parentId !== undefined) {
-        nextComponent.parentId = component.parentId;
-    }
-    if (component.children) {
-        nextComponent.children = component.children.map(serializeComponent);
-    }
-
-    return nextComponent;
-}
-
-function withFreshIds(component: Component): Component {
-    const nextId = createIdFactory();
-
-    function clone(current: Component, parentId?: number): Component {
-        return withParentIds({
-            ...current,
-            id: nextId(),
-            children: current.children?.map((child) => clone(child)),
-        }, parentId);
-    }
-
-    return clone(component);
-}
-
-function createIdFactory() {
-    let offset = 0;
-    const base = Date.now();
-
-    return () => {
-        offset += 1;
-        return base + offset;
-    };
-}
-
-function withParentIds(component: Component, parentId?: number): Component {
-    const nextComponent = {
-        ...component,
-        props: component.props || {},
-        parentId,
-    };
-
-    if (!parentId) {
-        delete nextComponent.parentId;
-    }
-
-    nextComponent.children = component.children?.map(child => withParentIds(child, nextComponent.id));
-    return nextComponent;
 }

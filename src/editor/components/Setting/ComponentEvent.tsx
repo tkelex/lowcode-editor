@@ -1,4 +1,4 @@
-import { Button, Collapse, CollapseProps, Empty, Popconfirm, Space, Tag, Tooltip, Typography, message } from 'antd';
+import { Button, Collapse, CollapseProps, Empty, Popconfirm, Tag, Tooltip, message } from 'antd';
 import {
     ArrowDownOutlined,
     ArrowUpOutlined,
@@ -225,35 +225,26 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
 
     const items: CollapseProps['items'] = events.map(event => {
         const actions = getEventActions(event);
-        const allowedActions = event.allowedActions || [];
-
         return {
             key: event.name,
-            label: <div className='grid w-full min-w-0 grid-cols-[minmax(0,1fr)_28px] items-center gap-[8px]'>
-                <div className="min-w-0">
-                    <div className="flex min-w-0 items-center gap-[6px]">
-                        <span className="shrink-0 whitespace-nowrap text-[14px] font-semibold leading-[22px] text-[#111827]">
-                            {event.label}
-                        </span>
-                        <Tag className="m-0 shrink-0 leading-[20px]" color={actions.length ? 'blue' : 'default'}>
-                            {actions.length}
-                        </Tag>
+            label: <div className='grid w-full min-w-0 grid-cols-[minmax(0,1fr)_24px] items-center gap-[8px]'>
+                <div className="event-summary">
+                    <div className="event-title-row">
+                        <span className="event-title">{event.label}</span>
+                        {actions.length > 0 && <span className="event-action-count">{actions.length}</span>}
                     </div>
                     {event.description && (
-                        <Typography.Text
-                            type="secondary"
-                            ellipsis={{ tooltip: event.description }}
-                            className="block max-w-full whitespace-nowrap text-[12px] leading-[18px]"
-                        >
+                        <span className="event-description" title={event.description}>
                             {event.description}
-                        </Typography.Text>
+                        </span>
                     )}
                 </div>
                 <Tooltip title="添加动作">
                     <Button
                         aria-label="添加动作"
                         size="small"
-                        type="primary"
+                        type="text"
+                        className="event-add-button"
                         icon={<PlusOutlined />}
                         onClick={(e) => {
                             e.stopPropagation();
@@ -265,24 +256,13 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                     />
                 </Tooltip>
             </div>,
-            children: <div className="pt-[2px]">
-                <div className="mb-[10px] rounded-[6px] border border-[#edf2f7] bg-[#f8fafc] p-[8px]">
-                    <Space direction="vertical" size={4}>
-                        <Typography.Text type="secondary" className="text-[12px]">
-                            事件数据：{formatEventDataSchema(event)}
-                        </Typography.Text>
-                        <Typography.Text type="secondary" className="text-[12px]">
-                            自定义 JS 可用变量：context、event、args、doAction
-                        </Typography.Text>
-                        <Space wrap size={[4, 4]}>
-                            {allowedActions.map(actionType => (
-                                <Tag className="m-0" key={actionType} color={actionColorMap[actionType]}>{actionLabelMap[actionType]}</Tag>
-                            ))}
-                        </Space>
-                    </Space>
+            children: <div>
+                <div className="event-data-card">
+                    <span className="event-data-label">事件数据</span>
+                    <span className="event-data-value">{formatEventDataSchema(event)}</span>
                 </div>
                 {actions.length === 0 && (
-                    <div className="rounded-[8px] border border-dashed border-[#cbd5e1] bg-[#f8fafc] px-[12px] py-[18px] text-center">
+                    <div className="event-empty-card">
                         <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无动作" />
                         <Button
                             size="small"
@@ -299,26 +279,21 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                     </div>
                 )}
                 {actions.map((item, index) => {
-                    return <div key={`${event.name}-${index}-${item.actionType}`} className={`group mb-[8px] rounded-[8px] border p-[10px] shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition hover:border-[#bfdbfe] hover:shadow-[0_8px_18px_rgba(15,23,42,0.08)] ${
-                        item.disabled ? 'border-[#e5e7eb] bg-[#f8fafc] opacity-70' : 'border-[#e5e7eb] bg-white'
-                    }`}>
-                        <div className="flex items-start justify-between gap-[10px]">
-                            <div className="flex h-[24px] w-[24px] shrink-0 items-center justify-center rounded-full bg-[#eff6ff] text-[12px] font-semibold text-[#2563eb]">
+                    return <div key={`${event.name}-${index}-${item.actionType}`} className={`event-action-card ${item.disabled ? 'is-disabled' : ''}`}>
+                        <div className="flex items-start justify-between gap-[8px]">
+                            <div className="event-action-index">
                                 {index + 1}
                             </div>
                             <div className="min-w-0 flex-1 pt-[1px]">
-                                <div className="mb-[5px] flex items-center gap-[6px]">
-                                    <Tag className="m-0" color={actionColorMap[item.actionType]}>{actionLabelMap[item.actionType]}</Tag>
+                                <div className="mb-[4px] flex min-w-0 items-center gap-[6px]">
+                                    <Tag className="event-action-tag" color={actionColorMap[item.actionType]}>{actionLabelMap[item.actionType]}</Tag>
                                     {item.disabled && <Tag className="m-0" color="default">已禁用</Tag>}
-                                    <Typography.Text type="secondary" className="text-[12px]">
-                                        {item.disabled ? '事件触发时跳过' : '事件触发后执行'}
-                                    </Typography.Text>
                                 </div>
-                                <Typography.Text className="block max-w-full truncate text-[13px] text-[#374151]">
+                                <span className="event-action-summary" title={renderActionSummary(item)}>
                                     {renderActionSummary(item)}
-                                </Typography.Text>
+                                </span>
                             </div>
-                            <Space className="opacity-80 transition group-hover:opacity-100" size={2}>
+                            <div className="event-action-tools">
                                 <Tooltip title="上移">
                                     <Button
                                         size="small"
@@ -376,7 +351,7 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                                         icon={<DeleteOutlined />}
                                     />
                                 </Popconfirm>
-                            </Space>
+                            </div>
                         </div>
                     </div>
                 })}
@@ -411,9 +386,9 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         setActionModalOpen(false);
     }
 
-    return <div className='px-[4px]'>
+    return <div className='event-panel'>
         <Collapse
-            className='mb-[10px] bg-transparent [&_.ant-collapse-header-text]:min-w-0 [&_.ant-collapse-header-text]:w-full'
+            className='setting-collapse mb-[10px] [&_.ant-collapse-header-text]:min-w-0 [&_.ant-collapse-header-text]:w-full'
             size="small"
             accordion={events.length > 2}
             items={items}

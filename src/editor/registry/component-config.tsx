@@ -82,48 +82,23 @@ import {
     UploadProd,
 } from '../materials/p3';
 import { COMMON_CHILDREN } from '../materials/commonChildren';
-import type { ActionType, EventCategory } from '../events/types';
-
-export interface ComponentSetter {
-    name: string;
-    label: string;
-    type: string;
-    [key: string]: any;
-}
-
-export interface ComponentEvent {
-    name: string
-    label: string
-    propName?: string
-    category: EventCategory
-    description?: string
-    eventDataSchema?: string[]
-    allowedActions: ActionType[]
-}
-
-export interface ComponentMethod {
-    name: string
-    label: string
-}
-
-export type ComponentCategory = 'layout' | 'basic' | 'form' | 'data' | 'feedback';
-
-export interface ComponentConfig {
-    name: string;
-    defaultProps: Record<string, any>,
-    desc: string;
-    acceptsChildren?: string[] | true;
-    category?: ComponentCategory;
-    icon?: string;
-    keywords?: string[];
-    sort?: number;
-    setter?: ComponentSetter[];
-    stylesSetter?: ComponentSetter[];
-    events?: ComponentEvent[];
-    methods?: ComponentMethod[]
-    dev: any;
-    prod: any;
-}
+import type { ComponentConfig } from './types';
+export type { ComponentCategory, ComponentConfig, ComponentEvent, ComponentMethod, ComponentSetter } from './types';
+import {
+    ACTIONS,
+    baseContainerAccepts,
+    boolOptions,
+    clickEvents,
+    commonStyleSetters,
+    defineEvent,
+    doubleClickEvent,
+    inputSetter,
+    numberSetter,
+    openTargetOptions,
+    selectSetter,
+    textareaSetter,
+    valueChangeEvent,
+} from './factory';
 
 interface State {
     componentConfig: Record<string, ComponentConfig>;
@@ -131,79 +106,6 @@ interface State {
 
 interface Action {
     registerComponent: (name: string, componentConfig: ComponentConfig) => void
-}
-
-const ACTIONS = {
-    ui: ['toast', 'url', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
-    value: ['toast', 'componentAction', 'componentControl', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
-    submit: ['toast', 'url', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
-    overlay: ['toast', 'componentAction', 'componentControl', 'confirm', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
-    lifecycle: ['toast', 'componentAction', 'componentControl', 'condition', 'http', 'setComponentProps', 'setComponentStyles', 'setVariable', 'custom'] as ActionType[],
-};
-
-function defineEvent(
-    name: string,
-    label: string,
-    category: EventCategory,
-    description: string,
-    eventDataSchema: string[],
-    allowedActions = ACTIONS[category],
-    propName?: string,
-): ComponentEvent {
-    return {
-        name,
-        label,
-        category,
-        description,
-        eventDataSchema,
-        allowedActions,
-        propName,
-    };
-}
-
-const boolOptions = [
-    { label: '是', value: true },
-    { label: '否', value: false },
-];
-
-const openTargetOptions = [
-    { label: '当前窗口', value: '_self' },
-    { label: '新窗口', value: '_blank' },
-];
-
-const commonStyleSetters: ComponentSetter[] = [
-    { name: 'width', label: '宽度', type: 'input' },
-    { name: 'height', label: '高度', type: 'input' },
-    { name: 'margin', label: '外边距', type: 'input' },
-    { name: 'padding', label: '内边距', type: 'input' },
-];
-
-const clickEvents = [
-    defineEvent('click', '点击事件', 'ui', '用户点击组件时触发', ['args']),
-];
-
-const doubleClickEvent = defineEvent('doubleClick', '双击事件', 'ui', '用户双击组件时触发', ['args'], ['toast', 'componentAction', 'custom']);
-
-const valueChangeEvent = defineEvent('change', '值变化事件', 'value', '值变化时触发', ['value', 'args']);
-
-function inputSetter(name: string, label: string): ComponentSetter {
-    return { name, label, type: 'input' };
-}
-
-function textareaSetter(name: string, label: string): ComponentSetter {
-    return { name, label, type: 'textarea' };
-}
-
-function numberSetter(name: string, label: string): ComponentSetter {
-    return { name, label, type: 'inputNumber' };
-}
-
-function selectSetter(name: string, label: string, options: Array<{ label: string; value: any }>): ComponentSetter {
-    return { name, label, type: 'select', options };
-}
-
-function baseContainerAccepts() {
-    return [...COMMON_CHILDREN, 'Modal'];
 }
 
 export const useComponentConfigStore = create<State & Action>((set) => ({

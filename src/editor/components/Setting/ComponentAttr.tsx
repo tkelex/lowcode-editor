@@ -1,4 +1,4 @@
-import { Alert, Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
+import { Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
 import { useEffect, useMemo } from 'react';
 import { shallow } from 'zustand/shallow';
 import { ComponentConfig, ComponentSetter, useComponentConfigStore } from '../../registry/component-config';
@@ -68,34 +68,14 @@ export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
       className="setting-form"
     >
       <Collapse
-        defaultActiveKey={['base', 'props']}
+        className="setting-collapse"
+        defaultActiveKey={['props']}
         size="small"
         items={[
           {
-            key: 'base',
-            label: '基础信息',
-            children: <div>
-              <Form.Item label="组件 ID">
-                <Input value={curComponent.id} disabled />
-              </Form.Item>
-              <Form.Item label="组件类型">
-                <Input value={curComponent.name} disabled />
-              </Form.Item>
-              <Form.Item label="显示名称">
-                <Input value={curComponent.desc} disabled/>
-              </Form.Item>
-            </div>,
-          },
-          {
             key: 'props',
-            label: `属性配置 ${filteredSetters.length ? `(${filteredSetters.length})` : ''}`,
+            label: `属性配置${filteredSetters.length ? ` (${filteredSetters.length})` : ''}`,
             children: <div>
-              <Alert
-                className="mb-[10px]"
-                type="info"
-                showIcon
-                message="属性支持 {{variables.xxx}} 表达式；Page 组件可配置页面变量和数据源 JSON。"
-              />
               {!hasMatchedConfig && (
                 <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的属性配置" />
               )}

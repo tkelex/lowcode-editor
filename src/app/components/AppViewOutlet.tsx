@@ -10,6 +10,9 @@ const AuthView = lazy(() => import('../../features/auth/AuthView').then((module)
 const ProjectDashboard = lazy(() => import('../../features/projects/ProjectDashboard').then((module) => ({
   default: module.ProjectDashboard,
 })));
+const AdminDashboard = lazy(() => import('../../features/admin/AdminDashboard').then((module) => ({
+  default: module.AdminDashboard,
+})));
 
 interface AppViewOutletProps {
   view: AppView;
@@ -17,6 +20,7 @@ interface AppViewOutletProps {
   onAuthenticated: (user: User) => void;
   onOpenPage: (pageId: number, projectRole?: ProjectRole) => void;
   onLogout: () => void;
+  onOpenAdmin: () => void;
   onBackToDashboard: () => void;
 }
 
@@ -26,6 +30,7 @@ export function AppViewOutlet({
   onAuthenticated,
   onOpenPage,
   onLogout,
+  onOpenAdmin,
   onBackToDashboard,
 }: AppViewOutletProps) {
   if (view.name === 'auth') {
@@ -49,7 +54,13 @@ export function AppViewOutlet({
     return <AppLoading />;
   }
 
+  if (view.name === 'admin') {
+    return <Suspense fallback={<AppLoading />}>
+      <AdminDashboard user={user} onBack={onBackToDashboard} onLogout={onLogout} />
+    </Suspense>;
+  }
+
   return <Suspense fallback={<AppLoading />}>
-    <ProjectDashboard user={user} onOpenPage={onOpenPage} onLogout={onLogout} />
+    <ProjectDashboard user={user} onOpenPage={onOpenPage} onLogout={onLogout} onOpenAdmin={onOpenAdmin} />
   </Suspense>;
 }

@@ -105,6 +105,7 @@ export function ComponentStyle({ keyword = '' }: ComponentStyleProps) {
       className="setting-form"
     >
       <Collapse
+        className="setting-collapse"
         defaultActiveKey={['quick', 'css']}
         size="small"
         items={[

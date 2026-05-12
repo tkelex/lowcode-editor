@@ -3,8 +3,8 @@ import { BugOutlined, QuestionCircleOutlined, RedoOutlined, UndoOutlined } from 
 import dayjs from 'dayjs';
 import { useEffect, useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { CURRENT_SCHEMA_VERSION, migratePageSchema } from '../../../../packages/lowcode-schema/src';
-import type { LowcodeComponentSchema, LowcodePageSchema } from '../../../../packages/lowcode-schema/src';
+import { migratePageSchema } from '../../../../packages/lowcode-schema/src';
+import type { LowcodeComponentSchema } from '../../../../packages/lowcode-schema/src';
 import { deletePageVersion, listPageVersions, publishPage, rollbackPage, updatePage } from '../../../shared/api/pages';
 import { PageVersion, ProjectRole } from '../../../shared/api/types';
 import { assertValidComponentTree } from '../../schema/validateComponents';
@@ -12,6 +12,8 @@ import { ComponentDiffSummary, diffComponentTrees } from '../../schema/diffCompo
 import { useComponentConfigStore } from '../../registry/component-config';
 import { Component, useComponetsStore } from '../../stores/components';
 import { useRuntimeLogsStore } from '../../stores/runtime-logs';
+import { buildPageSchema } from './schema';
+import { VersionDiffSummary } from './VersionDiffSummary';
 
 interface HeaderProps {
   pageId?: number;
@@ -62,17 +64,6 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
   const runtimeErrorCount = runtimeLogs.filter((log) => log.level === 'error').length;
   const canWritePage = projectRole === 'owner' || projectRole === 'editor';
 
-  function buildPageSchema(): LowcodePageSchema {
-    return {
-      schemaVersion: CURRENT_SCHEMA_VERSION,
-      pageId,
-      components: components.map(serializeComponent),
-      metadata: {
-        updatedAt: new Date().toISOString(),
-      },
-    };
-  }
-
   async function saveCurrentPage() {
     if (!pageId) {
       throw new Error('Page id is required');
@@ -81,7 +72,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
     assertValidComponentTree(components, componentConfig);
 
     return updatePage(pageId, {
-      schema: buildPageSchema(),
+      schema: buildPageSchema(components, pageId),
     });
   }
 
@@ -282,7 +273,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
   }
 
   function handleCompareVersion(version: PageVersion) {
-    const currentSchema = buildPageSchema();
+    const currentSchema = buildPageSchema(components, pageId);
     const versionSchema = migratePageSchema(version.schema, { pageId });
     const summary = diffComponentTrees(
       versionSchema.components as LowcodeComponentSchema[],
@@ -346,6 +337,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
           </Tooltip>
           {mode === 'edit' && (
             <Button
+                aria-label="预览"
                 onClick={() => {
                     setMode('preview');
                     setCurComponentId(null);
@@ -358,6 +350,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
           )}
           {mode === 'preview' && (
             <Button
+              aria-label="退出预览"
               onClick={() => {
                 setMode('edit');
                 message.info('已退出预览模式');
@@ -507,79 +500,4 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
       </Drawer>
     </div>
   )
-}
-
-function VersionDiffSummary({ summary }: { summary: ComponentDiffSummary }) {
-  const hasDiff = summary.added.length > 0 || summary.removed.length > 0 || summary.updated.length > 0;
-
-  if (!hasDiff) {
-    return <div className="rounded-[8px] border border-[#dbeafe] bg-[#eff6ff] p-[16px] text-[#1d4ed8]">
-      当前草稿和该历史版本没有组件结构、属性或样式差异。
-    </div>;
-  }
-
-  return <Space direction="vertical" size={16} className="w-full">
-    <DiffGroup title="新增组件" color="green" items={summary.added} />
-    <DiffGroup title="删除组件" color="red" items={summary.removed} />
-    <DiffGroup title="变更组件" color="blue" items={summary.updated} />
-  </Space>;
-}
-
-function DiffGroup({ title, color, items }: { title: string; color: string; items: ComponentDiffSummary[keyof ComponentDiffSummary] }) {
-  return <div>
-    <div className="mb-[8px] flex items-center gap-[8px]">
-      <Typography.Text strong>{title}</Typography.Text>
-      <Tag color={color}>{items.length}</Tag>
-    </div>
-    <List
-      size="small"
-      dataSource={items}
-      locale={{ emptyText: '无' }}
-      renderItem={(item) => (
-        <List.Item>
-          <List.Item.Meta
-            title={<Space>
-              <Typography.Text strong>#{item.id}</Typography.Text>
-              <Typography.Text>{item.desc || item.name}</Typography.Text>
-              <Typography.Text type="secondary">{item.name}</Typography.Text>
-            </Space>}
-            description={item.changes.join('、')}
-          />
-        </List.Item>
-      )}
-    />
-  </div>;
-}
-
-function serializeComponent(component: Component): LowcodeComponentSchema {
-  const nextComponent: LowcodeComponentSchema = {
-    id: component.id,
-    name: component.name,
-    props: isPlainObject(component.props) ? { ...component.props } : {},
-    desc: component.desc,
-  };
-
-  if (component.styles) {
-    nextComponent.styles = Object.entries(component.styles).reduce<Record<string, unknown>>((styles, [key, value]) => {
-      if (value !== undefined) {
-        styles[key] = value;
-      }
-
-      return styles;
-    }, {});
-  }
-
-  if (component.parentId !== undefined) {
-    nextComponent.parentId = component.parentId;
-  }
-
-  if (component.children) {
-    nextComponent.children = component.children.map(serializeComponent);
-  }
-
-  return nextComponent;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
 }
