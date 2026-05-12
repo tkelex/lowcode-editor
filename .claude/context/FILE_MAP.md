@@ -36,7 +36,7 @@
 
 | 文件 | 作用 | 修改风险 |
 | --- | --- | --- |
-| `scripts/test/schema.test.mjs` | Node 内置 test runner 用例，覆盖共享 schema migration、校验和 URL normalize。 | 测试依赖后端构建产物 `server/dist/packages`，改构建路径要同步。 |
+| `scripts/test/*.test.mjs`、`scripts/test/schema-test-utils.mjs` | Node 内置 test runner 用例，按 schema migration、校验、URL、事件数据、HTTP request 和 action runtime 分文件覆盖。 | 测试依赖后端构建产物 `server/dist/packages`，改构建路径要同步；运行时测试共享 harness 放在 `action-runtime-utils.mjs`。 |
 | `scripts/architecture/check-boundaries.mjs` | 架构边界检查，防止前端直接引用后端、共享包反向依赖应用、以及新代码绕回旧 `src/api`。 | 新增合法跨层依赖时先评估是否应该调整模块边界，而不是直接放宽规则。 |
 | `scripts/smoke/api-smoke.mjs` | API smoke 脚本，验证注册、项目成员权限、页面保存、版本、发布、公开读取和审计闭环。 | 需要后端和数据库运行；改 API 路由或权限规则时同步。 |
 | `infra/docker/Dockerfile.web` | 前端生产镜像构建，Nginx 托管 Vite dist。 | 改 Vite 环境变量或构建命令时同步。 |
@@ -69,10 +69,12 @@
 | `src/app/components/AppViewOutlet.tsx` | 根据 `AppView` 渲染 auth/dashboard/editor。 | 影响应用级页面切换。 |
 | `src/app/routes/publicRoutes.ts` | 识别 `/publish/:publicId` 公开访问路径。 | 影响公开发布页绕过登录。 |
 | `src/features/auth/AuthView.tsx` | 登录/注册页面。 | 表单字段要和 Auth API DTO 对齐。 |
-| `src/features/projects/ProjectDashboard.tsx` | 项目和页面入口面板。 | 影响创建项目、创建页面、进入编辑器流程。 |
+| `src/features/projects/ProjectDashboard.tsx` | 项目和页面入口面板，负责状态、接口调用和页面级装配。 | 影响创建项目、创建页面、进入编辑器流程；成员/发布记录 Drawer 与表格列已拆到子模块。 |
+| `src/features/projects/components/*`、`src/features/projects/tableColumns.tsx` | 项目面板成员抽屉、发布记录抽屉和表格列定义。 | 子组件只接收回调和数据，避免在展示模块里新增项目 API 请求。 |
 | `src/features/projects/model/*` | 项目面板的功能内类型和展示字典。 | 只放纯类型、文案映射和无副作用规则，不放 API 请求。 |
 | `src/features/admin/AdminDashboard.tsx` | 平台管理员后台，总览、用户、项目、发布页和全局审计管理。 | 高风险；操作会影响账号状态、项目状态和公开发布页。 |
 | `src/features/admin/model/*`、`src/features/admin/components/*` | 管理员后台展示字典、格式化工具、概览卡片、状态标签和表格工具栏。 | 子模块保持展示或纯工具职责，不直接新增管理员 API 调用。 |
+| `src/features/admin/tableColumns.tsx` | 管理员后台用户、项目、发布页和审计表格列定义。 | 列中的操作回调由 AdminDashboard 注入，避免在列配置里直接请求 API。 |
 | `src/features/publish/PublishedPageView.tsx` | 公开发布页运行态渲染，先迁移发布快照，再传 `allowCustomJS={false}`。 | 公开页必须绕过登录且不能执行 customJS。 |
 
 ## 前端 API 层
@@ -97,11 +99,12 @@
 | `src/editor/stores/component-tree.ts` | 组件树纯工具：查找、克隆、移动辅助、父子关系、锁定判断和 id 生成。 | 只放无副作用树操作工具；改动会影响 store 多个 action。 |
 | `src/editor/registry/component-config.tsx` | 物料注册表、分类元信息、setter、events、methods，当前包含 P3 基础/表单/数据/反馈物料。 | 高风险；影响物料面板、设置面板、编辑态和运行态渲染。 |
 | `src/editor/registry/types.ts`、`src/editor/registry/factory.ts` | 物料注册表公共类型、事件定义、setter 工厂和通用选项。 | 适合沉淀共享注册能力；具体物料配置后续继续按分类拆分。 |
+| `src/editor/registry/configs/*` | 按 layout/basic/form/data/feedback 分类拆分的物料配置。 | 新增物料优先落到对应分类文件，并同步共享 schema registry。 |
 | `src/editor/stores/component-config.tsx` | 旧物料注册表路径兼容导出。 | 不要在这里新增主逻辑。 |
 | `src/editor/schema/validateComponents.ts` | 前端 schema 校验兼容出口，实际逻辑来自 `packages/lowcode-schema`。 | 高风险；规则过严会拦截旧页面，规则过松会让非法 schema 进入保存和发布。 |
 | `src/editor/interface.ts` | 通用组件 props 类型。 | 改 `id/name` 类型会影响 dev/prod materials。 |
-| `src/editor/components/Header/index.tsx` | 顶部栏、保存、发布、版本历史、回滚、版本删除、预览切换；保存前序列化为共享 schema，回滚后先迁移再载入。 | 保存、发布、回滚、版本删除逻辑和 pageId 绑定在这里。 |
-| `src/editor/components/Header/schema.ts`、`src/editor/components/Header/VersionDiffSummary.tsx` | Header 的 schema 序列化和版本差异展示子模块。 | 保持纯函数/展示组件，避免把 API 调用写回这里。 |
+| `src/editor/components/Header/index.tsx` | 顶部栏、保存、发布、版本历史、回滚、版本删除、预览切换；保存前序列化为共享 schema，回滚后先迁移再载入。 | 保存、发布、回滚、版本删除逻辑和 pageId 绑定在这里；抽屉 UI 已拆到子组件。 |
+| `src/editor/components/Header/schema.ts`、`src/editor/components/Header/VersionDiffSummary.tsx`、`src/editor/components/Header/*Drawer.tsx` | Header 的 schema 序列化、版本差异展示、版本历史/运行日志/快捷键抽屉子模块。 | 保持纯函数或展示组件职责，避免把 API 调用写回展示抽屉。 |
 | `src/editor/components/EditArea/index.tsx` | 编辑态递归渲染组件树，包含响应式画布宽度切换、hover/selected 遮罩、右键菜单和拖拽状态。 | 影响选择、hover、右键操作、拖拽和编辑画布渲染。 |
 | `src/editor/runtime/Preview/index.tsx` | 预览态/公开运行态递归渲染和事件动作执行，公开页通过 `allowCustomJS={false}` 禁用 customJS。 | 高风险；含 `customJS` 执行路径，公开发布页必须保持禁用。 |
 | `src/editor/components/Preview/index.tsx` | 旧 Preview 路径兼容导出。 | 不要在这里新增主逻辑。 |
@@ -114,6 +117,7 @@
 | `src/editor/components/Setting/index.tsx` | 设置面板入口。 | 影响属性、样式、事件配置。 |
 | `src/editor/components/Material/index.tsx` | 左侧物料面板，按分类展示并支持搜索、收藏和常用模板。 | 新物料分类、搜索关键字、模板引用和展示顺序依赖 registry 元信息。 |
 | `src/editor/components/Material/model.ts` | 物料面板分类元信息、模板类型、模板恢复和模板保存序列化工具。 | 只放物料面板内部模型和纯工具；内置模板后续可继续拆到独立文件。 |
+| `src/editor/components/Material/builtinTemplates.ts` | 物料面板内置区块/页面模板。 | 只放静态内置模板定义；项目模板 API 仍在 Material 主组件中编排。 |
 | `src/editor/components/MaterialItem/index.tsx` | 单个物料拖拽卡片。 | 拖拽 item.type 必须保持物料 name，否则无法添加组件。 |
 | `src/editor/components/Outline/index.tsx` | 左侧大纲树，支持定位组件、拖拽排序和重命名。 | 拖拽要遵守 registry 的 acceptsChildren，避免生成非法父子关系。 |
 | `src/editor/components/Setting/ActionModal.tsx` | 事件动作配置弹窗，新增和编辑 toast/url/componentAction/confirm/condition/http/setComponentProps/setComponentStyles/custom 动作。 | 打开已有动作必须初始化当前配置，避免直接确认时丢失配置。 |
@@ -126,7 +130,7 @@
 | --- | --- | --- |
 | `src/editor/materials/<Name>/dev.tsx` | 编辑态物料实现。 | 应暴露 `data-component-id`，可容器组件需支持 drop。 |
 | `src/editor/materials/<Name>/prod.tsx` | 预览/运行态物料实现。 | 要过滤低代码内部 props，并转发 registry 声明的事件 props，否则事件绑定无法触发。 |
-| `src/editor/materials/p3.tsx` | P3 新增物料的集中实现：Link/Icon/Space/Flex/Grid/Tabs/Steps、表单控件、数据展示和反馈组件。 | 后续物料多了可以逐步拆目录；拆分时保持 dev/prod 导出和 registry 不变。 |
+| `src/editor/materials/p3.tsx`、`src/editor/materials/p3/*` | P3 物料兼容聚合出口和按 basic/layout/form/data/feedback 分类拆分的实现。 | 保持原有 dev/prod 导出名不变；新增 P3 物料优先落到对应分类文件并同步 registry。 |
 | `src/editor/materials/commonChildren.ts` | 常用容器可接收子组件白名单。 | 必须和 `packages/lowcode-schema/src/registry.ts` 的父子关系保持一致。 |
 | `src/editor/materials/Text/*` | 文本物料，支持内容、字重、斜体、字号和颜色配置。 | dev/prod 要保持展示一致。 |
 | `src/editor/materials/Image/*` | 图片物料，支持地址、alt、宽高配置。 | 外链图片可能加载失败，默认值只用于占位演示。 |
