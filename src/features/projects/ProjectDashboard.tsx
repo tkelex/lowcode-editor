@@ -7,8 +7,6 @@ import {
   Input,
   List,
   Modal,
-  Popconfirm,
-  Select,
   Space,
   Table,
   Tag,
@@ -16,7 +14,6 @@ import {
   Typography,
   message,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
 import { createPage, listPages, listPageVersions } from '../../shared/api/pages';
@@ -31,8 +28,11 @@ import {
   updateProjectMember,
 } from '../../shared/api/projects';
 import { AuditLog, EditorPage, PageVersion, Project, ProjectMember, ProjectRole } from '../../shared/api/types';
-import { auditActionText, roleColor, roleText } from './model/display';
+import { roleColor, roleText } from './model/display';
 import type { AddMemberFormValues, ProjectDashboardProps } from './model/types';
+import { ProjectMemberDrawer } from './components/ProjectMemberDrawer';
+import { PublishRecordDrawer } from './components/PublishRecordDrawer';
+import { createProjectTableColumns } from './tableColumns';
 
 export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: ProjectDashboardProps) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -302,98 +302,14 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
     }
   }
 
-  const memberColumns: ColumnsType<ProjectMember> = [
-    {
-      title: '成员',
-      dataIndex: ['user', 'username'],
-      render: (_value, member) => (
-        <Space direction="vertical" size={0}>
-          <Typography.Text strong>{member.user.nickname || member.user.username}</Typography.Text>
-          <Typography.Text type="secondary" className="text-[12px]">{member.user.email}</Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: '角色',
-      dataIndex: 'role',
-      width: 132,
-      render: (role: ProjectRole, member) => {
-        if (!canManageProject || role === 'owner') {
-          return <Tag color={roleColor[role]}>{roleText[role]}</Tag>;
-        }
-
-        return (
-          <Select
-            size="small"
-            value={role}
-            style={{ width: 96 }}
-            loading={updatingMemberId === member.id}
-            options={[
-              { value: 'editor', label: '编辑者' },
-              { value: 'viewer', label: '查看者' },
-            ]}
-            onChange={(nextRole) => void handleUpdateMember(member, nextRole)}
-          />
-        );
-      },
-    },
-    {
-      title: '加入时间',
-      dataIndex: 'createdAt',
-      width: 156,
-      render: (createdAt: string) => dayjs(createdAt).format('YYYY-MM-DD HH:mm'),
-    },
-    {
-      title: '操作',
-      width: 92,
-      render: (_, member) => {
-        if (!canManageProject || member.role === 'owner') {
-          return <Typography.Text type="secondary">-</Typography.Text>;
-        }
-
-        return (
-          <Popconfirm
-            title="确认移除该成员？"
-            okText="移除"
-            cancelText="取消"
-            okButtonProps={{ danger: true }}
-            onConfirm={() => void handleRemoveMember(member)}
-          >
-            <Button type="link" danger loading={removingMemberId === member.id}>移除</Button>
-          </Popconfirm>
-        );
-      },
-    },
-  ];
-
-  const auditColumns: ColumnsType<AuditLog> = [
-    {
-      title: '时间',
-      dataIndex: 'createdAt',
-      width: 168,
-      render: (createdAt: string) => dayjs(createdAt).format('YYYY-MM-DD HH:mm:ss'),
-    },
-    {
-      title: '动作',
-      dataIndex: 'action',
-      width: 132,
-      render: (action: string) => <Tag color="blue">{auditActionText[action] || action}</Tag>,
-    },
-    {
-      title: '操作者',
-      dataIndex: 'actorId',
-      width: 96,
-      render: (actorId?: number | null) => {
-        const member = actorId ? memberByUserId.get(actorId) : undefined;
-        return member?.user.username || (actorId ? `用户 ${actorId}` : '-');
-      },
-    },
-    {
-      title: '摘要',
-      dataIndex: 'summary',
-      render: (summary: string | null | undefined, log) => summary || `${log.targetType} ${log.targetId || ''}`,
-    },
-  ];
+  const { memberColumns, auditColumns } = createProjectTableColumns({
+    canManageProject,
+    updatingMemberId,
+    removingMemberId,
+    memberByUserId,
+    onUpdateMember: handleUpdateMember,
+    onRemoveMember: handleRemoveMember,
+  });
 
   return <div className="min-h-screen bg-slate-100 p-6">
     <div className="mx-auto max-w-[1180px]">
@@ -524,45 +440,19 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
       </Form>
     </Drawer>
 
-    <Drawer
-      title={selectedProject ? `${selectedProject.name} / 成员` : '成员'}
+    <ProjectMemberDrawer
       open={memberDrawerOpen}
-      width={720}
+      project={selectedProject}
+      canManageProject={canManageProject}
+      loading={loadingMembers}
+      adding={addingMember}
+      members={members}
+      columns={memberColumns}
+      form={memberForm}
       onClose={() => setMemberDrawerOpen(false)}
-      extra={<Button onClick={() => selectedProject && void loadMembers(selectedProject.id)} loading={loadingMembers}>刷新</Button>}
-    >
-      {canManageProject && (
-        <Form
-          form={memberForm}
-          layout="inline"
-          initialValues={{ role: 'viewer' }}
-          onFinish={handleAddMember}
-          className="mb-4"
-        >
-          <Form.Item name="email" rules={[{ required: true, type: 'email', message: '请输入成员邮箱' }]}>
-            <Input placeholder="成员邮箱" className="w-[260px]" />
-          </Form.Item>
-          <Form.Item name="role" rules={[{ required: true, message: '请选择角色' }]}>
-            <Select
-              className="w-[120px]"
-              options={[
-                { value: 'editor', label: '编辑者' },
-                { value: 'viewer', label: '查看者' },
-              ]}
-            />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={addingMember}>添加成员</Button>
-        </Form>
-      )}
-
-      <Table
-        rowKey="id"
-        loading={loadingMembers}
-        columns={memberColumns}
-        dataSource={members}
-        pagination={false}
-      />
-    </Drawer>
+      onRefresh={loadMembers}
+      onAddMember={handleAddMember}
+    />
 
     <Drawer
       title={selectedProject ? `${selectedProject.name} / 审计日志` : '审计日志'}
@@ -580,32 +470,13 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
       />
     </Drawer>
 
-    <Drawer
-      title={publishRecordPage ? `${publishRecordPage.name} / 发布记录` : '发布记录'}
+    <PublishRecordDrawer
       open={publishRecordDrawerOpen}
-      width={520}
+      page={publishRecordPage}
+      versions={publishVersions}
+      loading={loadingPublishRecords}
       onClose={() => setPublishRecordDrawerOpen(false)}
-      extra={<Button onClick={() => publishRecordPage && void loadPublishRecords(publishRecordPage)} loading={loadingPublishRecords}>刷新</Button>}
-    >
-      <List
-        loading={loadingPublishRecords}
-        dataSource={publishVersions}
-        locale={{ emptyText: publishRecordPage?.isPublished ? '暂无发布版本记录' : '当前页面尚未发布' }}
-        renderItem={(version) => (
-          <List.Item>
-            <List.Item.Meta
-              title={<Space>
-                <Typography.Text strong>v{version.versionNo}</Typography.Text>
-                <Tag color="green">发布</Tag>
-              </Space>}
-              description={<Space direction="vertical" size={2}>
-                <Typography.Text>{dayjs(version.createdAt).format('YYYY-MM-DD HH:mm:ss')}</Typography.Text>
-                {version.message && <Typography.Text type="secondary">{version.message}</Typography.Text>}
-              </Space>}
-            />
-          </List.Item>
-        )}
-      />
-    </Drawer>
+      onRefresh={loadPublishRecords}
+    />
   </div>;
 }
