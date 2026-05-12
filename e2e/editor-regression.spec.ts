@@ -282,7 +282,7 @@ test('editor context menu only opens for editable components and closes on blank
   expect(secondBox).not.toBeNull();
   expect(Math.abs((secondBox?.x || 0) - (firstBox?.x || 0))).toBeGreaterThan(20);
 
-  await clickBlankCanvas(page);
+  await page.locator('.editor-page').click({ position: { x: 520, y: 260 } });
   await expect(contextMenu).toHaveCount(0);
 
   await page.locator('.editor-page').click({ button: 'right', position: { x: 520, y: 260 } });
