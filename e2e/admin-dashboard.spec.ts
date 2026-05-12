@@ -78,7 +78,7 @@ test('admin can open dashboard and perform core governance actions', async ({ pa
   await expect(page.getByText(publishedPage.name)).toHaveCount(0);
 
   state.publishedPages = [{ ...publishedPage }];
-  await page.getByRole('button', { name: '刷新' }).click();
+  await page.getByRole('button', { name: spacedChineseLabel('刷新') }).click();
   await page.getByRole('tab', { name: '发布页' }).click();
   await expect(page.getByText(publishedPage.name)).toBeVisible();
   await page.getByRole('row', { name: /Admin E2E 发布页/ }).getByRole('button', { name: spacedChineseLabel('取消发布') }).click();
