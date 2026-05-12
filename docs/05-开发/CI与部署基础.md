@@ -109,6 +109,22 @@ docker compose -f infra/docker/docker-compose.prod.example.yml up --build
 - 数据库账号和密码
 - `FRONTEND_ORIGIN`
 - 对外端口和域名
+- 前端 `VITE_API_BASE_URL`
+- `VITE_LOWCODE_HTTP_ALLOWED_ORIGINS`
+
+生产环境变量模板：
+
+```text
+.env.production.example
+server/.env.production.example
+infra/docker/.env.prod.example
+```
+
+生产部署、日志排障和发布回滚见：
+
+```text
+docs/05-开发/部署与运维指南.md
+```
 
 容器启动顺序：
 
@@ -119,3 +135,22 @@ docker compose -f infra/docker/docker-compose.prod.example.yml up --build
 上传素材会持久化到 `uploads_data` volume，本地源码启动时仍默认使用 `server/uploads/`。
 
 当前 Docker 配置是上线基础模板，不等于完整生产部署方案。后续还需要补 HTTPS、日志、备份、镜像版本管理、环境变量注入和灰度发布策略。
+
+## 数据库备份
+
+上线或执行生产 migration 前必须备份数据库。项目提供：
+
+```text
+scripts/db/backup-postgres.ps1
+scripts/db/restore-postgres.ps1
+docs/05-开发/数据库备份与恢复.md
+```
+
+PowerShell 示例：
+
+```powershell
+$env:DATABASE_URL="postgresql://postgres:postgres@localhost:5432/lowcode_editor?schema=public"
+powershell -ExecutionPolicy Bypass -File scripts/db/backup-postgres.ps1 -DockerComposeService postgres
+```
+
+备份文件不要提交到 Git。

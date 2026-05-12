@@ -20,10 +20,9 @@ Use the `/context-index` skill to refresh these docs when project structure, API
 - Start dev server: `npm run dev`
 - Build for production: `npm run build` (runs `tsc -b` before `vite build`)
 - Lint: `npm run lint`
+- Test: `npm run test`
 - Preview production build: `npm run preview`
 - Run full local check: `npm run check`
-
-There is no test script configured in `package.json`.
 
 ## Project Overview
 

@@ -6,6 +6,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 For low-token project onboarding or after context compaction, read these first:
 
+- `docs/00-总览/AI快速上手.md` — AI-focused quick start, task routing, high-risk files, and validation strategy.
 - `docs/00-总览/项目上下文索引.md` — project overview, reading order, current verified state.
 - `.claude/context/FILE_MAP.md` — key files, responsibilities, and edit risks.
 - `docs/02-架构/架构说明.md` — frontend/backend/database architecture and data flow.
@@ -14,16 +15,17 @@ For low-token project onboarding or after context compaction, read these first:
 
 Use the `/context-index` skill to refresh these docs when project structure, API, or architecture changes.
 
+GitHub Copilot and path-specific agent instructions live in `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md`; keep them aligned when changing AI workflows or validation expectations.
+
 ## Commands
 
 - Install dependencies: `npm install`
 - Start dev server: `npm run dev`
 - Build for production: `npm run build` (runs `tsc -b` before `vite build`)
 - Lint: `npm run lint`
+- Test: `npm run test`
 - Preview production build: `npm run preview`
 - Run full local check: `npm run check`
-
-There is no test script configured in `package.json`.
 
 ## Project Overview
 
@@ -37,7 +39,7 @@ The editor has two modes stored in Zustand: `edit` and `preview`. In edit mode, 
 - Component nodes have `{ id, name, props, styles, desc, children?, parentId? }`. The initial tree is a single `Page` component with id `1`.
 - Store mutations update component tree snapshots and maintain undo/redo history in memory. Do not persist history stacks.
 - The store export is named `useComponetsStore` (typo is part of the current API). Avoid renaming it unless updating all imports.
-- `src/editor/stores/component-config.tsx` is the registry for material metadata, default props, setters, events, methods, and the dev/prod React implementations.
+- `src/editor/registry/component-config.tsx` is the registry for material metadata, default props, setters, events, methods, and the dev/prod React implementations. `src/editor/stores/component-config.tsx` is only a compatibility re-export.
 
 ## Rendering and Editing Flow
 
