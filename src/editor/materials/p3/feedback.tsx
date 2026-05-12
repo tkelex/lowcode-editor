@@ -3,6 +3,7 @@ import { forwardRef, useImperativeHandle, useState } from 'react';
 import { DraggableBlock, DraggableInline, DropShell } from './common';
 import type { CommonComponentProps } from '../../interface';
 import { COMMON_CHILDREN } from '../commonChildren';
+import { splitControlStyles } from '../styleSplit';
 
 export function DrawerDev({ title, children, ...props }: CommonComponentProps) {
   return <DropShell {...props} className="p-[14px]" accept={COMMON_CHILDREN} emptyText="拖入抽屉内容">
@@ -59,8 +60,10 @@ export function TooltipProd({ id: _id, name: _name, children: _children, title, 
 }
 
 export function PopoverDev({ title, content, text, ...props }: CommonComponentProps) {
-  return <DraggableInline {...props} className="rounded-[6px] p-[2px]">
-    <Popover title={title} content={content}><Button>{text || '打开气泡卡片'}</Button></Popover>
+  const { shellStyles, controlStyles } = splitControlStyles(props.styles);
+
+  return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px] p-[2px]">
+    <Popover title={title} content={content}><Button style={controlStyles}>{text || '打开气泡卡片'}</Button></Popover>
   </DraggableInline>;
 }
 
@@ -71,8 +74,10 @@ export function PopoverProd({ id: _id, name: _name, children: _children, title, 
 }
 
 export function NotificationDev({ title, description: _description, buttonText, type, ...props }: CommonComponentProps) {
-  return <DraggableInline {...props} className="rounded-[6px] p-[2px]">
-    <Button>{buttonText || title || type || '通知'}</Button>
+  const { shellStyles, controlStyles } = splitControlStyles(props.styles);
+
+  return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px] p-[2px]">
+    <Button style={controlStyles}>{buttonText || title || type || '通知'}</Button>
   </DraggableInline>;
 }
 

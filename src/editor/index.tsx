@@ -10,6 +10,9 @@ import { useComponetsStore } from "./stores/components";
 import { Preview } from "./runtime/Preview";
 import type { ProjectRole } from '../shared/api/types';
 
+const LEFT_PANEL_MIN_SIZE = 320;
+const LEFT_PANEL_PREFERRED_SIZE = 340;
+
 export interface LowcodeEditorProps {
     pageId?: number;
     projectId?: number;
@@ -72,16 +75,16 @@ export default function ReactPlayground({ pageId, projectId, projectRole, onBack
         setMode('edit');
     }
 
-    return <div className='relative h-[100vh] flex flex-col bg-[#eef2f7]'>
-        <div className='h-[60px] flex items-center border-b border-[#e5e7eb] bg-white shadow-sm'>
+    return <div className='editor-workbench relative h-[100vh] flex flex-col bg-[#eef2f7]'>
+        <div className='editor-topbar h-[60px] flex items-center'>
             <Header pageId={pageId} projectRole={projectRole} onBack={onBack} />
         </div>
         <EditorBodyBoundary mode={mode} onExitPreview={exitPreview} onBack={onBack}>
             {
                 mode === 'edit'
                     ? <div className="min-h-0 flex-1">
-                        <Allotment>
-                            <Allotment.Pane preferredSize={280} maxSize={420} minSize={240}>
+                        <Allotment className="editor-split-layout">
+                            <Allotment.Pane preferredSize={LEFT_PANEL_PREFERRED_SIZE} maxSize={420} minSize={LEFT_PANEL_MIN_SIZE}>
                                 <MaterialWrapper projectId={projectId} projectRole={projectRole} />
                             </Allotment.Pane>
                             <Allotment.Pane>

@@ -1,5 +1,5 @@
 import { Collapse, Empty, Form, Input, InputNumber, Select, Typography } from 'antd';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { shallow } from 'zustand/shallow';
 import { ComponentConfig, ComponentSetter, useComponentConfigStore } from '../../registry/component-config';
 import { useComponetsStore } from '../../stores/components';
@@ -11,6 +11,7 @@ interface ComponentAttrProps {
 export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
 
   const [form] = Form.useForm();
+  const previousComponentIdRef = useRef<number | null>();
 
   const { curComponentId, curComponent, updateComponentProps } = useComponetsStore((state) => ({
     curComponentId: state.curComponentId,
@@ -20,9 +21,14 @@ export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
   const { componentConfig } = useComponentConfigStore();
 
   useEffect(() => {
+    if (previousComponentIdRef.current === curComponentId) {
+      return;
+    }
+
+    previousComponentIdRef.current = curComponentId;
     form.resetFields();
     form.setFieldsValue(curComponent?.props || {});
-  }, [curComponent, form])
+  }, [curComponent, curComponentId, form])
 
   const setters = componentConfig[curComponent?.name || '']?.setter || [];
   const searchText = keyword.trim().toLowerCase();

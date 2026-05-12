@@ -2,6 +2,7 @@ import { Select as AntdSelect } from 'antd';
 import { useMemo } from 'react';
 import { useDrag } from 'react-dnd';
 import { CommonComponentProps } from '../../interface';
+import { splitControlStyles } from '../styleSplit';
 
 function toOptions(optionsText?: string) {
     return (optionsText || '')
@@ -12,6 +13,7 @@ function toOptions(optionsText?: string) {
 }
 
 const Select = ({ id, name, placeholder, optionsText, disabled, styles }: CommonComponentProps) => {
+    const { shellStyles, controlStyles } = splitControlStyles(styles);
     const [_, drag] = useDrag({
         type: name,
         item: {
@@ -22,8 +24,8 @@ const Select = ({ id, name, placeholder, optionsText, disabled, styles }: Common
     });
     const options = useMemo(() => toOptions(optionsText), [optionsText]);
 
-    return <div ref={drag} data-component-id={id} style={styles} className="editor-component editor-field-shell">
-        <AntdSelect placeholder={placeholder} options={options} disabled={disabled} className="w-full" />
+    return <div ref={drag} data-component-id={id} style={shellStyles} className="editor-component editor-field-shell">
+        <AntdSelect style={controlStyles} placeholder={placeholder} options={options} disabled={disabled} className="w-full" />
     </div>
 }
 

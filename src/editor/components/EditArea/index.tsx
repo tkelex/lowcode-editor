@@ -44,10 +44,13 @@ export function EditArea() {
     const { componentConfig } = useComponentConfigStore();
     const [hoverComponentId, setHoverComponentId] = useState<number>();
     const [viewportMode, setViewportMode] = useState<ViewportMode>('desktop');
-    const [contextMenu, setContextMenu] = useState<{ componentId: number; x: number; y: number } | null>(null);
+    const [contextMenu, setContextMenu] = useState<{ componentId: number; x: number; y: number; key: number } | null>(null);
     const [areaWidth, setAreaWidth] = useState(0);
+    const [canvasContentHeight, setCanvasContentHeight] = useState(0);
     const isDragging = useDragLayer((monitor) => monitor.isDragging());
     const areaRef = useRef<HTMLDivElement | null>(null);
+    const shellRef = useRef<HTMLDivElement | null>(null);
+    const contextMenuKeyRef = useRef(0);
 
     const viewportWidth = useMemo(() => {
         return viewportOptions.find(item => item.value === viewportMode)?.width || 1080;
@@ -77,10 +80,27 @@ export function EditArea() {
         return Math.min(1, availableWidth / viewportWidth);
     }, [areaWidth, viewportWidth]);
 
+    useEffect(() => {
+        const node = shellRef.current;
+        if (!node) return;
+
+        const updateCanvasContentHeight = () => {
+            setCanvasContentHeight(node.scrollHeight);
+        };
+
+        updateCanvasContentHeight();
+
+        const resizeObserver = new ResizeObserver(updateCanvasContentHeight);
+        resizeObserver.observe(node);
+
+        return () => resizeObserver.disconnect();
+    }, []);
+
+    const minCanvasHeight = useMemo(() => Math.max(560, window.innerHeight - 132), []);
+
     const scaledCanvasHeight = useMemo(() => {
-        const minCanvasHeight = Math.max(560, window.innerHeight - 132);
-        return minCanvasHeight * canvasScale;
-    }, [canvasScale]);
+        return Math.max(minCanvasHeight, canvasContentHeight) * canvasScale;
+    }, [canvasContentHeight, canvasScale, minCanvasHeight]);
 
     function renderComponents(components: Component[]): React.ReactNode {
         return components.map((component: Component) => {
@@ -133,27 +153,36 @@ export function EditArea() {
     }
 
     const handleClick: MouseEventHandler = (e) => {
+        setContextMenu(null);
+
         const componentId = getEventComponentId(e);
 
         if (componentId && !isLockedComponentId(componentId)) {
             setCurComponentId(componentId);
+            return;
+        }
+
+        if (!componentId || componentId === 1) {
+            setCurComponentId(null);
         }
     }
 
     function handleContextMenu(e: React.MouseEvent) {
         const componentId = getEventComponentId(e);
-        if (!componentId) return;
 
         e.preventDefault();
-        if (isLockedComponentId(componentId)) {
+        if (!componentId || componentId === 1 || isLockedComponentId(componentId)) {
             setContextMenu(null);
             return;
         }
+
         setCurComponentId(componentId);
+        contextMenuKeyRef.current += 1;
         setContextMenu({
             componentId,
             x: e.clientX,
             y: e.clientY,
+            key: contextMenuKeyRef.current,
         });
     }
 
@@ -212,10 +241,11 @@ export function EditArea() {
         </div>
         <div className="editor-page-stage" style={{ width: viewportWidth * canvasScale, height: scaledCanvasHeight }}>
             <div
+                ref={shellRef}
                 className="editor-page-shell"
                 style={{
                     width: viewportWidth,
-                    minHeight: Math.max(560, window.innerHeight - 132),
+                    minHeight: minCanvasHeight,
                     transform: `scale(${canvasScale})`,
                 }}
             >
@@ -238,9 +268,11 @@ export function EditArea() {
         )}
         <div className="portal-wrapper"></div>
         <Dropdown
+            key={contextMenu?.key || 'closed'}
             open={Boolean(contextMenu)}
             trigger={[]}
             placement="bottomLeft"
+            destroyPopupOnHide
             onOpenChange={(open) => {
                 if (!open) {
                     setContextMenu(null);

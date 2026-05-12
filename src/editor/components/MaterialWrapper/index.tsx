@@ -14,11 +14,11 @@ export function MaterialWrapper({ projectId, projectRole }: MaterialWrapperProps
 
     const [key, setKey] = useState<string>('物料');
 
-    return <div className="flex h-full flex-col bg-[#f8fafc]">
-        <div className="border-b border-[#e5e7eb] bg-white px-[12px] py-[12px]">
+    return <div className="editor-left-panel flex h-full flex-col">
+        <div className="editor-left-tabs px-[12px] py-[12px]">
             <Segmented value={key} onChange={setKey} block options={['物料', '大纲', '源码']} />
         </div>
-        <div className='min-h-0 flex-1 overflow-hidden pt-[14px]'>
+        <div className='editor-left-body min-h-0 flex-1 overflow-hidden pt-[14px]'>
             {
                 key === '物料' && <Material projectId={projectId} projectRole={projectRole} />
             }

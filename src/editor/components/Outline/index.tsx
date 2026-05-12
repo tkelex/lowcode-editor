@@ -112,7 +112,7 @@ export function Outline() {
         moveComponentTo(dragId, targetId);
     }
 
-    return <div className="rounded-[8px] border border-[#e5e7eb] bg-white p-[8px]">
+    return <div className="editor-outline-panel rounded-[8px] border border-[#e5e7eb] bg-white p-[8px]">
         <Tree
             className="editor-outline-tree"
             fieldNames={{ title: 'desc', key: 'id' }}

@@ -62,7 +62,8 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
             .filter(item => {
                 if (!searchText) return true;
 
-                return [item.name, item.desc, ...(item.keywords || [])]
+                const category = item.category || 'basic';
+                return [item.name, item.desc, category, categoryLabels[category], ...(item.keywords || [])]
                     .join(' ')
                     .toLowerCase()
                     .includes(searchText);
@@ -176,9 +177,10 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
         }
     }
 
-    return <div className="h-full overflow-auto px-[12px] pb-[16px]">
+    return <div className="editor-material-panel h-full overflow-auto px-[12px] pb-[16px]">
         <Space direction="vertical" size={10} className="mb-[14px] w-full">
             <Segmented
+                className="editor-material-view-switch"
                 block
                 size="small"
                 value={view}
@@ -190,6 +192,7 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
                 ]}
             />
             <Input.Search
+                className="editor-material-search"
                 allowClear
                 placeholder={view === 'template' ? '搜索模板' : '搜索组件'}
                 value={keyword}
@@ -199,7 +202,7 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
 
         {view === 'template' ? (
             <div className="space-y-[10px]">
-                <div className="flex items-center justify-between rounded-[8px] border border-[#e5e7eb] bg-white px-[10px] py-[8px]">
+                <div className="editor-template-toolbar flex items-center justify-between rounded-[8px] border border-[#e5e7eb] bg-white px-[10px] py-[8px]">
                     <Typography.Text type="secondary" className="text-[12px]">
                         {projectId ? `项目模板 ${projectTemplates.length} 个` : '打开页面后可读取项目模板'}
                     </Typography.Text>
@@ -210,7 +213,7 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
                 </div>
                 {filteredTemplates.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的模板" />}
                 {filteredTemplates.map(template => (
-                    <div key={template.key} className="rounded-[8px] border border-[#e5e7eb] bg-white p-[12px] shadow-sm">
+                    <div key={template.key} className="editor-template-card rounded-[8px] border border-[#e5e7eb] bg-white p-[12px] shadow-sm">
                         <div className="mb-[4px] flex items-start justify-between gap-[8px]">
                             <div className="min-w-0">
                                 <Typography.Text strong className="block text-[13px] text-[#111827]">
@@ -235,8 +238,8 @@ export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
                     const components = groupedComponents[category];
                     if (!components.length) return null;
 
-                    return <section key={category} className="mb-[18px]">
-                        <Typography.Text className="mb-[8px] block text-[12px] font-medium text-[#6b7280]">
+                    return <section key={category} className="editor-material-section mb-[18px]">
+                        <Typography.Text className="editor-material-section-title mb-[8px] block text-[12px] font-medium text-[#6b7280]">
                             {categoryLabels[category]}
                         </Typography.Text>
                         <div className="grid grid-cols-2 gap-[8px]">

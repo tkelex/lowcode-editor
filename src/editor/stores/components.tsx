@@ -370,7 +370,13 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const component = getComponentById(componentId, nextComponents);
       if (!component) return state;
 
-      component.styles = replace ? { ...styles } : { ...component.styles, ...styles };
+      const nextStyles = replace ? { ...styles } : { ...component.styles, ...styles };
+      Object.keys(nextStyles).forEach((key) => {
+        if (nextStyles[key as keyof CSSProperties] === undefined) {
+          delete nextStyles[key as keyof CSSProperties];
+        }
+      });
+      component.styles = nextStyles;
 
       return {
         ...pushHistory(state, nextComponents),

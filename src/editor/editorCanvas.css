@@ -1,19 +1,159 @@
 .edit-area {
   background:
-    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.1) 1px, transparent 1px),
     #eef2f7;
   background-size: 24px 24px;
+}
+
+.editor-workbench {
+  color: #151b26;
+}
+
+.editor-topbar {
+  z-index: 5;
+  border-bottom: 1px solid #dbe2ea;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+}
+
+.editor-split-layout {
+  background: #eef2f7;
+}
+
+.editor-split-layout .sash {
+  background: #dbe2ea;
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.editor-split-layout .sash:hover,
+.editor-split-layout .sash.active {
+  background: #93c5fd;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+.editor-left-panel {
+  border-right: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+
+.editor-left-tabs {
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.editor-left-tabs .ant-segmented,
+.editor-material-view-switch.ant-segmented {
+  border: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.editor-left-tabs .ant-segmented-item,
+.editor-material-view-switch .ant-segmented-item {
+  min-height: 30px;
+  color: #475569;
+  font-size: 12px;
+}
+
+.editor-left-tabs .ant-segmented-item-selected,
+.editor-material-view-switch .ant-segmented-item-selected {
+  color: #0f172a;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.editor-left-body {
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+.editor-material-panel,
+.editor-left-body .ant-tree,
+.editor-left-body .monaco-editor {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.editor-material-panel::-webkit-scrollbar,
+.setting-panel-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.editor-material-panel::-webkit-scrollbar-thumb,
+.setting-panel-body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: #cbd5e1;
+  background-clip: content-box;
+}
+
+.editor-material-search .ant-input-affix-wrapper,
+.editor-material-search .ant-input-group-addon .ant-btn {
+  border-color: #dbe2ea;
+  box-shadow: none;
+}
+
+.editor-material-search .ant-input-affix-wrapper:focus,
+.editor-material-search .ant-input-affix-wrapper-focused {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.editor-material-section-title {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  color: #475569 !important;
+}
+
+.editor-material-section-title::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: #e2e8f0;
+}
+
+.editor-template-toolbar,
+.editor-template-card,
+.editor-outline-panel,
+.editor-source-toolbar,
+.editor-source-code {
+  border-color: #e2e8f0 !important;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.editor-template-card {
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.editor-template-card:hover {
+  border-color: #bfdbfe !important;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.1);
+  transform: translateY(-1px);
+}
+
+.editor-outline-panel .ant-tree {
+  background: transparent;
+}
+
+.editor-outline-panel .ant-tree-node-content-wrapper {
+  border-radius: 6px;
+}
+
+.editor-outline-panel .ant-tree-node-content-wrapper:hover {
+  background: #eff6ff;
+}
+
+.editor-outline-panel .ant-tree-node-selected {
+  background: #dbeafe !important;
 }
 
 .editor-page-shell {
   position: relative;
   overflow: hidden;
   border: 1px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 8px;
   background: #ffffff;
   box-shadow:
-    0 20px 45px rgba(15, 23, 42, 0.08),
+    0 18px 42px rgba(15, 23, 42, 0.08),
     0 1px 2px rgba(15, 23, 42, 0.06);
   transition: width 0.18s ease, min-width 0.18s ease, box-shadow 0.18s ease;
   transform-origin: top left;
@@ -22,7 +162,7 @@
 .editor-page-stage {
   position: relative;
   margin: 0 auto;
-  overflow: hidden;
+  overflow: visible;
   transition: width 0.18s ease, height 0.18s ease;
 }
 
@@ -31,7 +171,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 auto 12px;
+  margin: 0 auto 14px;
   color: #64748b;
   font-size: 12px;
   line-height: 20px;
@@ -39,11 +179,25 @@
 
 .editor-canvas-ruler-badge {
   border: 1px solid #dbeafe;
-  border-radius: 999px;
+  border-radius: 6px;
   background: rgba(239, 246, 255, 0.92);
   color: #2563eb;
   font-weight: 600;
   padding: 2px 8px;
+}
+
+.editor-canvas-ruler .ant-segmented {
+  border: 1px solid #dbe2ea;
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.editor-canvas-ruler .ant-segmented-item {
+  color: #475569;
+  font-size: 12px;
+}
+
+.editor-canvas-ruler .ant-segmented-item-selected {
+  color: #0f172a;
 }
 
 .edit-area.is-dragging .editor-page-shell {
@@ -66,6 +220,24 @@
 .editor-page {
   position: relative;
   z-index: 1;
+}
+
+.editor-page-drop-zone {
+  transition: background 0.16s ease, box-shadow 0.16s ease;
+}
+
+.editor-page-drop-zone.can-drop {
+  background: rgba(239, 246, 255, 0.28);
+}
+
+.editor-page-drop-zone.is-drop-target {
+  background: rgba(239, 246, 255, 0.48);
+  box-shadow: inset 0 0 0 2px #2563eb;
+}
+
+.editor-page-drop-zone.is-drop-disabled {
+  background: rgba(255, 247, 247, 0.72);
+  box-shadow: inset 0 0 0 2px #ef4444;
 }
 
 .editor-drop-zone {

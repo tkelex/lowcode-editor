@@ -10,7 +10,7 @@ function Page({ id, children, styles }: CommonComponentProps) {
         <div
             data-component-id={id}
             ref={drop}
-            className={`editor-page box-border min-h-[calc(100vh-120px)] p-[28px] ${canDrop ? 'editor-drop-zone can-drop' : ''} ${canDropCurrent ? 'is-drop-target' : ''} ${isOverCurrent && !canDropCurrent ? 'is-drop-disabled' : ''}`}
+            className={`editor-page editor-page-drop-zone box-border min-h-[calc(100vh-120px)] p-[28px] ${canDrop ? 'can-drop' : ''} ${canDropCurrent ? 'is-drop-target' : ''} ${isOverCurrent && !canDropCurrent ? 'is-drop-disabled' : ''}`}
             style={styles}
         >
             {children || <div className="editor-empty min-h-[260px]">从左侧拖拽物料到这里</div>}

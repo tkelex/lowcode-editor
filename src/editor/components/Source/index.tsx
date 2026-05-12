@@ -120,7 +120,7 @@ export function Source() {
   }
 
   return <div className="flex h-full min-h-0 flex-col gap-[10px]">
-    <div className="shrink-0 rounded-[8px] border border-[#e5e7eb] bg-white p-[10px]">
+    <div className="editor-source-toolbar shrink-0 rounded-[8px] border border-[#e5e7eb] bg-white p-[10px]">
       <Space direction="vertical" size={8} className="w-full">
         <div className="flex flex-wrap items-center justify-between gap-[8px]">
           <div className="min-w-0">
@@ -157,7 +157,7 @@ export function Source() {
           : <Alert type="success" showIcon message="源码格式正确，应用前会显示变更摘要" />}
       </Space>
     </div>
-    <div className="min-h-[280px] flex-1 overflow-hidden rounded-[8px] border border-[#e5e7eb] bg-white">
+    <div className="editor-source-code min-h-[280px] flex-1 overflow-hidden rounded-[8px] border border-[#e5e7eb] bg-white">
       <LazyMonacoEditor
           height={'100%'}
           path='components.json'

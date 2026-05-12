@@ -1,8 +1,10 @@
 import { Input as AntdInput } from 'antd';
 import { useDrag } from 'react-dnd';
 import { CommonComponentProps } from '../../interface';
+import { splitControlStyles } from '../styleSplit';
 
 const Input = ({ id, name, placeholder, defaultValue, disabled, allowClear, styles }: CommonComponentProps) => {
+    const { shellStyles, controlStyles } = splitControlStyles(styles);
     const [_, drag] = useDrag({
         type: name,
         item: {
@@ -12,8 +14,8 @@ const Input = ({ id, name, placeholder, defaultValue, disabled, allowClear, styl
         }
     });
 
-    return <div ref={drag} data-component-id={id} style={styles} className="editor-component editor-field-shell">
-        <AntdInput placeholder={placeholder} defaultValue={defaultValue} disabled={disabled} allowClear={allowClear} />
+    return <div ref={drag} data-component-id={id} style={shellStyles} className="editor-component editor-field-shell">
+        <AntdInput style={controlStyles} placeholder={placeholder} defaultValue={defaultValue} disabled={disabled} allowClear={allowClear} />
     </div>
 }
 
