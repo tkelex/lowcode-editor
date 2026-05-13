@@ -6,13 +6,15 @@ import {
 import { shallow } from 'zustand/shallow';
 import { createPortal } from 'react-dom';
 import { getComponentById, useComponetsStore } from '../../stores/components';
-import { Dropdown, Popconfirm, Space, Tooltip } from 'antd';
+import { Dropdown, Input, Modal, Popconfirm, Space, Tooltip, message } from 'antd';
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
   BorderOuterOutlined,
   CopyOutlined,
   DeleteOutlined,
+  EditOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import { useComponentConfigStore } from '../../registry/component-config';
 import {
@@ -45,6 +47,7 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
     deleteComponent,
     duplicateComponent,
     moveComponentSibling,
+    renameComponent,
     setCurComponentId,
     wrapComponent,
   } = useComponetsStore((state) => ({
@@ -54,11 +57,14 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
     deleteComponent: state.deleteComponent,
     duplicateComponent: state.duplicateComponent,
     moveComponentSibling: state.moveComponentSibling,
+    renameComponent: state.renameComponent,
     setCurComponentId: state.setCurComponentId,
     wrapComponent: state.wrapComponent,
   }), shallow);
   const componentConfig = useComponentConfigStore((state) => state.componentConfig);
   const [portalEl, setPortalEl] = useState<Element | null>(null);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
 
   useEffect(() => {
     updatePosition();
@@ -137,6 +143,36 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
     return getComponentById(componentId, components);
   }, [componentId, components]);
 
+  const parentComponents = useMemo(() => {
+    const parentComponents = [];
+    let component = curComponent;
+
+    while (component?.parentId) {
+      component = getComponentById(component.parentId, components)!;
+      parentComponents.push(component);
+    }
+
+    return parentComponents;
+  }, [components, curComponent]);
+
+  if (!portalEl) {
+    return null;
+  }
+
+  const isLocked = Boolean(curComponent?.props?.locked);
+  const moreMenuItems = [
+    {
+      key: 'wrap',
+      label: '包裹容器',
+      icon: <BorderOuterOutlined />,
+      disabled: isLocked,
+    },
+    ...parentComponents.map(item => ({
+      key: `parent-${item.id}`,
+      label: `选择父级：${item.desc}`,
+    })),
+  ];
+
   function handleDelete() {
     if (curComponent?.props?.locked) return;
 
@@ -159,24 +195,25 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
     });
   }
 
-  const parentComponents = useMemo(() => {
-    const parentComponents = [];
-    let component = curComponent;
+  function openRenameModal() {
+    if (!curComponent || isLocked) return;
 
-    while (component?.parentId) {
-      component = getComponentById(component.parentId, components)!;
-      parentComponents.push(component);
-    }
-
-    return parentComponents;
-
-  }, [curComponent]);
-
-  if (!portalEl) {
-    return null;
+    setRenameValue(curComponent.desc || '');
+    setRenameOpen(true);
   }
 
-  const isLocked = Boolean(curComponent?.props?.locked);
+  function submitRename() {
+    if (!curComponentId) return;
+
+    const nextValue = renameValue.trim();
+    if (!nextValue) {
+      message.warning('组件名称不能为空');
+      return;
+    }
+
+    renameComponent(curComponentId, nextValue);
+    setRenameOpen(false);
+  }
 
   return createPortal((
     <>
@@ -198,46 +235,32 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
             fontSize: "14px",
             zIndex: 13,
             display: (!position.width || position.width < 10) ? "none" : "inline",
-            transform: 'translate(-100%, -100%)',
+            transform: 'translateY(-100%)',
           }}
+          onClick={(event) => event.stopPropagation()}
+          onMouseDown={(event) => event.stopPropagation()}
         >
           <Space className="editor-mask-toolbar" size={3}>
-            <Dropdown
-              menu={{
-                items: parentComponents.map(item => ({
-                  key: item.id,
-                  label: item.desc,
-                })),
-                onClick: ({ key }) => {
-                  setCurComponentId(+key);
-                }
-              }}
-              disabled={parentComponents.length === 0}
-            >
-              <div className="editor-mask-label">
-                {curSelectedComponent?.desc}
-              </div>
-            </Dropdown>
             {curComponentId !== 1 && (
               <>
+                <Tooltip title="重命名">
+                  <button className="editor-mask-action" type="button" aria-label="重命名" disabled={isLocked} onClick={openRenameModal}>
+                    <EditOutlined />
+                  </button>
+                </Tooltip>
                 <Tooltip title="复制">
-                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={() => duplicateComponent(curComponentId!)}>
+                  <button className="editor-mask-action" type="button" aria-label="复制" disabled={isLocked} onClick={() => duplicateComponent(curComponentId!)}>
                     <CopyOutlined />
                   </button>
                 </Tooltip>
                 <Tooltip title="上移">
-                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={() => moveComponentSibling(curComponentId!, -1)}>
+                  <button className="editor-mask-action" type="button" aria-label="上移" disabled={isLocked} onClick={() => moveComponentSibling(curComponentId!, -1)}>
                     <ArrowUpOutlined />
                   </button>
                 </Tooltip>
                 <Tooltip title="下移">
-                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={() => moveComponentSibling(curComponentId!, 1)}>
+                  <button className="editor-mask-action" type="button" aria-label="下移" disabled={isLocked} onClick={() => moveComponentSibling(curComponentId!, 1)}>
                     <ArrowDownOutlined />
-                  </button>
-                </Tooltip>
-                <Tooltip title="包裹容器">
-                  <button className="editor-mask-action" type="button" disabled={isLocked} onClick={handleWrapContainer}>
-                    <BorderOuterOutlined />
                   </button>
                 </Tooltip>
                 <Popconfirm
@@ -246,14 +269,77 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
                   cancelText={'取消'}
                   onConfirm={handleDelete}
                 >
-                  <button className="editor-mask-action is-danger" type="button" disabled={isLocked}>
+                  <button className="editor-mask-action is-danger" type="button" aria-label="删除" disabled={isLocked}>
                     <DeleteOutlined />
                   </button>
                 </Popconfirm>
+                <Dropdown
+                  trigger={['click']}
+                  menu={{
+                    items: moreMenuItems,
+                    onClick: ({ key }) => {
+                      if (key === 'wrap') {
+                        handleWrapContainer();
+                        return;
+                      }
+
+                      if (String(key).startsWith('parent-')) {
+                        setCurComponentId(Number(String(key).replace('parent-', '')));
+                      }
+                    },
+                  }}
+                >
+                  <button className="editor-mask-action editor-mask-action-more" type="button" aria-label="更多操作">
+                    <MoreOutlined />
+                  </button>
+                </Dropdown>
               </>
             )}
           </Space>
         </div>
+        <div
+          className="editor-mask-label"
+          title={curSelectedComponent?.desc}
+          style={{
+            position: 'absolute',
+            left: position.left + position.width,
+            top: position.labelTop,
+            zIndex: 14,
+            display: (!position.width || position.width < 10) ? 'none' : 'inline',
+            transform: 'translate(-100%, -100%)',
+          }}
+        >
+          {curSelectedComponent?.desc}
+        </div>
+        <Modal
+          title="重命名组件"
+          open={renameOpen}
+          onOk={(event) => {
+            event.stopPropagation();
+            submitRename();
+          }}
+          onCancel={(event) => {
+            event.stopPropagation();
+            setRenameOpen(false);
+          }}
+          okText="确认"
+          cancelText="取消"
+          destroyOnClose
+          modalRender={(modal) => (
+            <div onClick={(event) => event.stopPropagation()} onMouseDown={(event) => event.stopPropagation()}>
+              {modal}
+            </div>
+          )}
+        >
+          <Input
+            autoFocus
+            value={renameValue}
+            maxLength={40}
+            placeholder="请输入组件名称"
+            onChange={(event) => setRenameValue(event.target.value)}
+            onPressEnter={submitRename}
+          />
+        </Modal>
     </>
   ), portalEl)
 }

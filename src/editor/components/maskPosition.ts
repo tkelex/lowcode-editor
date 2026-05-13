@@ -36,7 +36,7 @@ export function getMaskPosition(container: Element, node: Element): MaskPosition
     width,
     height,
     labelTop,
-    labelLeft: relativeLeft + width,
+    labelLeft: relativeLeft,
   };
 }
 

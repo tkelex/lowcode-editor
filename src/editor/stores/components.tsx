@@ -7,6 +7,7 @@ import {
   cloneComponents,
   createComponentIdFactory,
   getComponentById,
+  getCopyDesc,
   getParentInfo,
   isComponentLocked,
   isDescendantComponent,
@@ -249,7 +250,14 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       if (!info?.parent) return state;
       if (isComponentLocked(info.component)) return state;
 
-      const nextComponent = cloneComponentWithFreshIds(info.component, createComponentIdFactory(nextComponents), info.parent.id);
+      const siblingNames = new Set(info.siblings.map((component) => component.desc));
+      const nextDesc = createUniqueCopyDesc(info.component.desc, siblingNames);
+      const nextComponent = cloneComponentWithFreshIds(
+        info.component,
+        createComponentIdFactory(nextComponents),
+        info.parent.id,
+        nextDesc,
+      );
       info.siblings.splice(info.index + 1, 0, nextComponent);
 
       return {
@@ -423,6 +431,20 @@ const creator: StateCreator<State & Action> = (set, get) => ({
   canUndo: () => get().pastComponents.length > 0,
   canRedo: () => get().futureComponents.length > 0,
 });
+
+function createUniqueCopyDesc(desc: string, siblingNames: Set<string>) {
+  const baseDesc = getCopyDesc(desc);
+  if (!siblingNames.has(baseDesc)) {
+    return baseDesc;
+  }
+
+  let index = 2;
+  while (siblingNames.has(`${baseDesc} ${index}`)) {
+    index += 1;
+  }
+
+  return `${baseDesc} ${index}`;
+}
 
 export const useComponetsStore = create<State & Action>()(persist(creator, {
   name: 'xxx',

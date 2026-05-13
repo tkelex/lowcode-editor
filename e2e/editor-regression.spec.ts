@@ -256,6 +256,34 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await expect(settingPanel).toBeVisible();
 });
 
+test('event header add button does not flicker or toggle collapse on hover', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+
+  const container = page.locator('[data-component-id="1001"]').first();
+  await expect(container).toBeVisible();
+  await container.click();
+
+  const settingPanel = settingPanelLocator(page);
+  await page.getByRole('tab', { name: '事件' }).click();
+  await expect(settingPanel.getByText('点击事件')).toBeVisible();
+  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+
+  const clickEventItem = settingPanel.locator('.ant-collapse-item').filter({ hasText: '点击事件' });
+  const addActionButton = clickEventItem.locator('.ant-collapse-header .event-add-button');
+  await expect(addActionButton).toHaveCount(1);
+  await addActionButton.hover();
+  await expect(page.locator('.ant-tooltip').filter({ hasText: '添加动作' })).toHaveCount(0);
+  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+
+  await addActionButton.click();
+  await expect(page.getByRole('dialog', { name: '点击事件 - 事件动作配置' })).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+});
+
 test('editor context menu only opens for editable components and closes on blank canvas click', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -306,6 +334,62 @@ test('editor clears selected component when clicking blank canvas', async ({ pag
 
   await expect(page.locator('.editor-mask-selected')).toHaveCount(0);
   await expect(settingPanelLocator(page).locator('.ant-empty-description')).toBeVisible();
+});
+
+test('selected mask supports readable copy names, rename, and compact more menu', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+
+  const buttonComponent = page.locator('[data-component-id="1003"]').first();
+  await expect(buttonComponent).toBeVisible();
+  await buttonComponent.click();
+
+  const toolbar = page.locator('.editor-mask-toolbar');
+  const maskLabel = page.locator('.editor-mask-label');
+  await expect(maskLabel).toHaveText('按钮');
+
+  await maskLabel.dispatchEvent('mouseover');
+  await expect(page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').filter({ hasText: '页面' })).toHaveCount(0);
+
+  await page.getByRole('button', { name: '复制' }).click();
+  await expect(maskLabel).toHaveText('按钮 副本');
+
+  await page.getByRole('button', { name: '重命名' }).click();
+  const renameDialog = page.getByRole('dialog', { name: '重命名组件' });
+  await expect(renameDialog).toBeVisible();
+  await renameDialog.getByPlaceholder('请输入组件名称').fill('主按钮');
+  await renameDialog.locator('.ant-modal-footer .ant-btn-primary').click();
+
+  await expect(maskLabel).toHaveText('主按钮');
+  await expect(settingPanelLocator(page).locator('.setting-component-title')).toHaveText('主按钮');
+
+  await page.getByRole('button', { name: '更多操作' }).click();
+  await expect(page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').getByText('包裹容器')).toBeVisible();
+  await expect(page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').getByText('选择父级：容器')).toBeVisible();
+});
+
+test('selected mask label appears on the top right of input components', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+
+  const inputComponent = page.locator('[data-component-id="1002"]').first();
+  await expect(inputComponent).toBeVisible();
+  await inputComponent.click();
+
+  const selectedMask = page.locator('.editor-mask-selected');
+  const maskLabel = page.locator('.editor-mask-label');
+  await expect(maskLabel).toHaveText('输入框');
+
+  const maskBox = await selectedMask.boundingBox();
+  const labelBox = await maskLabel.boundingBox();
+  expect(maskBox).not.toBeNull();
+  expect(labelBox).not.toBeNull();
+  expect(Math.abs((labelBox?.x || 0) + (labelBox?.width || 0) - ((maskBox?.x || 0) + (maskBox?.width || 0)))).toBeLessThan(4);
+  expect((labelBox?.y || 0)).toBeLessThanOrEqual((maskBox?.y || 0) + 2);
 });
 
 test('editor canvas grows and scrolls when page content exceeds the first viewport', async ({ page }) => {

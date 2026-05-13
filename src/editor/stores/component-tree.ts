@@ -115,7 +115,12 @@ export function createComponentIdFactory(components: Component[]) {
   };
 }
 
-export function cloneComponentWithFreshIds(component: Component, nextId: () => number, parentId?: number) {
+export function cloneComponentWithFreshIds(
+  component: Component,
+  nextId: () => number,
+  parentId?: number,
+  rootDesc?: string,
+) {
   let offset = 0;
 
   const clone = (current: Component, nextParentId?: number): Component => {
@@ -123,7 +128,7 @@ export function cloneComponentWithFreshIds(component: Component, nextId: () => n
     const nextComponent: Component = {
       ...cloneComponents([current])[0],
       id: nextId(),
-      desc: offset === 1 ? `${current.desc}副本` : current.desc,
+      desc: offset === 1 ? (rootDesc || getCopyDesc(current.desc)) : current.desc,
       parentId: nextParentId,
     };
 
@@ -136,4 +141,9 @@ export function cloneComponentWithFreshIds(component: Component, nextId: () => n
   };
 
   return clone(component, parentId);
+}
+
+export function getCopyDesc(desc: string) {
+  const normalizedDesc = desc.trim().replace(/\s*副本(?:\s*\d+)?$/, '');
+  return `${normalizedDesc || '未命名组件'} 副本`;
 }
