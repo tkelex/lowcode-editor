@@ -347,7 +347,7 @@ test('selected mask supports readable copy names, rename, and compact more menu'
   await buttonComponent.click();
 
   const toolbar = page.locator('.editor-mask-toolbar');
-  const maskLabel = page.locator('.editor-mask-label');
+  const maskLabel = page.locator('.editor-mask-selected-label');
   await expect(maskLabel).toHaveText('按钮');
 
   await maskLabel.dispatchEvent('mouseover');
@@ -381,7 +381,7 @@ test('selected mask label appears on the top right of input components', async (
   await inputComponent.click();
 
   const selectedMask = page.locator('.editor-mask-selected');
-  const maskLabel = page.locator('.editor-mask-label');
+  const maskLabel = page.locator('.editor-mask-selected-label');
   await expect(maskLabel).toHaveText('输入框');
 
   const maskBox = await selectedMask.boundingBox();

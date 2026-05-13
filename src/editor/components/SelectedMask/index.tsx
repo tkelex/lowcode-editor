@@ -298,7 +298,7 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
           </Space>
         </div>
         <div
-          className="editor-mask-label"
+          className="editor-mask-label editor-mask-selected-label"
           title={curSelectedComponent?.desc}
           style={{
             position: 'absolute',
@@ -307,6 +307,7 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
             zIndex: 14,
             display: (!position.width || position.width < 10) ? 'none' : 'inline',
             transform: 'translate(-100%, -100%)',
+            pointerEvents: 'none',
           }}
         >
           {curSelectedComponent?.desc}
