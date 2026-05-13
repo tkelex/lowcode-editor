@@ -6,11 +6,14 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   findByEmail(email: string) {
-    return this.prisma.user.findUnique({ where: { email } });
+    return this.prisma.user.findFirst({
+      where: { email: { equals: email.trim(), mode: 'insensitive' } },
+      orderBy: { id: 'asc' },
+    });
   }
 
   findByUsername(username: string) {
-    return this.prisma.user.findUnique({ where: { username } });
+    return this.prisma.user.findUnique({ where: { username: username.trim() } });
   }
 
   findById(id: number) {

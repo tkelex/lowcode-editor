@@ -15,8 +15,12 @@ export function AuthView({ onAuthenticated }: AuthViewProps) {
     setLoading(true);
     try {
       const result = mode === 'login'
-        ? await login({ account: values.account!, password: values.password })
-        : await register({ email: values.email!, username: values.username!, password: values.password });
+        ? await login({ account: values.account!.trim(), password: values.password })
+        : await register({
+          email: values.email!.trim().toLowerCase(),
+          username: values.username!.trim(),
+          password: values.password,
+        });
       message.success(mode === 'login' ? '登录成功' : '注册成功');
       onAuthenticated(result.user);
     } catch (error) {

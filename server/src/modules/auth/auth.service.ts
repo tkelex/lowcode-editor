@@ -6,6 +6,7 @@ import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { normalizeEmail, normalizeLoginAccount, normalizeUsername } from './auth-normalization';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -18,9 +19,11 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto) {
+    const email = normalizeEmail(dto.email);
+    const username = normalizeUsername(dto.username);
     const [emailUser, usernameUser] = await Promise.all([
-      this.usersService.findByEmail(dto.email),
-      this.usersService.findByUsername(dto.username),
+      this.usersService.findByEmail(email),
+      this.usersService.findByUsername(username),
     ]);
 
     if (emailUser || usernameUser) {
@@ -34,8 +37,8 @@ export class AuthService {
     const passwordHash = await hash(dto.password, 12);
     const user = await this.prisma.user.create({
       data: {
-        email: dto.email,
-        username: dto.username,
+        email,
+        username,
         passwordHash,
       },
     });
@@ -44,9 +47,10 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = dto.account.includes('@')
-      ? await this.usersService.findByEmail(dto.account)
-      : await this.usersService.findByUsername(dto.account);
+    const account = normalizeLoginAccount(dto.account);
+    const user = account.includes('@')
+      ? await this.usersService.findByEmail(account)
+      : await this.usersService.findByUsername(account);
 
     if (!user) {
       throw new BusinessException(
