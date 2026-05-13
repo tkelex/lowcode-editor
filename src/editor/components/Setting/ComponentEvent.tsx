@@ -239,22 +239,24 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                         </span>
                     )}
                 </div>
-                <Tooltip title="添加动作">
-                    <Button
-                        aria-label="添加动作"
-                        size="small"
-                        type="text"
-                        className="event-add-button"
-                        icon={<PlusOutlined />}
-                        onClick={(e) => {
-                            e.stopPropagation();
+                <Button
+                    aria-label="添加动作"
+                    title="添加动作"
+                    size="small"
+                    type="text"
+                    className="event-add-button"
+                    icon={<PlusOutlined />}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onDoubleClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.stopPropagation();
 
-                            resetActionState();
-                            setCurEvent(event);
-                            setActionModalOpen(true);
-                        }}
-                    />
-                </Tooltip>
+                        resetActionState();
+                        setCurEvent(event);
+                        setActionModalOpen(true);
+                    }}
+                />
             </div>,
             children: <div>
                 <div className="event-data-card">
