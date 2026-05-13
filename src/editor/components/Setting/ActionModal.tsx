@@ -1,4 +1,5 @@
-import { Modal, Select, Typography } from "antd";
+import { Button, Empty, Input, Modal, Tag, Typography } from "antd";
+import { SearchOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from "react";
 import { GoToLink, GoToLinkConfig } from "./actions/GoToLink";
 import { ShowMessage, ShowMessageConfig } from "./actions/ShowMessage";
@@ -12,6 +13,13 @@ import { ComponentControl } from "./actions/ComponentControl";
 import { SetVariable } from "./actions/SetVariable";
 import type { ActionType, LowcodeAction } from "../../events/types";
 import type { ComponentEvent } from "../../registry/component-config";
+import {
+    actionCatalog,
+    actionCategories,
+    actionCatalogMap,
+    defaultActionOrder,
+    type ActionCatalogItem,
+} from './actionCatalog';
 
 type ActionFormConfig = GoToLinkConfig | ShowMessageConfig | CustomJSConfig | ComponentMethodConfig | LowcodeAction;
 export type ActionConfig = LowcodeAction;
@@ -20,63 +28,24 @@ export interface ActionModalProps {
     visible: boolean
     action?: ActionConfig
     event?: ComponentEvent
+    initialActionType?: ActionType
     handleOk: (config?: ActionConfig) => void
     handleCancel: () => void
 }
-
-const actionTypeLabelMap: Record<ActionType, string> = {
-    url: '访问链接',
-    toast: '消息提示',
-    custom: '自定义 JS',
-    componentAction: '组件方法',
-    confirm: '确认弹窗',
-    condition: '条件执行',
-    http: 'HTTP 请求',
-    componentControl: '组件联动',
-    setComponentProps: '设置属性',
-    setComponentStyles: '设置样式',
-    setVariable: '设置变量',
-};
-
-const actionTypeDescriptionMap: Record<ActionType, string> = {
-    url: '跳转到站内页面或外部链接，未填写协议时会自动补全。',
-    toast: '触发事件后展示成功、失败、警告或提示消息。',
-    custom: '执行自定义 JavaScript，可读取事件数据并组合复杂逻辑。',
-    componentAction: '调用其它组件暴露的方法，例如提交表单或打开弹窗。',
-    confirm: '先弹出确认框，用户确认后再继续执行后续动作。',
-    condition: '根据表达式判断是否继续执行指定动作。',
-    http: '向后端或外部服务发起 HTTP 请求。',
-    componentControl: '显示隐藏、启用禁用、设置/清空值，或打开弹窗、提交表单。',
-    setComponentProps: '修改目标组件属性，例如文本、禁用状态或数据源。',
-    setComponentStyles: '修改目标组件样式，例如颜色、间距或显示状态。',
-    setVariable: '把事件数据、固定值或表达式结果写入页面级变量。',
-};
-
-const defaultActionOrder: ActionType[] = [
-    'toast',
-    'url',
-    'componentAction',
-    'confirm',
-    'condition',
-    'http',
-    'componentControl',
-    'setComponentProps',
-    'setComponentStyles',
-    'setVariable',
-    'custom',
-];
 
 export function ActionModal(props: ActionModalProps) {
     const {
         visible,
         action,
         event,
+        initialActionType,
         handleOk,
         handleCancel
     } = props;
 
     const [key, setKey] = useState<ActionType>('toast');
     const [curConfig, setCurConfig] = useState<ActionConfig>();
+    const [keyword, setKeyword] = useState('');
 
     const allowedActions = useMemo(() => defaultActionOrder.filter((actionType) => {
         return event?.allowedActions?.includes(actionType) ?? true;
@@ -90,11 +59,27 @@ export function ActionModal(props: ActionModalProps) {
         return allowedActions;
     }, [action?.actionType, allowedActions]);
 
-    const actionOptions = actionTypes.map((actionType) => ({
-        label: actionTypeLabelMap[actionType],
-        value: actionType,
-    }));
-    const selectedActionDescription = actionTypeDescriptionMap[key];
+    const actionItems = useMemo(() => {
+        const text = keyword.trim().toLowerCase();
+        return actionCatalog
+            .filter((item) => actionTypes.includes(item.actionType))
+            .filter((item) => {
+                if (!text) return true;
+                return [
+                    item.label,
+                    item.shortLabel,
+                    item.description,
+                    ...item.keywords,
+                ].join(' ').toLowerCase().includes(text);
+            });
+    }, [actionTypes, keyword]);
+
+    const commonActions = useMemo(() => actionCatalog.filter((item) => {
+        return item.common && actionTypes.includes(item.actionType);
+    }), [actionTypes]);
+
+    const selectedAction = actionCatalogMap[key];
+    const selectedActionDescription = selectedAction?.description || '请选择一个动作类型。';
 
     useEffect(() => {
         if (!visible) return;
@@ -102,103 +87,200 @@ export function ActionModal(props: ActionModalProps) {
         if(action?.actionType && actionTypes.includes(action.actionType)) {
             setKey(action.actionType);
             setCurConfig(action);
+        } else if(initialActionType && actionTypes.includes(initialActionType)) {
+            setKey(initialActionType);
+            setCurConfig(undefined);
         } else {
             setKey(actionTypes[0] || 'toast');
             setCurConfig(undefined);
         }
-    }, [visible, action, actionTypes]);
+
+        setKeyword('');
+    }, [visible, action, actionTypes, initialActionType]);
 
     function handleActionTypeChange(value: ActionType) {
         setKey(value);
         setCurConfig(action?.actionType === value ? action : undefined);
     }
 
+    function renderActionForm() {
+        if (key === 'url') {
+            return <GoToLink key="goToLink" value={action?.actionType === 'url' ? action.args.url : ''} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }}/>;
+        }
+
+        if (key === 'toast') {
+            return <ShowMessage  key="showMessage" value={action?.actionType === 'toast' ? {
+                type: action.args.msgType || 'success',
+                text: action.args.msg,
+            } : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }}/>;
+        }
+
+        if (key === 'componentAction') {
+            return <ComponentMethod  key="componentMethod" value={action?.actionType === 'componentAction' ? {
+                componentId: action.componentId,
+                method: action.args.method,
+                params: action.args.params,
+            } : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }}/>;
+        }
+
+        if (key === 'custom') {
+            return <CustomJS key="customJS" value={action?.actionType === 'custom' ? action.args.script : ''} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }}/>;
+        }
+
+        if (key === 'confirm') {
+            return <ConfirmActionForm key="confirm" value={action?.actionType === 'confirm' ? action.args : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        if (key === 'condition') {
+            return <ConditionActionForm key="condition" value={action?.actionType === 'condition' ? action.args : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        if (key === 'http') {
+            return <HttpActionForm key="http" value={action?.actionType === 'http' ? action.args : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        if (key === 'componentControl') {
+            return <ComponentControl key="componentControl" value={action?.actionType === 'componentControl' ? action : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        if (key === 'setComponentProps') {
+            return <SetComponentData key="setComponentProps" actionType="setComponentProps" value={action?.actionType === 'setComponentProps' ? action : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        if (key === 'setComponentStyles') {
+            return <SetComponentData key="setComponentStyles" actionType="setComponentStyles" value={action?.actionType === 'setComponentStyles' ? action : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        if (key === 'setVariable') {
+            return <SetVariable key="setVariable" value={action?.actionType === 'setVariable' ? action : undefined} onChange={(config) => {
+                setCurConfig(config as ActionFormConfig);
+            }} />;
+        }
+
+        return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="请选择动作" />;
+    }
+
     return  <Modal
-        title={event ? `${event.label} - 事件动作配置` : '事件动作配置'}
-        width={800}
+        title={event ? `${event.label} - 动作配置` : '动作配置'}
+        width={1120}
         open={visible}
         okText="确认"
         cancelText="取消"
         okButtonProps={{ disabled: !curConfig }}
         onOk={() => handleOk(curConfig)}
         onCancel={handleCancel}
+        className="event-action-modal"
     >
-        <div className="max-h-[70vh] min-h-[420px] overflow-y-auto pr-[4px]">
-            <div className="rounded-[8px] border border-[#e5e7eb] bg-[#f8fafc] p-[14px]">
-                <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">动作类型</div>
-                <Select<ActionType>
-                    className="w-full"
-                    value={key}
-                    options={actionOptions}
-                    placeholder="请选择事件触发后要执行的动作"
-                    onChange={handleActionTypeChange}
-                />
-                <Typography.Text type="secondary" className="mt-[8px] block text-[12px] leading-[18px]">
-                    {selectedActionDescription}
-                </Typography.Text>
+        <div className="event-action-modal-shell">
+            <div className="event-action-modal-top">
+                <span className="event-action-modal-label">常用动作：</span>
+                <div className="event-action-common-list">
+                    {commonActions.map((item) => (
+                        <Button
+                            key={item.actionType}
+                            size="small"
+                            type={key === item.actionType ? 'primary' : 'default'}
+                            shape="round"
+                            onClick={() => handleActionTypeChange(item.actionType)}
+                        >
+                            {item.label}
+                        </Button>
+                    ))}
+                </div>
             </div>
-            {
-                key === 'url' && <GoToLink key="goToLink" value={action?.actionType === 'url' ? action.args.url : ''} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }}/>
-            }
-            {
-                key === 'toast' && <ShowMessage  key="showMessage" value={action?.actionType === 'toast' ? {
-                    type: action.args.msgType || 'success',
-                    text: action.args.msg,
-                } : undefined} onChange={(config) => {
-                setCurConfig(config as ActionFormConfig);
-                }}/>
-            }
-            {
-                key === 'componentAction' && <ComponentMethod  key="componentMethod" value={action?.actionType === 'componentAction' ? {
-                    componentId: action.componentId,
-                    method: action.args.method,
-                    params: action.args.params,
-                } : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }}/>
-            }
-            {
-                key === 'custom' && <CustomJS key="customJS" value={action?.actionType === 'custom' ? action.args.script : ''} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }}/>
-            }
-            {
-                key === 'confirm' && <ConfirmActionForm key="confirm" value={action?.actionType === 'confirm' ? action.args : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
-            {
-                key === 'condition' && <ConditionActionForm key="condition" value={action?.actionType === 'condition' ? action.args : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
-            {
-                key === 'http' && <HttpActionForm key="http" value={action?.actionType === 'http' ? action.args : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
-            {
-                key === 'componentControl' && <ComponentControl key="componentControl" value={action?.actionType === 'componentControl' ? action : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
-            {
-                key === 'setComponentProps' && <SetComponentData key="setComponentProps" actionType="setComponentProps" value={action?.actionType === 'setComponentProps' ? action : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
-            {
-                key === 'setComponentStyles' && <SetComponentData key="setComponentStyles" actionType="setComponentStyles" value={action?.actionType === 'setComponentStyles' ? action : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
-            {
-                key === 'setVariable' && <SetVariable key="setVariable" value={action?.actionType === 'setVariable' ? action : undefined} onChange={(config) => {
-                    setCurConfig(config as ActionFormConfig);
-                }} />
-            }
+            <div className="event-action-modal-body">
+                <aside className="event-action-modal-sidebar">
+                    <div className="event-action-sidebar-title">执行动作</div>
+                    <Input
+                        allowClear
+                        prefix={<SearchOutlined />}
+                        value={keyword}
+                        placeholder="搜索执行动作"
+                        onChange={(event) => setKeyword(event.target.value)}
+                    />
+                    <div className="event-action-category-list">
+                        {actionCategories.map((category) => {
+                            const items = actionItems.filter((item) => item.category === category.key);
+                            if (items.length === 0) return null;
+
+                            return <div key={category.key} className="event-action-category">
+                                <div className="event-action-category-title">{category.label}</div>
+                                {items.map((item) => (
+                                    <ActionTypeButton
+                                        key={item.actionType}
+                                        item={item}
+                                        active={key === item.actionType}
+                                        onClick={() => handleActionTypeChange(item.actionType)}
+                                    />
+                                ))}
+                            </div>;
+                        })}
+                    </div>
+                </aside>
+                <section className="event-action-modal-config">
+                    {selectedAction ? (
+                        <>
+                            <div className="event-action-config-header">
+                                <div>
+                                    <div className="event-action-config-title">{selectedAction.label}</div>
+                                    <Typography.Text type="secondary" className="event-action-config-desc">
+                                        {selectedActionDescription}
+                                    </Typography.Text>
+                                </div>
+                                <Tag color={selectedAction.color}>{selectedAction.shortLabel}</Tag>
+                            </div>
+                            <div className="event-action-config-section">
+                                <div className="event-action-config-section-title">基础设置</div>
+                                {renderActionForm()}
+                            </div>
+                            {key === 'custom' && (
+                                <div className="event-action-config-warning">
+                                    自定义 JS 仅编辑器预览可执行，公开发布页会禁用。
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="请选择执行动作" />
+                    )}
+                </section>
+            </div>
         </div>
     </Modal>
+}
+
+function ActionTypeButton(props: {
+    item: ActionCatalogItem;
+    active: boolean;
+    onClick: () => void;
+}) {
+    const { item, active, onClick } = props;
+
+    return <button
+        type="button"
+        className={`event-action-type-button ${active ? 'is-active' : ''}`}
+        onClick={onClick}
+    >
+        <span className="event-action-type-label">{item.label}</span>
+        <span className="event-action-type-desc">{item.description}</span>
+    </button>;
 }

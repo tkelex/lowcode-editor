@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Component, getComponentById, useComponetsStore } from "../../../stores/components";
 import { Input, Select, TreeSelect } from "antd";
 import { useComponentConfigStore } from "../../../registry/component-config";
@@ -36,6 +36,10 @@ export function ComponentMethod(props: ComponentMethodProps) {
     const [curId, setCurId] = useState<number>();
     const [curMethod, setCurMethod] = useState<string>();
     const [paramsText, setParamsText] = useState<string>('[]');
+
+    const methodTreeData = useMemo(() => {
+        return toMethodTreeData(components, componentConfig);
+    }, [components, componentConfig]);
 
     useEffect(() => {
         if(value) {
@@ -103,11 +107,8 @@ export function ComponentMethod(props: ComponentMethodProps) {
             <div className="mb-[8px] text-[13px] font-medium text-[#1f2937]">目标组件</div>
                 <TreeSelect
                     className="w-full"
-                    treeData={components}
-                    fieldNames={{
-                        label: 'name',
-                        value: 'id',
-                    }}
+                    treeData={methodTreeData}
+                    treeDefaultExpandAll
                     placeholder="请选择要调用方法的组件"
                     value={curId}
                     onChange={(value) => { componentChange(value) }}
@@ -141,4 +142,26 @@ export function ComponentMethod(props: ComponentMethodProps) {
             </div>
         )}
     </div>
+}
+
+function toMethodTreeData(components: Component[], componentConfig: Record<string, any>): any[] {
+    return components
+        .map((component) => {
+            const children = component.children ? toMethodTreeData(component.children, componentConfig) : [];
+            const methods = componentConfig[component.name]?.methods || [];
+            const selectable = methods.length > 0;
+
+            if (!selectable && children.length === 0) {
+                return null;
+            }
+
+            return {
+                title: `${component.desc} / ${component.name}`,
+                value: component.id,
+                selectable,
+                disabled: !selectable,
+                children,
+            };
+        })
+        .filter(Boolean);
 }

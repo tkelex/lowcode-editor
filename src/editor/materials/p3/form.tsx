@@ -9,7 +9,7 @@ import { splitControlStyles } from '../styleSplit';
 export function TextareaDev({ placeholder, defaultValue, rows, disabled, ...props }: CommonComponentProps) {
   const { shellStyles, controlStyles } = splitControlStyles(props.styles);
 
-  return <DraggableBlock {...props} styles={shellStyles} className="min-w-[220px] rounded-[6px] p-[2px]">
+  return <DraggableBlock {...props} styles={shellStyles} className="min-w-[220px] rounded-[6px]">
     <Input.TextArea style={controlStyles} placeholder={placeholder} defaultValue={defaultValue} rows={rows} disabled={disabled} />
   </DraggableBlock>;
 }
@@ -56,7 +56,7 @@ function normalizeCheckboxValue(value: unknown) {
 export function DatePickerDev({ placeholder, defaultValue, disabled, ...props }: CommonComponentProps) {
   const { shellStyles, controlStyles } = splitControlStyles(props.styles);
 
-  return <DraggableBlock {...props} styles={shellStyles} className="inline-block rounded-[6px] p-[2px]">
+  return <DraggableBlock {...props} styles={shellStyles} className="inline-block rounded-[6px]">
     <DatePicker style={controlStyles} placeholder={placeholder} defaultValue={defaultValue ? dayjs(defaultValue) : undefined} disabled={disabled} />
   </DraggableBlock>;
 }
@@ -70,7 +70,7 @@ export function DatePickerProd({ id: _id, name: _name, children: _children, plac
 export function UploadDev({ buttonText, disabled, ...props }: CommonComponentProps) {
   const { shellStyles, controlStyles } = splitControlStyles(props.styles);
 
-  return <DraggableBlock {...props} styles={shellStyles} className="inline-block rounded-[6px] p-[2px]">
+  return <DraggableBlock {...props} styles={shellStyles} className="inline-block rounded-[6px]">
     <Upload disabled={disabled} beforeUpload={() => false}>
       <Button style={controlStyles} icon={<UploadOutlined />}>{buttonText || '上传文件'}</Button>
     </Upload>

@@ -1,50 +1,36 @@
-import { Button, Collapse, CollapseProps, Empty, Popconfirm, Tag, Tooltip, message } from 'antd';
+import { Button, Empty, Popconfirm, Tag, Tooltip, message } from 'antd';
 import {
     ArrowDownOutlined,
     ArrowUpOutlined,
     CopyOutlined,
     DeleteOutlined,
+    DownOutlined,
     EditOutlined,
+    HolderOutlined,
+    InfoCircleOutlined,
     PauseCircleOutlined,
     PlayCircleOutlined,
     PlusOutlined,
+    SettingOutlined,
+    UpOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import { shallow } from 'zustand/shallow';
-import { getLowcodeEventName } from '../../events/eventNames';
+import { getLowcodeEventName, getReactEventProp } from '../../events/eventNames';
 import { getComponentEventConfig } from '../../events/normalize';
-import type { LowcodeAction } from '../../events/types';
+import type { ActionType, EventCategory, LowcodeAction, LowcodeEvents } from '../../events/types';
 import { useComponentConfigStore } from '../../registry/component-config';
 import type { ComponentEvent as ComponentEventConfig } from '../../registry/component-config';
 import { getComponentById, useComponetsStore } from '../../stores/components';
+import { actionCatalogMap } from './actionCatalog';
 import { ActionConfig, ActionModal } from './ActionModal';
 
-const actionLabelMap = {
-    toast: '消息',
-    url: '跳转',
-    componentAction: '组件方法',
-    confirm: '确认',
-    condition: '条件',
-    http: '请求',
-    componentControl: '联动',
-    setComponentProps: '属性',
-    setComponentStyles: '样式',
-    setVariable: '变量',
-    custom: 'JS',
-};
-
-const actionColorMap = {
-    toast: 'green',
-    url: 'blue',
-    componentAction: 'purple',
-    confirm: 'cyan',
-    condition: 'gold',
-    http: 'geekblue',
-    componentControl: 'lime',
-    setComponentProps: 'magenta',
-    setComponentStyles: 'volcano',
-    setVariable: 'cyan',
-    custom: 'orange',
+const eventCategoryLabelMap: Record<EventCategory, string> = {
+    ui: '交互',
+    value: '值变化',
+    submit: '提交',
+    overlay: '弹层',
+    lifecycle: '生命周期',
 };
 
 interface ComponentEventProps {
@@ -58,26 +44,34 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         updateComponentProps: state.updateComponentProps,
     }), shallow);
     const { componentConfig } = useComponentConfigStore();
+    const [addPanelOpen, setAddPanelOpen] = useState(false);
     const [actionModalOpen, setActionModalOpen] = useState(false);
     const [curEvent, setCurEvent] = useState<ComponentEventConfig>();
     const [curAction, setCurAction] = useState<ActionConfig>();
     const [curActionIndex, setCurActionIndex] = useState<number>();
+    const [initialActionType, setInitialActionType] = useState<ActionType>();
+    const [collapsedEvents, setCollapsedEvents] = useState<Record<string, boolean>>({});
 
     if (!curComponent) return null;
 
     const searchText = keyword.trim().toLowerCase();
     const allEvents = componentConfig[curComponent.name]?.events || [];
-    const events = allEvents.filter(event => {
+    const configuredEvents = allEvents.filter((event) => hasEventGroup(event));
+    const visibleEvents = configuredEvents.filter((event) => {
         if (!searchText) return true;
 
+        const actions = getEventActions(event);
         return [
             event.name,
             event.label,
             event.description || '',
+            eventCategoryLabelMap[event.category],
             ...(event.eventDataSchema || []),
-            ...event.allowedActions.map(actionType => actionLabelMap[actionType]),
+            ...actions.map((action) => getActionLabel(action.actionType)),
+            ...actions.map(renderActionSummary),
         ].join(' ').toLowerCase().includes(searchText);
     });
+    const addableEvents = allEvents.filter((event) => !hasEventGroup(event));
 
     if (allEvents.length === 0) {
         return <div className='px-[10px]'>
@@ -85,15 +79,16 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         </div>;
     }
 
-    if (events.length === 0) {
-        return <div className='px-[10px]'>
-            <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的事件配置" />
-        </div>;
-    }
+    function hasEventGroup(event: ComponentEventConfig) {
+        if (!curComponent) return false;
 
-    function resetActionState() {
-        setCurAction(undefined);
-        setCurActionIndex(undefined);
+        const eventName = getLowcodeEventName(event.name);
+        const onEvent = curComponent.props?.onEvent as LowcodeEvents | undefined;
+        if (onEvent && Object.prototype.hasOwnProperty.call(onEvent, eventName)) {
+            return true;
+        }
+
+        return Boolean(getComponentEventConfig(curComponent, event.name)?.actions?.length);
     }
 
     function getEventActions(event: ComponentEventConfig): LowcodeAction[] {
@@ -101,29 +96,47 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         return getComponentEventConfig(curComponent, event.name)?.actions || [];
     }
 
-    function updateEventActions(event: ComponentEventConfig, actions: LowcodeAction[]) {
+    function setEventConfig(event: ComponentEventConfig, actions: LowcodeAction[], remove = false) {
         if (!curComponent) return;
 
         const eventName = getLowcodeEventName(event.name);
-        const onEvent = curComponent.props.onEvent || {};
-        const reactEventName = `on${eventName.charAt(0).toUpperCase()}${eventName.slice(1)}`;
+        const onEvent = (curComponent.props?.onEvent || {}) as LowcodeEvents;
+        const nextOnEvent: LowcodeEvents = { ...onEvent };
+
+        if (remove) {
+            delete nextOnEvent[eventName];
+        } else {
+            nextOnEvent[eventName] = { actions };
+        }
 
         updateComponentProps(curComponent.id, {
             [eventName]: undefined,
             [event.name]: undefined,
-            [reactEventName]: undefined,
-            onEvent: {
-                ...onEvent,
-                [eventName]: {
-                    actions,
-                },
-            },
+            [getReactEventProp(event)]: undefined,
+            onEvent: Object.keys(nextOnEvent).length > 0 ? nextOnEvent : undefined,
         });
+    }
+
+    function addEvent(event: ComponentEventConfig) {
+        setEventConfig(event, []);
+        setCollapsedEvents((state) => ({ ...state, [event.name]: false }));
+        setAddPanelOpen(false);
+        message.success('事件已添加');
+    }
+
+    function deleteEvent(event: ComponentEventConfig) {
+        setEventConfig(event, [], true);
+        message.success('事件已删除');
+    }
+
+    function clearEventActions(event: ComponentEventConfig) {
+        setEventConfig(event, []);
+        message.success('事件动作已清空');
     }
 
     function deleteAction(event: ComponentEventConfig, index: number) {
         const actions = getEventActions(event);
-        updateEventActions(event, actions.filter((_, actionIndex) => actionIndex !== index));
+        setEventConfig(event, actions.filter((_, actionIndex) => actionIndex !== index));
         message.success('动作已删除');
     }
 
@@ -138,7 +151,7 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         const nextActions = [...actions];
         const [action] = nextActions.splice(index, 1);
         nextActions.splice(targetIndex, 0, action);
-        updateEventActions(event, nextActions);
+        setEventConfig(event, nextActions);
         message.success('动作顺序已更新');
     }
 
@@ -148,7 +161,7 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         if (!action) return;
 
         const nextAction = cloneAction(action);
-        updateEventActions(event, [
+        setEventConfig(event, [
             ...actions.slice(0, index + 1),
             nextAction,
             ...actions.slice(index + 1),
@@ -169,15 +182,61 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
             };
         });
 
-        updateEventActions(event, nextActions);
+        setEventConfig(event, nextActions);
         message.success(actions[index]?.disabled ? '动作已启用' : '动作已禁用');
+    }
+
+    function resetActionState() {
+        setCurAction(undefined);
+        setCurActionIndex(undefined);
+        setInitialActionType(undefined);
+    }
+
+    function openActionModal(event: ComponentEventConfig, actionType?: ActionType) {
+        resetActionState();
+        setInitialActionType(actionType);
+        setCurEvent(event);
+        setActionModalOpen(true);
     }
 
     function editAction(event: ComponentEventConfig, config: ActionConfig, index: number) {
         setCurEvent(event);
         setCurAction(config);
         setCurActionIndex(index);
+        setInitialActionType(undefined);
         setActionModalOpen(true);
+    }
+
+    function handleModalOk(config?: ActionConfig) {
+        if(!config || !curEvent || !curComponent) {
+            return ;
+        }
+
+        const actions = getEventActions(curEvent);
+
+        if(curAction && curActionIndex !== undefined) {
+            setEventConfig(curEvent, actions.map((item, index) => {
+                return index === curActionIndex ? config : item;
+            }));
+            message.success('动作已更新');
+        } else {
+            setEventConfig(curEvent, [...actions, config]);
+            message.success('动作已添加');
+        }
+
+        resetActionState();
+        setActionModalOpen(false);
+    }
+
+    function toggleEventCollapsed(event: ComponentEventConfig) {
+        setCollapsedEvents((state) => ({
+            ...state,
+            [event.name]: !(state[event.name] ?? false),
+        }));
+    }
+
+    function isEventCollapsed(event: ComponentEventConfig) {
+        return collapsedEvents[event.name] ?? false;
     }
 
     function renderActionSummary(action: LowcodeAction) {
@@ -223,192 +282,167 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         return `${target?.desc || '未选择组件'} / ${action.args.method || '未选择方法'}`;
     }
 
-    const items: CollapseProps['items'] = events.map(event => {
-        const actions = getEventActions(event);
-        return {
-            key: event.name,
-            label: <div className='grid w-full min-w-0 grid-cols-[minmax(0,1fr)_24px] items-center gap-[8px]'>
-                <div className="event-summary">
-                    <div className="event-title-row">
-                        <span className="event-title">{event.label}</span>
-                        {actions.length > 0 && <span className="event-action-count">{actions.length}</span>}
-                    </div>
-                    {event.description && (
-                        <span className="event-description" title={event.description}>
-                            {event.description}
-                        </span>
+    return <div className='event-panel event-flow-panel'>
+        <div className="event-add-area">
+            <Button
+                block
+                type="primary"
+                ghost
+                icon={<PlusOutlined />}
+                onClick={() => setAddPanelOpen((open) => !open)}
+            >
+                添加事件
+            </Button>
+            {addPanelOpen && (
+                <div className="event-add-menu">
+                    {addableEvents.length === 0 && (
+                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="当前组件事件已全部添加" />
                     )}
-                </div>
-                <Button
-                    aria-label="添加动作"
-                    title="添加动作"
-                    size="small"
-                    type="text"
-                    className="event-add-button"
-                    icon={<PlusOutlined />}
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onDoubleClick={(e) => e.stopPropagation()}
-                    onClick={(e) => {
-                        e.stopPropagation();
-
-                        resetActionState();
-                        setCurEvent(event);
-                        setActionModalOpen(true);
-                    }}
-                />
-            </div>,
-            children: <div>
-                <div className="event-data-card">
-                    <span className="event-data-label">事件数据</span>
-                    <span className="event-data-value">{formatEventDataSchema(event)}</span>
-                </div>
-                {actions.length === 0 && (
-                    <div className="event-empty-card">
-                        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无动作" />
-                        <Button
-                            size="small"
-                            type="primary"
-                            icon={<PlusOutlined />}
-                            onClick={() => {
-                                resetActionState();
-                                setCurEvent(event);
-                                setActionModalOpen(true);
-                            }}
+                    {addableEvents.map((event) => (
+                        <button
+                            key={event.name}
+                            type="button"
+                            className="event-add-option"
+                            onClick={() => addEvent(event)}
                         >
-                            添加动作
-                        </Button>
-                    </div>
-                )}
-                {actions.map((item, index) => {
-                    return <div key={`${event.name}-${index}-${item.actionType}`} className={`event-action-card ${item.disabled ? 'is-disabled' : ''}`}>
-                        <div className="flex items-start justify-between gap-[8px]">
-                            <div className="event-action-index">
-                                {index + 1}
-                            </div>
-                            <div className="min-w-0 flex-1 pt-[1px]">
-                                <div className="mb-[4px] flex min-w-0 items-center gap-[6px]">
-                                    <Tag className="event-action-tag" color={actionColorMap[item.actionType]}>{actionLabelMap[item.actionType]}</Tag>
-                                    {item.disabled && <Tag className="m-0" color="default">已禁用</Tag>}
-                                </div>
-                                <span className="event-action-summary" title={renderActionSummary(item)}>
-                                    {renderActionSummary(item)}
-                                </span>
-                            </div>
-                            <div className="event-action-tools">
-                                <Tooltip title="上移">
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        icon={<ArrowUpOutlined />}
-                                        disabled={index === 0}
-                                        onClick={() => moveAction(event, index, -1)}
-                                    />
+                            <span className="event-add-option-title">{event.label}</span>
+                            <span className="event-add-option-desc">{event.description || `${event.name} 触发时执行`}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+
+        {configuredEvents.length === 0 && (
+            <div className="event-flow-empty">
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无事件配置" />
+                <span>从添加事件开始，为当前组件编排动作。</span>
+            </div>
+        )}
+
+        {configuredEvents.length > 0 && visibleEvents.length === 0 && (
+            <div className="event-flow-empty">
+                <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="没有匹配的事件配置" />
+            </div>
+        )}
+
+        <div className="event-group-list">
+            {visibleEvents.map((event) => {
+                const actions = getEventActions(event);
+                const collapsed = isEventCollapsed(event);
+
+                return <div key={event.name} className="event-group">
+                    <div className="event-group-header">
+                        <div className="event-group-main">
+                            <span className="event-group-title">{event.label}</span>
+                            <Tag className="event-group-category">{eventCategoryLabelMap[event.category]}</Tag>
+                            <span className="event-group-count">{actions.length} 个动作</span>
+                            {event.description && (
+                                <Tooltip title={event.description}>
+                                    <InfoCircleOutlined className="event-group-info" />
                                 </Tooltip>
-                                <Tooltip title="下移">
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        icon={<ArrowDownOutlined />}
-                                        disabled={index === actions.length - 1}
-                                        onClick={() => moveAction(event, index, 1)}
-                                    />
-                                </Tooltip>
-                                <Tooltip title="复制动作">
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        icon={<CopyOutlined />}
-                                        onClick={() => copyAction(event, index)}
-                                    />
-                                </Tooltip>
-                                <Tooltip title={item.disabled ? '启用动作' : '禁用动作'}>
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        icon={item.disabled ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
-                                        onClick={() => toggleActionDisabled(event, index)}
-                                    />
-                                </Tooltip>
-                                <Tooltip title="编辑动作">
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        icon={<EditOutlined />}
-                                        onClick={() => editAction(event, item, index)}
-                                    />
-                                </Tooltip>
-                                <Popconfirm
-                                    title="确认删除动作？"
-                                    description="删除后该事件触发时不会再执行这个动作。"
-                                    okText="删除"
-                                    cancelText="取消"
-                                    okButtonProps={{ danger: true }}
-                                    onConfirm={() => deleteAction(event, index)}
-                                >
-                                    <Button
-                                        size="small"
-                                        type="text"
-                                        danger
-                                        icon={<DeleteOutlined />}
-                                    />
-                                </Popconfirm>
-                            </div>
+                            )}
+                        </div>
+                        <div className="event-group-tools">
+                            <Tooltip title="添加动作">
+                                <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => openActionModal(event)} />
+                            </Tooltip>
+                            <Popconfirm
+                                title="清空事件动作？"
+                                description="清空后该事件仍会保留，但不会执行任何动作。"
+                                okText="清空"
+                                cancelText="取消"
+                                onConfirm={() => clearEventActions(event)}
+                            >
+                                <Button size="small" type="text" icon={<DeleteOutlined />} disabled={actions.length === 0} />
+                            </Popconfirm>
+                            <Popconfirm
+                                title="删除事件？"
+                                description="删除后该事件下的动作也会一并移除。"
+                                okText="删除"
+                                cancelText="取消"
+                                okButtonProps={{ danger: true }}
+                                onConfirm={() => deleteEvent(event)}
+                            >
+                                <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                            </Popconfirm>
+                            <Tooltip title={collapsed ? '展开' : '收起'}>
+                                <Button
+                                    size="small"
+                                    type="text"
+                                    icon={collapsed ? <DownOutlined /> : <UpOutlined />}
+                                    onClick={() => toggleEventCollapsed(event)}
+                                />
+                            </Tooltip>
                         </div>
                     </div>
-                })}
-            </div>
-        }
-    });
+                    {!collapsed && (
+                        <div className="event-action-flow">
+                            {actions.length === 0 && (
+                                <div className="event-action-empty-row">
+                                    <span>暂无动作</span>
+                                    <Button size="small" type="link" icon={<PlusOutlined />} onClick={() => openActionModal(event)}>
+                                        添加动作
+                                    </Button>
+                                </div>
+                            )}
+                            {actions.map((action, index) => (
+                                <div key={`${event.name}-${index}-${action.actionType}`} className={`event-action-row ${action.disabled ? 'is-disabled' : ''}`}>
+                                    <HolderOutlined className="event-action-handle" />
+                                    <div className="event-action-row-index">{index + 1}</div>
+                                    <Tag className="event-action-tag" color={getActionColor(action.actionType)}>
+                                        {getActionLabel(action.actionType)}
+                                    </Tag>
+                                    <div className="event-action-row-body">
+                                        <span className="event-action-row-title">{getActionTitle(action.actionType)}</span>
+                                        <span className="event-action-row-summary" title={renderActionSummary(action)}>
+                                            {renderActionSummary(action)}
+                                        </span>
+                                    </div>
+                                    {action.disabled && <Tag className="event-action-disabled-tag" color="default">已禁用</Tag>}
+                                    <div className="event-action-row-tools">
+                                        <Tooltip title="上移">
+                                            <Button size="small" type="text" icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => moveAction(event, index, -1)} />
+                                        </Tooltip>
+                                        <Tooltip title="下移">
+                                            <Button size="small" type="text" icon={<ArrowDownOutlined />} disabled={index === actions.length - 1} onClick={() => moveAction(event, index, 1)} />
+                                        </Tooltip>
+                                        <Tooltip title="复制动作">
+                                            <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copyAction(event, index)} />
+                                        </Tooltip>
+                                        <Tooltip title={action.disabled ? '启用动作' : '禁用动作'}>
+                                            <Button size="small" type="text" icon={action.disabled ? <PlayCircleOutlined /> : <PauseCircleOutlined />} onClick={() => toggleActionDisabled(event, index)} />
+                                        </Tooltip>
+                                        <Tooltip title="动作设置">
+                                            <Button size="small" type="text" icon={<SettingOutlined />} onClick={() => editAction(event, action, index)} />
+                                        </Tooltip>
+                                        <Tooltip title="编辑动作">
+                                            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => editAction(event, action, index)} />
+                                        </Tooltip>
+                                        <Popconfirm
+                                            title="确认删除动作？"
+                                            description="删除后该事件触发时不会再执行这个动作。"
+                                            okText="删除"
+                                            cancelText="取消"
+                                            okButtonProps={{ danger: true }}
+                                            onConfirm={() => deleteAction(event, index)}
+                                        >
+                                            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                                        </Popconfirm>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            })}
+        </div>
 
-    const activeEventNames = events
-        .filter((event) => getEventActions(event).length > 0)
-        .map((event) => event.name);
-    const firstEventName = events[0]?.name;
-    const defaultActiveKey = activeEventNames.length > 0 ? activeEventNames : firstEventName ? [firstEventName] : [];
-
-    function handleModalOk(config?: ActionConfig) {
-        if(!config || !curEvent || !curComponent) {
-            return ;
-        }
-
-        const actions = getEventActions(curEvent);
-
-        if(curAction && curActionIndex !== undefined) {
-            updateEventActions(curEvent, actions.map((item, index) => {
-                return index === curActionIndex ? config : item;
-            }));
-            message.success('动作已更新');
-        } else {
-            updateEventActions(curEvent, [...actions, config]);
-            message.success('动作已添加');
-        }
-
-        resetActionState();
-        setActionModalOpen(false);
-    }
-
-    return <div className='event-panel'>
-        <Collapse
-            className='setting-collapse mb-[10px] [&_.ant-collapse-header-text]:min-w-0 [&_.ant-collapse-header-text]:w-full'
-            size="small"
-            accordion={events.length > 2}
-            items={items}
-            defaultActiveKey={events.length > 2 ? defaultActiveKey[0] : defaultActiveKey}
-        />
-        <ActionModal visible={actionModalOpen} event={curEvent} handleOk={handleModalOk} action={curAction} handleCancel={() => {
+        <ActionModal visible={actionModalOpen} event={curEvent} initialActionType={initialActionType} handleOk={handleModalOk} action={curAction} handleCancel={() => {
             resetActionState();
             setActionModalOpen(false);
         }}/>
     </div>
-}
-
-function formatEventDataSchema(event: ComponentEventConfig) {
-    if (!event.eventDataSchema?.length) {
-        return '无额外数据，可使用 args 读取原始事件参数';
-    }
-
-    return event.eventDataSchema.map(item => `event.${item}`).join('、');
 }
 
 function cloneAction(action: LowcodeAction): LowcodeAction {
@@ -416,6 +450,18 @@ function cloneAction(action: LowcodeAction): LowcodeAction {
         ...action,
         id: undefined,
     })) as LowcodeAction;
+}
+
+function getActionLabel(actionType: ActionType) {
+    return actionCatalogMap[actionType]?.shortLabel || actionType;
+}
+
+function getActionTitle(actionType: ActionType) {
+    return actionCatalogMap[actionType]?.label || actionType;
+}
+
+function getActionColor(actionType: ActionType) {
+    return actionCatalogMap[actionType]?.color || 'default';
 }
 
 function formatComponentControlOperation(operation: string) {

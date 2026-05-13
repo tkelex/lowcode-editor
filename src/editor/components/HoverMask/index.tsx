@@ -115,20 +115,19 @@ function HoverMask({ containerClassName, portalWrapperClassName, componentId }: 
         }}
       />
       <div
-          style={{
-            position: "absolute",
-            left: position.labelLeft,
-            top: position.labelTop,
-            fontSize: "14px",
-            zIndex: 13,
-            display: (!position.width || position.width < 10) ? "none" : "inline",
-            transform: 'translate(-100%, -100%)',
-          }}
-        >
-          <div className="editor-mask-label">
-            {curComponent?.desc}
-          </div>
-        </div>
+        className="editor-mask-label"
+        style={{
+          position: "absolute",
+          left: position.left + position.width,
+          top: position.labelTop,
+          zIndex: 13,
+          display: (!position.width || position.width < 10) ? "none" : "inline-flex",
+          transform: 'translate(-100%, -100%)',
+          pointerEvents: 'none',
+        }}
+      >
+        {curComponent?.desc}
+      </div>
     </>
   ), portalEl)
 }

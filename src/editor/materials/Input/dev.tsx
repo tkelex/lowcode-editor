@@ -15,7 +15,14 @@ const Input = ({ id, name, placeholder, defaultValue, disabled, allowClear, styl
     });
 
     return <div ref={drag} data-component-id={id} style={shellStyles} className="editor-component editor-field-shell">
-        <AntdInput style={controlStyles} placeholder={placeholder} defaultValue={defaultValue} disabled={disabled} allowClear={allowClear} />
+        <AntdInput
+            style={controlStyles}
+            styles={{ input: controlStyles }}
+            placeholder={placeholder}
+            defaultValue={defaultValue}
+            disabled={disabled}
+            allowClear={allowClear}
+        />
     </div>
 }
 

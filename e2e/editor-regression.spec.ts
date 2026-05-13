@@ -244,8 +244,15 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await expectNoHorizontalOverflow(page, '.edit-area');
 
   await page.getByRole('tab', { name: '事件' }).click();
+  await expect(settingPanel.getByRole('button', { name: '添加事件' })).toBeVisible();
   await expect(settingPanel.getByText('点击事件')).toBeVisible();
-  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+  await expect(settingPanel.getByText('2 个动作')).toBeVisible();
+  await expect(settingPanel.getByText('消息提醒', { exact: true })).toBeVisible();
+  await expect(settingPanel.getByText('跳转链接', { exact: true })).toBeVisible();
+  await settingPanel.getByRole('button', { name: '添加事件' }).click();
+  await expect(settingPanel.getByText('双击事件')).toBeVisible();
+  await settingPanel.getByText('双击事件').click();
+  await expect(settingPanel.getByText('0 个动作')).toBeVisible();
   await expectNoHorizontalOverflow(page, '.setting-panel');
 
   await page.getByRole('button', { name: '预览' }).click();
@@ -256,7 +263,7 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await expect(settingPanel).toBeVisible();
 });
 
-test('event header add button does not flicker or toggle collapse on hover', async ({ page }) => {
+test('event action modal supports categorized actions and linkage configuration', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
 
@@ -269,19 +276,27 @@ test('event header add button does not flicker or toggle collapse on hover', asy
   const settingPanel = settingPanelLocator(page);
   await page.getByRole('tab', { name: '事件' }).click();
   await expect(settingPanel.getByText('点击事件')).toBeVisible();
-  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+  await expect(settingPanel.getByText('2 个动作')).toBeVisible();
 
-  const clickEventItem = settingPanel.locator('.ant-collapse-item').filter({ hasText: '点击事件' });
-  const addActionButton = clickEventItem.locator('.ant-collapse-header .event-add-button');
+  const clickEventItem = settingPanel.locator('.event-group').filter({ hasText: '点击事件' });
+  const addActionButton = clickEventItem.locator('.event-group-tools button').first();
   await expect(addActionButton).toHaveCount(1);
   await addActionButton.hover();
-  await expect(page.locator('.ant-tooltip').filter({ hasText: '添加动作' })).toHaveCount(0);
-  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+  await expect(settingPanel.getByText('2 个动作')).toBeVisible();
 
   await addActionButton.click();
-  await expect(page.getByRole('dialog', { name: '点击事件 - 事件动作配置' })).toBeVisible();
+  const actionDialog = page.getByRole('dialog', { name: '点击事件 - 动作配置' });
+  await expect(actionDialog).toBeVisible();
+  await expect(actionDialog.getByText('执行动作', { exact: true })).toBeVisible();
+  await expect(actionDialog.getByText('页面', { exact: true })).toBeVisible();
+  await expect(actionDialog.getByText('弹窗消息', { exact: true })).toBeVisible();
+  await expect(actionDialog.getByText('服务', { exact: true })).toBeVisible();
+  await expect(actionDialog.locator('.event-action-category-title').filter({ hasText: '组件联动' })).toHaveCount(1);
+  await actionDialog.getByRole('button', { name: '组件联动', exact: true }).click();
+  await expect(actionDialog.getByText('操作意图', { exact: true })).toBeVisible();
+  await expect(actionDialog.getByText('目标组件', { exact: true })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expect(settingPanel.getByText('事件数据')).toBeVisible();
+  await expect(settingPanel.getByText('2 个动作')).toBeVisible();
 });
 
 test('editor context menu only opens for editable components and closes on blank canvas click', async ({ page }) => {
@@ -347,14 +362,14 @@ test('selected mask supports readable copy names, rename, and compact more menu'
   await buttonComponent.click();
 
   const toolbar = page.locator('.editor-mask-toolbar');
-  const maskLabel = page.locator('.editor-mask-selected-label');
-  await expect(maskLabel).toHaveText('按钮');
+  await expect(page.locator('.editor-mask-selected-label')).toHaveCount(0);
+  await expect(settingPanelLocator(page).locator('.setting-component-title')).toHaveText('按钮');
 
-  await maskLabel.dispatchEvent('mouseover');
+  await toolbar.dispatchEvent('mouseover');
   await expect(page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').filter({ hasText: '页面' })).toHaveCount(0);
 
   await page.getByRole('button', { name: '复制' }).click();
-  await expect(maskLabel).toHaveText('按钮 副本');
+  await expect(settingPanelLocator(page).locator('.setting-component-title')).toHaveText('按钮 副本');
 
   await page.getByRole('button', { name: '重命名' }).click();
   const renameDialog = page.getByRole('dialog', { name: '重命名组件' });
@@ -362,7 +377,6 @@ test('selected mask supports readable copy names, rename, and compact more menu'
   await renameDialog.getByPlaceholder('请输入组件名称').fill('主按钮');
   await renameDialog.locator('.ant-modal-footer .ant-btn-primary').click();
 
-  await expect(maskLabel).toHaveText('主按钮');
   await expect(settingPanelLocator(page).locator('.setting-component-title')).toHaveText('主按钮');
 
   await page.getByRole('button', { name: '更多操作' }).click();
@@ -370,7 +384,7 @@ test('selected mask supports readable copy names, rename, and compact more menu'
   await expect(page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').getByText('选择父级：容器')).toBeVisible();
 });
 
-test('selected mask label appears on the top right of input components', async ({ page }) => {
+test('hover mask label appears on the top right of input components', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
 
@@ -378,13 +392,13 @@ test('selected mask label appears on the top right of input components', async (
 
   const inputComponent = page.locator('[data-component-id="1002"]').first();
   await expect(inputComponent).toBeVisible();
-  await inputComponent.click();
+  await inputComponent.hover();
 
-  const selectedMask = page.locator('.editor-mask-selected');
-  const maskLabel = page.locator('.editor-mask-selected-label');
+  const hoverMask = page.locator('.editor-mask-hover');
+  const maskLabel = page.locator('.editor-mask-label');
   await expect(maskLabel).toHaveText('输入框');
 
-  const maskBox = await selectedMask.boundingBox();
+  const maskBox = await hoverMask.boundingBox();
   const labelBox = await maskLabel.boundingBox();
   expect(maskBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
@@ -451,30 +465,42 @@ test('setting style inputs update selected component appearance', async ({ page 
   const buttonPaddingInput = page.getByLabel('内边距');
   await buttonPaddingInput.fill('18');
   await expect(buttonComponent.locator('button')).toHaveCSS('padding-left', '18px');
+  const buttonWidthInput = page.getByLabel('宽度');
+  const buttonHeightInput = page.getByLabel('高度');
+  await buttonWidthInput.fill('168');
+  await buttonHeightInput.fill('44');
+  await expect(buttonComponent).toHaveCSS('width', '168px');
+  await expect(buttonComponent).toHaveCSS('height', '44px');
+  await expect(buttonComponent.locator('button')).toHaveCSS('width', '168px');
+  await expect(buttonComponent.locator('button')).toHaveCSS('height', '44px');
 
   const inputComponent = page.locator('[data-component-id="1002"]').first();
   await expect(inputComponent).toBeVisible();
   await inputComponent.click();
 
   const widthInput = page.getByLabel('宽度');
+  const inputControl = inputComponent.locator('.ant-input-affix-wrapper, input').first();
   await expect(widthInput).toBeVisible();
   await expect(page.locator('.setting-panel').getByText('px').first()).toBeVisible();
   await widthInput.fill('320');
 
   await expect(inputComponent).toHaveCSS('width', '320px');
-  await expect(inputComponent.locator('input')).not.toHaveCSS('width', '320px');
+  await expect(inputControl).toHaveCSS('width', '320px');
   await expect(widthInput).toHaveValue('320');
   await expect(widthInput).toBeFocused();
 
   await widthInput.fill('');
   await expect(inputComponent).not.toHaveCSS('width', '320px');
+  await expect(inputControl).not.toHaveCSS('width', '320px');
   await expect(widthInput).toHaveValue('');
 
   await widthInput.fill('280');
   await expect(inputComponent).toHaveCSS('width', '280px');
+  await expect(inputControl).toHaveCSS('width', '280px');
 
   await page.getByRole('button', { name: '恢复默认样式' }).click();
   await expect(inputComponent).not.toHaveCSS('width', '280px');
+  await expect(inputControl).not.toHaveCSS('width', '280px');
   await expect(widthInput).toHaveValue('');
 });
 
@@ -495,31 +521,37 @@ test('styled form and feedback materials apply visual styles to real controls', 
 
   const textareaShell = page.locator('[data-component-id="1006"]').first();
   await expect(textareaShell).toHaveCSS('width', '310px');
+  await expect(textareaShell.locator('textarea')).toHaveCSS('width', '310px');
   await expect(textareaShell.locator('textarea')).toHaveCSS('padding-left', '15px');
   await expect(textareaShell.locator('textarea')).toHaveCSS('font-size', '18px');
 
   const datePickerShell = page.locator('[data-component-id="1007"]').first();
   await expect(datePickerShell).toHaveCSS('width', '240px');
+  await expect(datePickerShell.locator('.ant-picker')).toHaveCSS('width', '240px');
   await expect(datePickerShell.locator('.ant-picker')).toHaveCSS('padding-left', '14px');
 
   const uploadShell = page.locator('[data-component-id="1008"]').first();
   await expect(uploadShell).toHaveCSS('width', '180px');
+  await expect(uploadShell.locator('button')).toHaveCSS('width', '180px');
   await expect(uploadShell.locator('button')).toHaveCSS('padding-left', '16px');
   await expect(uploadShell.locator('button')).toHaveCSS('color', 'rgb(220, 38, 38)');
 
   const popoverShell = page.locator('[data-component-id="1009"]').first();
   await expect(popoverShell).toHaveCSS('width', '190px');
+  await expect(popoverShell.locator('button')).toHaveCSS('width', '190px');
   await expect(popoverShell.locator('button')).toHaveCSS('padding-left', '13px');
   await expect(popoverShell.locator('button')).toHaveCSS('color', 'rgb(37, 99, 235)');
 
   const notificationShell = page.locator('[data-component-id="1010"]').first();
   await expect(notificationShell).toHaveCSS('width', '180px');
+  await expect(notificationShell.locator('button')).toHaveCSS('width', '180px');
   await expect(notificationShell.locator('button')).toHaveCSS('padding-left', '12px');
   await expect(notificationShell.locator('button')).toHaveCSS('color', 'rgb(22, 163, 74)');
 });
 
 async function mockEditorApi(page: Page, editorPage = pageRecord) {
   await page.addInitScript(() => {
+    window.localStorage.removeItem('xxx');
     window.localStorage.setItem('lowcode_editor_token', 'mock-editor-token');
   });
 

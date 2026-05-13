@@ -306,7 +306,7 @@
 .editor-field-shell {
   display: inline-block;
   min-width: 200px;
-  padding: 2px;
+  padding: 0;
 }
 
 .editor-panel {

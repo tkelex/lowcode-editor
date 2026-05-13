@@ -139,10 +139,6 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
     setPosition(getMaskPosition(container, node));
   }
 
-  const curSelectedComponent = useMemo(() => {
-    return getComponentById(componentId, components);
-  }, [componentId, components]);
-
   const parentComponents = useMemo(() => {
     const parentComponents = [];
     let component = curComponent;
@@ -296,21 +292,6 @@ function SelectedMask({ containerClassName, portalWrapperClassName, componentId 
               </>
             )}
           </Space>
-        </div>
-        <div
-          className="editor-mask-label editor-mask-selected-label"
-          title={curSelectedComponent?.desc}
-          style={{
-            position: 'absolute',
-            left: position.left + position.width,
-            top: position.labelTop,
-            zIndex: 14,
-            display: (!position.width || position.width < 10) ? 'none' : 'inline',
-            transform: 'translate(-100%, -100%)',
-            pointerEvents: 'none',
-          }}
-        >
-          {curSelectedComponent?.desc}
         </div>
         <Modal
           title="重命名组件"

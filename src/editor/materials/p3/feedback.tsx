@@ -62,7 +62,7 @@ export function TooltipProd({ id: _id, name: _name, children: _children, title, 
 export function PopoverDev({ title, content, text, ...props }: CommonComponentProps) {
   const { shellStyles, controlStyles } = splitControlStyles(props.styles);
 
-  return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px] p-[2px]">
+  return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px]">
     <Popover title={title} content={content}><Button style={controlStyles}>{text || '打开气泡卡片'}</Button></Popover>
   </DraggableInline>;
 }
@@ -76,7 +76,7 @@ export function PopoverProd({ id: _id, name: _name, children: _children, title, 
 export function NotificationDev({ title, description: _description, buttonText, type, ...props }: CommonComponentProps) {
   const { shellStyles, controlStyles } = splitControlStyles(props.styles);
 
-  return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px] p-[2px]">
+  return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px]">
     <Button style={controlStyles}>{buttonText || title || type || '通知'}</Button>
   </DraggableInline>;
 }
