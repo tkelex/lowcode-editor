@@ -62,6 +62,48 @@ describe('lowcode schema migration', () => {
     });
   });
 
+  it('preserves url action open targets during migration', () => {
+    const schema = migratePageSchema({
+      components: [
+        {
+          id: 1,
+          name: 'Page',
+          props: {
+            onClick: {
+              actions: [
+                { type: 'goToLink', url: 'example.com/current', target: '_self' },
+                { type: 'goToLink', url: 'example.com/new', config: { target: '_blank' } },
+                {
+                  actionType: 'url',
+                  target: '_blank',
+                  args: {
+                    url: '/publish/demo',
+                  },
+                },
+              ],
+            },
+          },
+          desc: '页面',
+        },
+      ],
+    });
+
+    assert.deepEqual(schema.components[0].props.onEvent.click.actions, [
+      {
+        actionType: 'url',
+        args: { url: 'example.com/current' },
+      },
+      {
+        actionType: 'url',
+        args: { url: 'example.com/new', blank: true },
+      },
+      {
+        actionType: 'url',
+        args: { url: '/publish/demo', blank: true },
+      },
+    ]);
+  });
+
   it('allocates stable ids for malformed components', () => {
     const schema = migratePageSchema({
       components: [

@@ -21,7 +21,8 @@ import { getComponentEventConfig } from '../../events/normalize';
 import type { ActionType, EventCategory, LowcodeAction, LowcodeEvents } from '../../events/types';
 import { useComponentConfigStore } from '../../registry/component-config';
 import type { ComponentEvent as ComponentEventConfig } from '../../registry/component-config';
-import { getComponentById, useComponetsStore } from '../../stores/components';
+import { useComponetsStore } from '../../stores/components';
+import { getActionSummary } from './actionModel';
 import { actionCatalogMap } from './actionCatalog';
 import { ActionConfig, ActionModal } from './ActionModal';
 
@@ -51,6 +52,14 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
     const [curActionIndex, setCurActionIndex] = useState<number>();
     const [initialActionType, setInitialActionType] = useState<ActionType>();
     const [collapsedEvents, setCollapsedEvents] = useState<Record<string, boolean>>({});
+    const eventToolTooltipProps = {
+        placement: 'left' as const,
+        mouseEnterDelay: 0.2,
+        getPopupContainer: (triggerNode: HTMLElement) => {
+            const settingPanel = triggerNode.closest('.setting-panel');
+            return settingPanel instanceof HTMLElement ? settingPanel : document.body;
+        },
+    };
 
     if (!curComponent) return null;
 
@@ -68,7 +77,7 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
             eventCategoryLabelMap[event.category],
             ...(event.eventDataSchema || []),
             ...actions.map((action) => getActionLabel(action.actionType)),
-            ...actions.map(renderActionSummary),
+            ...actions.map((action) => getActionSummary(action, components)),
         ].join(' ').toLowerCase().includes(searchText);
     });
     const addableEvents = allEvents.filter((event) => !hasEventGroup(event));
@@ -239,55 +248,12 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         return collapsedEvents[event.name] ?? false;
     }
 
-    function renderActionSummary(action: LowcodeAction) {
-        if (action.actionType === 'url') {
-            return action.args.url || '未配置链接';
-        }
-
-        if (action.actionType === 'toast') {
-            return `${action.args.msgType}：${action.args.msg || '未配置消息内容'}`;
-        }
-
-        if (action.actionType === 'custom') {
-            return action.args.script || '未配置脚本';
-        }
-
-        if (action.actionType === 'confirm') {
-            return action.args.title || '未配置确认标题';
-        }
-
-        if (action.actionType === 'condition') {
-            return action.args.expression || '未配置条件表达式';
-        }
-
-        if (action.actionType === 'http') {
-            return `${action.args.method || 'GET'} ${action.args.url || '未配置请求地址'}`;
-        }
-
-        if (action.actionType === 'setComponentProps' || action.actionType === 'setComponentStyles') {
-            const target = getComponentById(action.componentId, components);
-            return `${target?.desc || '未选择组件'} / ${action.actionType === 'setComponentProps' ? '属性' : '样式'}`;
-        }
-
-        if (action.actionType === 'setVariable') {
-            return `${action.args.path || '未配置变量'} = ${action.args.expression || JSON.stringify(action.args.value ?? '')}`;
-        }
-
-        if (action.actionType === 'componentControl') {
-            const target = getComponentById(action.componentId, components);
-            return `${target?.desc || '未选择组件'} / ${formatComponentControlOperation(action.args.operation)}`;
-        }
-
-        const target = getComponentById(action.componentId, components);
-        return `${target?.desc || '未选择组件'} / ${action.args.method || '未选择方法'}`;
-    }
-
     return <div className='event-panel event-flow-panel'>
         <div className="event-add-area">
             <Button
                 block
+                className="event-primary-add-button"
                 type="primary"
-                ghost
                 icon={<PlusOutlined />}
                 onClick={() => setAddPanelOpen((open) => !open)}
             >
@@ -344,30 +310,39 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                             )}
                         </div>
                         <div className="event-group-tools">
-                            <Tooltip title="添加动作">
-                                <Button size="small" type="text" icon={<PlusOutlined />} onClick={() => openActionModal(event)} />
+                            <Tooltip title="添加动作" {...eventToolTooltipProps}>
+                                <Button aria-label="添加动作" size="small" type="text" icon={<PlusOutlined />} onClick={() => openActionModal(event)} />
                             </Tooltip>
-                            <Popconfirm
-                                title="清空事件动作？"
-                                description="清空后该事件仍会保留，但不会执行任何动作。"
-                                okText="清空"
-                                cancelText="取消"
-                                onConfirm={() => clearEventActions(event)}
-                            >
-                                <Button size="small" type="text" icon={<DeleteOutlined />} disabled={actions.length === 0} />
-                            </Popconfirm>
-                            <Popconfirm
-                                title="删除事件？"
-                                description="删除后该事件下的动作也会一并移除。"
-                                okText="删除"
-                                cancelText="取消"
-                                okButtonProps={{ danger: true }}
-                                onConfirm={() => deleteEvent(event)}
-                            >
-                                <Button size="small" type="text" danger icon={<DeleteOutlined />} />
-                            </Popconfirm>
-                            <Tooltip title={collapsed ? '展开' : '收起'}>
+                            <Tooltip title="清空动作" {...eventToolTooltipProps}>
+                                <span className="event-tool-button-wrap">
+                                    <Popconfirm
+                                        title="清空事件动作？"
+                                        description="清空后该事件仍会保留，但不会执行任何动作。"
+                                        okText="清空"
+                                        cancelText="取消"
+                                        onConfirm={() => clearEventActions(event)}
+                                    >
+                                        <Button aria-label="清空动作" size="small" type="text" icon={<DeleteOutlined />} disabled={actions.length === 0} />
+                                    </Popconfirm>
+                                </span>
+                            </Tooltip>
+                            <Tooltip title="删除事件" {...eventToolTooltipProps}>
+                                <span className="event-tool-button-wrap">
+                                    <Popconfirm
+                                        title="删除事件？"
+                                        description="删除后该事件下的动作也会一并移除。"
+                                        okText="删除"
+                                        cancelText="取消"
+                                        okButtonProps={{ danger: true }}
+                                        onConfirm={() => deleteEvent(event)}
+                                    >
+                                        <Button aria-label="删除事件" size="small" type="text" danger icon={<DeleteOutlined />} />
+                                    </Popconfirm>
+                                </span>
+                            </Tooltip>
+                            <Tooltip title={collapsed ? '展开事件' : '收起事件'} {...eventToolTooltipProps}>
                                 <Button
+                                    aria-label={collapsed ? '展开事件' : '收起事件'}
                                     size="small"
                                     type="text"
                                     icon={collapsed ? <DownOutlined /> : <UpOutlined />}
@@ -395,29 +370,29 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                                     </Tag>
                                     <div className="event-action-row-body">
                                         <span className="event-action-row-title">{getActionTitle(action.actionType)}</span>
-                                        <span className="event-action-row-summary" title={renderActionSummary(action)}>
-                                            {renderActionSummary(action)}
+                                        <span className="event-action-row-summary" title={getActionSummary(action, components)}>
+                                            {getActionSummary(action, components)}
                                         </span>
                                     </div>
                                     {action.disabled && <Tag className="event-action-disabled-tag" color="default">已禁用</Tag>}
                                     <div className="event-action-row-tools">
                                         <Tooltip title="上移">
-                                            <Button size="small" type="text" icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => moveAction(event, index, -1)} />
+                                            <Button aria-label="上移动作" size="small" type="text" icon={<ArrowUpOutlined />} disabled={index === 0} onClick={() => moveAction(event, index, -1)} />
                                         </Tooltip>
                                         <Tooltip title="下移">
-                                            <Button size="small" type="text" icon={<ArrowDownOutlined />} disabled={index === actions.length - 1} onClick={() => moveAction(event, index, 1)} />
+                                            <Button aria-label="下移动作" size="small" type="text" icon={<ArrowDownOutlined />} disabled={index === actions.length - 1} onClick={() => moveAction(event, index, 1)} />
                                         </Tooltip>
                                         <Tooltip title="复制动作">
-                                            <Button size="small" type="text" icon={<CopyOutlined />} onClick={() => copyAction(event, index)} />
+                                            <Button aria-label="复制动作" size="small" type="text" icon={<CopyOutlined />} onClick={() => copyAction(event, index)} />
                                         </Tooltip>
                                         <Tooltip title={action.disabled ? '启用动作' : '禁用动作'}>
-                                            <Button size="small" type="text" icon={action.disabled ? <PlayCircleOutlined /> : <PauseCircleOutlined />} onClick={() => toggleActionDisabled(event, index)} />
+                                            <Button aria-label={action.disabled ? '启用动作' : '禁用动作'} size="small" type="text" icon={action.disabled ? <PlayCircleOutlined /> : <PauseCircleOutlined />} onClick={() => toggleActionDisabled(event, index)} />
                                         </Tooltip>
                                         <Tooltip title="动作设置">
-                                            <Button size="small" type="text" icon={<SettingOutlined />} onClick={() => editAction(event, action, index)} />
+                                            <Button aria-label="动作设置" size="small" type="text" icon={<SettingOutlined />} onClick={() => editAction(event, action, index)} />
                                         </Tooltip>
                                         <Tooltip title="编辑动作">
-                                            <Button size="small" type="text" icon={<EditOutlined />} onClick={() => editAction(event, action, index)} />
+                                            <Button aria-label="编辑动作" size="small" type="text" icon={<EditOutlined />} onClick={() => editAction(event, action, index)} />
                                         </Tooltip>
                                         <Popconfirm
                                             title="确认删除动作？"
@@ -427,7 +402,7 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
                                             okButtonProps={{ danger: true }}
                                             onConfirm={() => deleteAction(event, index)}
                                         >
-                                            <Button size="small" type="text" danger icon={<DeleteOutlined />} />
+                                            <Button aria-label="删除动作" size="small" type="text" danger icon={<DeleteOutlined />} />
                                         </Popconfirm>
                                     </div>
                                 </div>
@@ -462,21 +437,4 @@ function getActionTitle(actionType: ActionType) {
 
 function getActionColor(actionType: ActionType) {
     return actionCatalogMap[actionType]?.color || 'default';
-}
-
-function formatComponentControlOperation(operation: string) {
-    const labels: Record<string, string> = {
-        show: '显示',
-        hide: '隐藏',
-        enable: '启用',
-        disable: '禁用',
-        setValue: '设置值',
-        clearValue: '清空值',
-        open: '打开',
-        close: '关闭',
-        submit: '提交',
-        reset: '重置',
-    };
-
-    return labels[operation] || operation || '未选择操作';
 }

@@ -1,4 +1,4 @@
-import { Button, Empty, Input, Modal, Tag, Typography } from "antd";
+import { Alert, Button, Checkbox, Empty, Input, Modal, Tag, Typography } from "antd";
 import { SearchOutlined } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from "react";
 import { GoToLink, GoToLinkConfig } from "./actions/GoToLink";
@@ -20,6 +20,13 @@ import {
     defaultActionOrder,
     type ActionCatalogItem,
 } from './actionCatalog';
+import {
+    createDefaultAction,
+    getActionCommonControls,
+    mergeActionConfig,
+    validateActionConfig,
+    type ActionCommonControls,
+} from './actionModel';
 
 type ActionFormConfig = GoToLinkConfig | ShowMessageConfig | CustomJSConfig | ComponentMethodConfig | LowcodeAction;
 export type ActionConfig = LowcodeAction;
@@ -45,6 +52,7 @@ export function ActionModal(props: ActionModalProps) {
 
     const [key, setKey] = useState<ActionType>('toast');
     const [curConfig, setCurConfig] = useState<ActionConfig>();
+    const [commonControls, setCommonControls] = useState<ActionCommonControls>({});
     const [keyword, setKeyword] = useState('');
 
     const allowedActions = useMemo(() => defaultActionOrder.filter((actionType) => {
@@ -58,6 +66,7 @@ export function ActionModal(props: ActionModalProps) {
 
         return allowedActions;
     }, [action?.actionType, allowedActions]);
+    const actionTypesKey = actionTypes.join('|');
 
     const actionItems = useMemo(() => {
         const text = keyword.trim().toLowerCase();
@@ -87,92 +96,105 @@ export function ActionModal(props: ActionModalProps) {
         if(action?.actionType && actionTypes.includes(action.actionType)) {
             setKey(action.actionType);
             setCurConfig(action);
+            setCommonControls(getActionCommonControls(action));
         } else if(initialActionType && actionTypes.includes(initialActionType)) {
             setKey(initialActionType);
-            setCurConfig(undefined);
+            setCurConfig(createDefaultAction(initialActionType));
+            setCommonControls({});
         } else {
-            setKey(actionTypes[0] || 'toast');
-            setCurConfig(undefined);
+            const nextType = actionTypes[0] || 'toast';
+            setKey(nextType);
+            setCurConfig(createDefaultAction(nextType));
+            setCommonControls({});
         }
 
         setKeyword('');
-    }, [visible, action, actionTypes, initialActionType]);
+    }, [visible, action, actionTypesKey, initialActionType]);
 
     function handleActionTypeChange(value: ActionType) {
         setKey(value);
-        setCurConfig(action?.actionType === value ? action : undefined);
+        const nextConfig = action?.actionType === value ? action : createDefaultAction(value);
+        setCurConfig(nextConfig);
+        setCommonControls(getActionCommonControls(nextConfig));
+    }
+
+    function updateCommonControl(control: keyof ActionCommonControls, value: boolean) {
+        setCommonControls((current) => ({
+            ...current,
+            [control]: value,
+        }));
     }
 
     function renderActionForm() {
         if (key === 'url') {
-            return <GoToLink key="goToLink" value={action?.actionType === 'url' ? action.args.url : ''} onChange={(config) => {
+            return <GoToLink key="goToLink" value={curConfig?.actionType === 'url' ? curConfig.args : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }}/>;
         }
 
         if (key === 'toast') {
-            return <ShowMessage  key="showMessage" value={action?.actionType === 'toast' ? {
-                type: action.args.msgType || 'success',
-                text: action.args.msg,
+            return <ShowMessage  key="showMessage" value={curConfig?.actionType === 'toast' ? {
+                type: curConfig.args.msgType || 'success',
+                text: curConfig.args.msg,
             } : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }}/>;
         }
 
         if (key === 'componentAction') {
-            return <ComponentMethod  key="componentMethod" value={action?.actionType === 'componentAction' ? {
-                componentId: action.componentId,
-                method: action.args.method,
-                params: action.args.params,
+            return <ComponentMethod  key="componentMethod" value={curConfig?.actionType === 'componentAction' ? {
+                componentId: curConfig.componentId,
+                method: curConfig.args.method,
+                params: curConfig.args.params,
             } : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }}/>;
         }
 
         if (key === 'custom') {
-            return <CustomJS key="customJS" value={action?.actionType === 'custom' ? action.args.script : ''} onChange={(config) => {
+            return <CustomJS key="customJS" value={curConfig?.actionType === 'custom' ? curConfig.args.script : ''} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }}/>;
         }
 
         if (key === 'confirm') {
-            return <ConfirmActionForm key="confirm" value={action?.actionType === 'confirm' ? action.args : undefined} onChange={(config) => {
+            return <ConfirmActionForm key="confirm" value={curConfig?.actionType === 'confirm' ? curConfig.args : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
 
         if (key === 'condition') {
-            return <ConditionActionForm key="condition" value={action?.actionType === 'condition' ? action.args : undefined} onChange={(config) => {
+            return <ConditionActionForm key="condition" value={curConfig?.actionType === 'condition' ? curConfig.args : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
 
         if (key === 'http') {
-            return <HttpActionForm key="http" value={action?.actionType === 'http' ? action.args : undefined} onChange={(config) => {
+            return <HttpActionForm key="http" value={curConfig?.actionType === 'http' ? curConfig.args : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
 
         if (key === 'componentControl') {
-            return <ComponentControl key="componentControl" value={action?.actionType === 'componentControl' ? action : undefined} onChange={(config) => {
+            return <ComponentControl key="componentControl" value={curConfig?.actionType === 'componentControl' ? curConfig : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
 
         if (key === 'setComponentProps') {
-            return <SetComponentData key="setComponentProps" actionType="setComponentProps" value={action?.actionType === 'setComponentProps' ? action : undefined} onChange={(config) => {
+            return <SetComponentData key="setComponentProps" actionType="setComponentProps" value={curConfig?.actionType === 'setComponentProps' ? curConfig : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
 
         if (key === 'setComponentStyles') {
-            return <SetComponentData key="setComponentStyles" actionType="setComponentStyles" value={action?.actionType === 'setComponentStyles' ? action : undefined} onChange={(config) => {
+            return <SetComponentData key="setComponentStyles" actionType="setComponentStyles" value={curConfig?.actionType === 'setComponentStyles' ? curConfig : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
 
         if (key === 'setVariable') {
-            return <SetVariable key="setVariable" value={action?.actionType === 'setVariable' ? action : undefined} onChange={(config) => {
+            return <SetVariable key="setVariable" value={curConfig?.actionType === 'setVariable' ? curConfig : undefined} onChange={(config) => {
                 setCurConfig(config as ActionFormConfig);
             }} />;
         }
@@ -180,14 +202,17 @@ export function ActionModal(props: ActionModalProps) {
         return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="请选择动作" />;
     }
 
+    const mergedConfig = curConfig ? mergeActionConfig(curConfig, action, commonControls) : undefined;
+    const validationErrors = validateActionConfig(mergedConfig);
+
     return  <Modal
         title={event ? `${event.label} - 动作配置` : '动作配置'}
         width={1120}
         open={visible}
         okText="确认"
         cancelText="取消"
-        okButtonProps={{ disabled: !curConfig }}
-        onOk={() => handleOk(curConfig)}
+        okButtonProps={{ disabled: validationErrors.length > 0 }}
+        onOk={() => handleOk(mergedConfig)}
         onCancel={handleCancel}
         className="event-action-modal"
     >
@@ -253,6 +278,26 @@ export function ActionModal(props: ActionModalProps) {
                                 <div className="event-action-config-section-title">基础设置</div>
                                 {renderActionForm()}
                             </div>
+                            <div className="event-action-config-section event-action-common-controls">
+                                <div className="event-action-config-section-title">通用控制</div>
+                                <Checkbox checked={Boolean(commonControls.disabled)} onChange={(event) => updateCommonControl('disabled', event.target.checked)}>
+                                    禁用动作
+                                </Checkbox>
+                                <Checkbox checked={Boolean(commonControls.preventDefault)} onChange={(event) => updateCommonControl('preventDefault', event.target.checked)}>
+                                    阻止默认行为
+                                </Checkbox>
+                                <Checkbox checked={Boolean(commonControls.stopPropagation)} onChange={(event) => updateCommonControl('stopPropagation', event.target.checked)}>
+                                    阻止事件冒泡并停止后续动作
+                                </Checkbox>
+                            </div>
+                            {validationErrors.length > 0 && (
+                                <Alert
+                                    className="event-action-validation"
+                                    type="warning"
+                                    showIcon
+                                    message={validationErrors.join('；')}
+                                />
+                            )}
                             {key === 'custom' && (
                                 <div className="event-action-config-warning">
                                     自定义 JS 仅编辑器预览可执行，公开发布页会禁用。

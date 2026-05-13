@@ -163,7 +163,7 @@ export async function runLowcodeAction(
     const url = normalizeActionUrl(action.args?.url || '');
     if (!url) return;
 
-    adapters.navigate?.(url, { blank: action.args?.blank });
+    adapters.navigate?.(url, action.args?.blank ? { blank: true } : {});
     return;
   }
 

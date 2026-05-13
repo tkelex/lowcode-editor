@@ -1,17 +1,21 @@
 import { useEffect, useState } from "react";
 import { useComponetsStore } from "../../../stores/components";
-import { Input, Typography } from "antd";
+import { Input, Segmented, Typography } from "antd";
 import { normalizeActionUrl } from "../../../events/normalize";
 
 export interface GoToLinkConfig {
     actionType: 'url',
     args: {
         url: string
+        blank?: boolean
     }
 }
 
 export interface GoToLinkProps {
-    value?: string
+    value?: {
+        url?: string
+        blank?: boolean
+    }
     defaultValue?: string
     onChange?: (config: GoToLinkConfig) => void
 }
@@ -21,22 +25,28 @@ export function GoToLink(props: GoToLinkProps) {
 
     const curComponentId = useComponetsStore((state) => state.curComponentId);
     const [value, setValue] = useState(defaultValue);
+    const [blank, setBlank] = useState(false);
 
     useEffect(() => {
-        setValue(val || defaultValue || '');
+        setValue(val?.url || defaultValue || '');
+        setBlank(Boolean(val?.blank));
     }, [val, defaultValue]);
 
-    function urlChange(value: string) {
+    function emit(nextUrl = value || '', nextBlank = blank) {
         if (!curComponentId) return;
-
-        setValue(value);
 
         onChange?.({
             actionType: 'url',
             args: {
-                url: value.trim()
+                url: nextUrl.trim(),
+                ...(nextBlank ? { blank: true } : {}),
             }
         });
+    }
+
+    function urlChange(value: string) {
+        setValue(value);
+        emit(value, blank);
     }
 
     const normalizedUrl = normalizeActionUrl(value || '');
@@ -48,12 +58,26 @@ export function GoToLink(props: GoToLinkProps) {
             onChange={(e) => { urlChange(e.target.value) }}
             value={value || ''}
         />
+        <div className='mb-[8px] mt-[16px] text-[13px] font-medium text-[#1f2937]'>打开方式</div>
+        <Segmented
+            block
+            value={blank ? 'blank' : 'self'}
+            options={[
+                { label: '当前窗口', value: 'self' },
+                { label: '新窗口', value: 'blank' },
+            ]}
+            onChange={(nextTarget) => {
+                const nextBlank = nextTarget === 'blank';
+                setBlank(nextBlank);
+                emit(value || '', nextBlank);
+            }}
+        />
         <Typography.Text type="secondary" className="mt-[8px] block text-[12px]">
             未填写协议时会自动补全为 https://，站内路径请以 / 开头。
         </Typography.Text>
         {normalizedUrl && (
             <Typography.Text type="secondary" className="mt-[4px] block text-[12px]">
-                实际跳转：{normalizedUrl}
+                实际跳转：{normalizedUrl} / {blank ? '新窗口' : '当前窗口'}
             </Typography.Text>
         )}
     </div>

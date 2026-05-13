@@ -11,8 +11,9 @@ import {
 import { Button, Empty, Popconfirm, Space, Tag, Tooltip, Typography, message } from 'antd';
 import { useState } from 'react';
 import type { ActionType, LowcodeAction } from '../../../events/types';
-import { getComponentById, useComponetsStore } from '../../../stores/components';
+import { useComponetsStore } from '../../../stores/components';
 import { ActionConfig, ActionModal } from '../ActionModal';
+import { getActionSummary } from '../actionModel';
 
 interface NestedActionListProps {
     title: string;
@@ -134,49 +135,6 @@ export function NestedActionList(props: NestedActionListProps) {
         message.success('嵌套动作已删除');
     }
 
-    function renderActionSummary(action: LowcodeAction) {
-        if (action.actionType === 'url') {
-            return action.args.url || '未配置链接';
-        }
-
-        if (action.actionType === 'toast') {
-            return `${action.args.msgType}：${action.args.msg || '未配置消息内容'}`;
-        }
-
-        if (action.actionType === 'custom') {
-            return action.args.script || '未配置脚本';
-        }
-
-        if (action.actionType === 'confirm') {
-            return action.args.title || '未配置确认标题';
-        }
-
-        if (action.actionType === 'condition') {
-            return action.args.expression || '未配置条件表达式';
-        }
-
-        if (action.actionType === 'http') {
-            return `${action.args.method || 'GET'} ${action.args.url || '未配置请求地址'}`;
-        }
-
-        if (action.actionType === 'setComponentProps' || action.actionType === 'setComponentStyles') {
-            const target = getComponentById(action.componentId, components);
-            return `${target?.desc || '未选择组件'} / ${action.actionType === 'setComponentProps' ? '属性' : '样式'}`;
-        }
-
-        if (action.actionType === 'setVariable') {
-            return `${action.args.path || '未配置变量'} = ${action.args.expression || JSON.stringify(action.args.value ?? '')}`;
-        }
-
-        if (action.actionType === 'componentControl') {
-            const target = getComponentById(action.componentId, components);
-            return `${target?.desc || '未选择组件'} / ${formatComponentControlOperation(action.args.operation)}`;
-        }
-
-        const target = getComponentById(action.componentId, components);
-        return `${target?.desc || '未选择组件'} / ${action.args.method || '未选择方法'}`;
-    }
-
     return <div className="rounded-[8px] border border-[#e5e7eb] bg-white p-[12px]">
         <div className="mb-[10px] flex items-start justify-between gap-[12px]">
             <div className="min-w-0">
@@ -218,7 +176,7 @@ export function NestedActionList(props: NestedActionListProps) {
                             </Typography.Text>
                         </div>
                         <Typography.Text className="block max-w-full truncate text-[13px] text-[#374151]">
-                            {renderActionSummary(action)}
+                            {getActionSummary(action, components)}
                         </Typography.Text>
                     </div>
                     <Space size={2}>
@@ -269,21 +227,4 @@ function cloneAction(action: LowcodeAction): LowcodeAction {
         ...action,
         id: undefined,
     })) as LowcodeAction;
-}
-
-function formatComponentControlOperation(operation: string) {
-    const labels: Record<string, string> = {
-        show: '显示',
-        hide: '隐藏',
-        enable: '启用',
-        disable: '禁用',
-        setValue: '设置值',
-        clearValue: '清空值',
-        open: '打开',
-        close: '关闭',
-        submit: '提交',
-        reset: '重置',
-    };
-
-    return labels[operation] || operation || '未选择操作';
 }

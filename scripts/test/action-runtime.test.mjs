@@ -57,6 +57,31 @@ describe('lowcode action runtime', () => {
     assert.deepEqual(harness.stylesUpdates, [{ componentId: 3, styles: { color: 'red' } }]);
   });
 
+  it('passes url open target to navigation adapter', async () => {
+    const harness = createRuntimeHarness();
+
+    await runLowcodeActions([
+      {
+        actionType: 'url',
+        args: {
+          url: '/publish/current',
+        },
+      },
+      {
+        actionType: 'url',
+        args: {
+          url: 'example.com/new',
+          blank: true,
+        },
+      },
+    ], harness.context, harness.adapters);
+
+    assert.deepEqual(harness.navigations, [
+      { url: '/publish/current', options: {} },
+      { url: 'https://example.com/new', options: { blank: true } },
+    ]);
+  });
+
   it('runs confirm ok and cancel branches', async () => {
     const okHarness = createRuntimeHarness();
     const okPromise = runLowcodeActions([

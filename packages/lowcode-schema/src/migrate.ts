@@ -121,7 +121,15 @@ function migrateAction(value: unknown): Record<string, unknown> | null {
     const nextAction: Record<string, unknown> = { ...value };
 
     if (isPlainObject(value.args)) {
-      nextAction.args = migrateActionArgs(value.actionType, value.args);
+      nextAction.args = migrateActionArgs(value.actionType, value.args, value);
+    }
+
+    if (value.actionType === 'url') {
+      delete nextAction.target;
+      delete nextAction.targetType;
+      delete nextAction.openMode;
+      delete nextAction.blank;
+      delete nextAction.newWindow;
     }
 
     return nextAction;
@@ -132,11 +140,14 @@ function migrateAction(value: unknown): Record<string, unknown> | null {
   const base = pickActionBase(value);
 
   if (type === 'goToLink') {
+    const blank = readUrlActionBlank(value, config);
+
     return {
       ...base,
       actionType: 'url',
       args: {
         url: readString(value.url) || readString(config.url),
+        ...(blank === true ? { blank: true } : {}),
       },
     };
   }
@@ -176,8 +187,22 @@ function migrateAction(value: unknown): Record<string, unknown> | null {
   return null;
 }
 
-function migrateActionArgs(actionType: string, args: Record<string, unknown>) {
+function migrateActionArgs(actionType: string, args: Record<string, unknown>, action: Record<string, unknown> = {}) {
   const nextArgs: Record<string, unknown> = { ...args };
+
+  if (actionType === 'url') {
+    const blank = readUrlActionBlank(args, action);
+
+    if (blank === true) {
+      nextArgs.blank = true;
+    } else {
+      delete nextArgs.blank;
+    }
+
+    delete nextArgs.target;
+    delete nextArgs.targetType;
+    delete nextArgs.openMode;
+  }
 
   if (actionType === 'confirm') {
     nextArgs.actions = normalizeActions(args.actions);
@@ -294,6 +319,51 @@ function readNumber(value: unknown) {
   if (typeof value === 'string' && value.trim()) {
     const numberValue = Number(value);
     return Number.isFinite(numberValue) ? numberValue : undefined;
+  }
+
+  return undefined;
+}
+
+function readUrlActionBlank(...sources: Array<Record<string, unknown>>) {
+  for (const source of sources) {
+    const blankValue = readBoolean(source.blank);
+    if (blankValue !== undefined) {
+      return blankValue;
+    }
+
+    const newWindowValue = readBoolean(source.newWindow);
+    if (newWindowValue !== undefined) {
+      return newWindowValue;
+    }
+
+    const targetValue = readString(source.target) || readString(source.targetType) || readString(source.openMode);
+    const normalizedTarget = targetValue.trim().toLowerCase();
+
+    if (['_blank', 'blank', 'new', 'newwindow', 'new-window', '新窗口'].includes(normalizedTarget)) {
+      return true;
+    }
+
+    if (['_self', 'self', 'current', 'currentwindow', 'current-window', '当前窗口'].includes(normalizedTarget)) {
+      return false;
+    }
+  }
+
+  return undefined;
+}
+
+function readBoolean(value: unknown) {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'y', '_blank', 'blank'].includes(normalized)) {
+      return true;
+    }
+    if (['false', '0', 'no', 'n', '_self', 'self'].includes(normalized)) {
+      return false;
+    }
   }
 
   return undefined;

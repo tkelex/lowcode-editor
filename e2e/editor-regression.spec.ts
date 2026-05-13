@@ -263,6 +263,44 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await expect(settingPanel).toBeVisible();
 });
 
+test('editor side panes can be hidden and restored from border toggles', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+
+  const canvas = page.locator('.edit-area');
+  await expect(canvas).toBeVisible();
+  await expect(page.getByText('物料')).toBeVisible();
+  await expect(settingPanelLocator(page)).toBeVisible();
+  await expectToggleOnPaneEdge(page, '隐藏左侧面板', '.editor-left-panel', 'right');
+  await expectToggleOnPaneEdge(page, '隐藏右侧面板', '.setting-panel', 'left');
+
+  await page.getByRole('button', { name: '隐藏左侧面板' }).click();
+  await expect(page.getByRole('button', { name: '显示左侧面板' })).toBeVisible();
+  await expectTogglePositionStable(page, '显示左侧面板');
+  await expect(page.locator('.editor-left-panel')).toHaveCount(0);
+  await expect(canvas).toBeVisible();
+
+  await page.getByRole('button', { name: '显示左侧面板' }).click();
+  await expect(page.getByText('物料')).toBeVisible();
+  await expectPaneWidth(page, '.editor-left-panel', { min: 300 });
+  await expectTogglePositionStable(page, '隐藏左侧面板');
+  await expectToggleOnPaneEdge(page, '隐藏左侧面板', '.editor-left-panel', 'right');
+
+  await page.getByRole('button', { name: '隐藏右侧面板' }).click();
+  await expect(page.getByRole('button', { name: '显示右侧面板' })).toBeVisible();
+  await expectTogglePositionStable(page, '显示右侧面板');
+  await expect(settingPanelLocator(page)).toHaveCount(0);
+  await expect(canvas).toBeVisible();
+
+  await page.getByRole('button', { name: '显示右侧面板' }).click();
+  await expect(settingPanelLocator(page)).toBeVisible();
+  await expectPaneWidth(page, '.setting-panel', { min: 280 });
+  await expectTogglePositionStable(page, '隐藏右侧面板');
+  await expectToggleOnPaneEdge(page, '隐藏右侧面板', '.setting-panel', 'left');
+});
+
 test('event action modal supports categorized actions and linkage configuration', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -283,6 +321,11 @@ test('event action modal supports categorized actions and linkage configuration'
   await expect(addActionButton).toHaveCount(1);
   await addActionButton.hover();
   await expect(settingPanel.getByText('2 个动作')).toBeVisible();
+  const pageWidthBeforeToolHover = await page.evaluate(() => document.documentElement.scrollWidth);
+  await clickEventItem.locator('.event-group-tools button').last().hover();
+  await page.waitForTimeout(300);
+  const pageWidthAfterToolHover = await page.evaluate(() => document.documentElement.scrollWidth);
+  expect(pageWidthAfterToolHover).toBeLessThanOrEqual(pageWidthBeforeToolHover + 1);
 
   await addActionButton.click();
   const actionDialog = page.getByRole('dialog', { name: '点击事件 - 动作配置' });
@@ -295,8 +338,21 @@ test('event action modal supports categorized actions and linkage configuration'
   await actionDialog.getByRole('button', { name: '组件联动', exact: true }).click();
   await expect(actionDialog.getByText('操作意图', { exact: true })).toBeVisible();
   await expect(actionDialog.getByText('目标组件', { exact: true })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await actionDialog.locator('.ant-modal-footer .ant-btn').first().click();
+  await expect(actionDialog).toHaveCount(0);
   await expect(settingPanel.getByText('2 个动作')).toBeVisible();
+
+  await expect(clickEventItem.getByText('https://baidu.com / 新窗口')).toBeVisible();
+  await clickEventItem.locator('.event-action-row').filter({ hasText: '跳转' }).getByRole('button', { name: '编辑动作' }).click();
+  const urlDialog = page.getByRole('dialog', { name: '点击事件 - 动作配置' });
+  await expect(urlDialog).toBeVisible();
+  await expect(urlDialog.locator('.event-action-config-title')).toHaveText('跳转链接');
+  await expect(urlDialog.getByText('新窗口', { exact: true })).toBeVisible();
+  await expect(urlDialog.locator('.ant-segmented-item-selected')).toContainText('新窗口');
+  await urlDialog.getByPlaceholder('例如 https://baidu.com、baidu.com 或 /publish/demo').fill('/publish/next');
+  await urlDialog.locator('.ant-modal-footer .ant-btn-primary').click();
+  await expect(urlDialog).toHaveCount(0);
+  await expect(clickEventItem.getByText('/publish/next / 新窗口')).toBeVisible();
 });
 
 test('editor context menu only opens for editable components and closes on blank canvas click', async ({ page }) => {
@@ -325,11 +381,11 @@ test('editor context menu only opens for editable components and closes on blank
   expect(secondBox).not.toBeNull();
   expect(Math.abs((secondBox?.x || 0) - (firstBox?.x || 0))).toBeGreaterThan(20);
 
-  await page.locator('.editor-page').click({ position: { x: 520, y: 260 } });
+  await clickBlankCanvas(page);
   await expect(contextMenu).toHaveCount(0);
 
-  await page.locator('.editor-page').click({ button: 'right', position: { x: 520, y: 260 } });
-  await expect(contextMenu).toHaveCount(0);
+  await clickBlankCanvas(page, 'right');
+  await expect(page.locator('.ant-dropdown:not(.ant-dropdown-hidden)').filter({ hasText: '复制' })).toHaveCount(0);
 });
 
 test('editor clears selected component when clicking blank canvas', async ({ page }) => {
@@ -402,7 +458,9 @@ test('hover mask label appears on the top right of input components', async ({ p
   const labelBox = await maskLabel.boundingBox();
   expect(maskBox).not.toBeNull();
   expect(labelBox).not.toBeNull();
-  expect(Math.abs((labelBox?.x || 0) + (labelBox?.width || 0) - ((maskBox?.x || 0) + (maskBox?.width || 0)))).toBeLessThan(4);
+  const rightInset = (maskBox?.x || 0) + (maskBox?.width || 0) - ((labelBox?.x || 0) + (labelBox?.width || 0));
+  expect(rightInset).toBeGreaterThanOrEqual(0);
+  expect(rightInset).toBeLessThan(24);
   expect((labelBox?.y || 0)).toBeLessThanOrEqual((maskBox?.y || 0) + 2);
 });
 
@@ -451,6 +509,57 @@ test('setting panel text inputs keep focus while editing component props', async
   await expect(propInput).toBeFocused();
 });
 
+test('setting property panel groups searchable fields and edits extended props', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+
+  const settingPanel = settingPanelLocator(page);
+  await page.locator('.ant-segmented-item').filter({ hasText: '大纲' }).click();
+  await page.locator('.editor-outline-tree').getByText('页面', { exact: true }).click();
+
+  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^基本/ })).toBeVisible();
+  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^数据/ })).toBeVisible();
+  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^移动端/ })).toBeVisible();
+  await expect(settingPanel.getByLabel('页面标题')).toBeVisible();
+  await expect(settingPanel.getByRole('textbox', { name: /组件静态数据/ })).toBeVisible();
+
+  const pageTitleInput = settingPanel.getByLabel('页面标题');
+  await pageTitleInput.fill('属性面板标题');
+  await expect(page.locator('.editor-page-config-title')).toHaveText('属性面板标题');
+  await expect(pageTitleInput).toBeFocused();
+
+  await settingPanel.getByLabel('副标题').fill('来自属性页签');
+  await expect(page.locator('.editor-page-config-subtitle')).toHaveText('来自属性页签');
+
+  const pullRefresh = settingPanel.getByRole('switch', { name: '下拉刷新' });
+  await pullRefresh.click();
+  await expect(page.locator('.editor-page-config-badges')).toContainText('下拉刷新');
+
+  const search = settingPanel.getByPlaceholder('搜索属性配置');
+  await search.fill('初始化接口');
+  await expect(settingPanel.getByLabel('初始化接口')).toBeVisible();
+  await expect(settingPanel.getByLabel('页面标题')).toHaveCount(0);
+  await search.fill('');
+
+  const container = page.locator('[data-component-id="1001"]').first();
+  await container.click();
+  const directionSelect = settingPanel.getByLabel('布局方式');
+  await expect(directionSelect).toBeVisible();
+  await expect(container).toHaveCSS('flex-direction', 'column');
+  await settingPanel.locator('.ant-form-item').filter({ hasText: '布局方式' }).locator('.ant-select-selector').click();
+  await page.getByTitle('横向').click();
+  await expect(container).toHaveCSS('flex-direction', 'row');
+
+  const buttonComponent = page.locator('[data-component-id="1003"]').first();
+  await buttonComponent.click();
+  await expect(settingPanel.getByText('按钮类型')).toBeVisible();
+  await expect(settingPanel.getByRole('switch', { name: '禁用' })).toBeVisible();
+  await settingPanel.getByRole('switch', { name: '禁用' }).click();
+  await expect(buttonComponent.locator('button')).toBeDisabled();
+});
+
 test('setting style inputs update selected component appearance', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -462,11 +571,46 @@ test('setting style inputs update selected component appearance', async ({ page 
   await buttonComponent.click();
 
   await page.getByRole('tab', { name: '外观' }).click();
-  const buttonPaddingInput = page.getByLabel('内边距');
+  const settingPanel = settingPanelLocator(page);
+  await expect(settingPanel.locator('.appearance-collapse-title-text').filter({ hasText: '快捷样式' })).toBeVisible();
+  await expect(settingPanel.locator('.appearance-subgroup-title').filter({ hasText: '布局' })).toBeVisible();
+  await expect(settingPanel.locator('.appearance-subgroup-title').filter({ hasText: '尺寸' })).toBeVisible();
+  await expect(settingPanel.locator('.appearance-subgroup-title').filter({ hasText: '文字' })).toBeVisible();
+  await expect(settingPanel.getByText('CSS 源码')).toBeVisible();
+
+  const appearanceSearch = settingPanel.getByPlaceholder('搜索外观配置');
+  await appearanceSearch.fill('内边距');
+  const paddingControl = settingPanel.locator('.appearance-direction-control').filter({ hasText: '内边距' });
+  await expect(paddingControl).toBeVisible();
+  await expect(paddingControl.getByRole('radio', { name: '内边距全部' })).toBeVisible();
+  await expect(settingPanel.getByLabel('宽度', { exact: true })).toHaveCount(0);
+  await appearanceSearch.fill('上内边距');
+  await expect(paddingControl.getByRole('radio', { name: '内边距上' })).toHaveAttribute('aria-checked', 'true');
+  await appearanceSearch.fill('');
+
+  await paddingControl.getByRole('radio', { name: '内边距全部' }).click();
+  const buttonPaddingInput = paddingControl.locator('input');
   await buttonPaddingInput.fill('18');
   await expect(buttonComponent.locator('button')).toHaveCSS('padding-left', '18px');
-  const buttonWidthInput = page.getByLabel('宽度');
-  const buttonHeightInput = page.getByLabel('高度');
+  await paddingControl.getByRole('radio', { name: '内边距上' }).click();
+  await buttonPaddingInput.fill('10');
+  await expect(buttonComponent.locator('button')).toHaveCSS('padding-top', '10px');
+  const buttonColorInput = page.getByLabel('文字颜色', { exact: true });
+  await buttonColorInput.fill('#dc2626');
+  await expect(buttonComponent.locator('button')).toHaveCSS('color', 'rgb(220, 38, 38)');
+  const borderControl = settingPanel.locator('.appearance-compound-control').filter({ hasText: '边框' });
+  await expect(borderControl).toBeVisible();
+  const buttonRadiusInput = borderControl.getByLabel('圆角', { exact: true });
+  await buttonRadiusInput.fill('12');
+  await expect(buttonComponent.locator('button')).toHaveCSS('border-radius', '12px');
+  await appearanceSearch.fill('背景');
+  await expect(page.getByLabel('背景色', { exact: true })).toBeVisible();
+  await expect(settingPanel.getByLabel('圆角', { exact: true })).toHaveCount(0);
+  await appearanceSearch.fill('');
+  const sizeControl = settingPanel.locator('.appearance-pair-control').filter({ hasText: '尺寸' }).first();
+  await expect(sizeControl).toBeVisible();
+  const buttonWidthInput = sizeControl.locator('input').first();
+  const buttonHeightInput = sizeControl.locator('input').nth(1);
   await buttonWidthInput.fill('168');
   await buttonHeightInput.fill('44');
   await expect(buttonComponent).toHaveCSS('width', '168px');
@@ -478,7 +622,8 @@ test('setting style inputs update selected component appearance', async ({ page 
   await expect(inputComponent).toBeVisible();
   await inputComponent.click();
 
-  const widthInput = page.getByLabel('宽度');
+  const inputSizeControl = settingPanel.locator('.appearance-pair-control').filter({ hasText: '尺寸' }).first();
+  const widthInput = inputSizeControl.locator('input').first();
   const inputControl = inputComponent.locator('.ant-input-affix-wrapper, input').first();
   await expect(widthInput).toBeVisible();
   await expect(page.locator('.setting-panel').getByText('px').first()).toBeVisible();
@@ -498,10 +643,26 @@ test('setting style inputs update selected component appearance', async ({ page 
   await expect(inputComponent).toHaveCSS('width', '280px');
   await expect(inputControl).toHaveCSS('width', '280px');
 
+  await widthInput.fill('');
+  const cssEditor = page.locator('.appearance-css-editor-shell .monaco-editor').first();
+  await expect(cssEditor).toBeVisible();
+  await cssEditor.click();
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('End');
+  await page.keyboard.insertText('\n  width: 260px;\n  padding: 12px;');
+  await expect(inputComponent).toHaveCSS('width', '260px');
+  await expect(inputControl).toHaveCSS('width', '260px');
+  await expect(inputControl).toHaveCSS('padding-left', '12px');
+  await expect(widthInput).toHaveValue('260');
+  const inputPaddingControl = settingPanel.locator('.appearance-direction-control').filter({ hasText: '内边距' });
+  await inputPaddingControl.getByRole('radio', { name: '内边距全部' }).click();
+  await expect(inputPaddingControl.locator('input')).toHaveValue('12');
+
   await page.getByRole('button', { name: '恢复默认样式' }).click();
-  await expect(inputComponent).not.toHaveCSS('width', '280px');
-  await expect(inputControl).not.toHaveCSS('width', '280px');
+  await expect(inputComponent).not.toHaveCSS('width', '260px');
+  await expect(inputControl).not.toHaveCSS('width', '260px');
   await expect(widthInput).toHaveValue('');
+  await expect(inputPaddingControl.locator('input')).toHaveValue('');
 });
 
 test('styled form and feedback materials apply visual styles to real controls', async ({ page }) => {
@@ -600,6 +761,52 @@ async function expectNoHorizontalOverflow(page: Page, selector: string) {
   }));
 
   expect(result.scrollWidth, `${selector} should not overflow horizontally`).toBeLessThanOrEqual(result.clientWidth + 1);
+}
+
+async function expectPaneWidth(page: Page, selector: string, range: { min?: number; max?: number }) {
+  const width = await page.locator(selector).evaluate((element) => element.getBoundingClientRect().width);
+
+  if (range.min !== undefined) {
+    expect(width, `${selector} width`).toBeGreaterThanOrEqual(range.min);
+  }
+
+  if (range.max !== undefined) {
+    expect(width, `${selector} width`).toBeLessThanOrEqual(range.max);
+  }
+}
+
+async function clickBlankCanvas(page: Page, button: 'left' | 'right' = 'left') {
+  const box = await getBoundingBox(page.locator('.editor-page'));
+  const x = box.x + 16;
+  const y = box.y + 16;
+
+  await page.mouse.click(x, y, { button });
+}
+
+async function expectTogglePositionStable(page: Page, name: string) {
+  const button = page.getByRole('button', { name });
+  const before = await getBoundingBox(button);
+  await page.waitForTimeout(220);
+  const after = await getBoundingBox(button);
+
+  expect(Math.abs(after.x - before.x), `${name} x should stay stable`).toBeLessThanOrEqual(1);
+  expect(Math.abs(after.y - before.y), `${name} y should stay stable`).toBeLessThanOrEqual(1);
+}
+
+async function expectToggleOnPaneEdge(page: Page, name: string, paneSelector: string, edge: 'left' | 'right') {
+  const buttonBox = await getBoundingBox(page.getByRole('button', { name }));
+  const paneBox = await getBoundingBox(page.locator(paneSelector));
+  const buttonEdge = edge === 'left' ? buttonBox.x : buttonBox.x + buttonBox.width;
+  const paneEdge = edge === 'left' ? paneBox.x : paneBox.x + paneBox.width;
+
+  expect(Math.abs(buttonEdge - paneEdge), `${name} should stay near ${paneSelector} ${edge} edge`).toBeLessThanOrEqual(24);
+}
+
+async function getBoundingBox(locator: ReturnType<Page['locator']>) {
+  const box = await locator.boundingBox();
+
+  expect(box).not.toBeNull();
+  return box!;
 }
 
 function settingPanelLocator(page: Page) {
