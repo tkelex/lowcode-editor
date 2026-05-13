@@ -3,7 +3,7 @@ import { useDrag } from 'react-dnd';
 import { CommonComponentProps } from '../../interface';
 import { splitControlStyles } from '../styleSplit';
 
-const Input = ({ id, name, placeholder, defaultValue, disabled, allowClear, styles }: CommonComponentProps) => {
+const Input = ({ id, name, placeholder, defaultValue, disabled, allowClear, maxLength, styles }: CommonComponentProps) => {
     const { shellStyles, controlStyles } = splitControlStyles(styles);
     const [_, drag] = useDrag({
         type: name,
@@ -22,6 +22,7 @@ const Input = ({ id, name, placeholder, defaultValue, disabled, allowClear, styl
             defaultValue={defaultValue}
             disabled={disabled}
             allowClear={allowClear}
+            maxLength={maxLength}
         />
     </div>
 }

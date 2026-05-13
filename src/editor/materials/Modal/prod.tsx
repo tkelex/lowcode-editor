@@ -9,7 +9,16 @@ export interface ModalRef {
     close: () => void
 }
 
-const Modal: React.ForwardRefRenderFunction<ModalRef, ModalProps> = ({ children, title, onOk, onCancel, styles }, ref) => {
+const Modal: React.ForwardRefRenderFunction<ModalRef, ModalProps> = ({
+  children,
+  title,
+  width,
+  centered,
+  maskClosable,
+  onOk,
+  onCancel,
+  styles,
+}, ref) => {
 
   const [open, setOpen] = useState(false);
 
@@ -27,6 +36,9 @@ const Modal: React.ForwardRefRenderFunction<ModalRef, ModalProps> = ({ children,
   return (
     <AntdModal
       title={title}
+      width={width}
+      centered={centered}
+      maskClosable={maskClosable}
       style={styles}
       open={open}
       onCancel={() => {

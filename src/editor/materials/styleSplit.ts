@@ -10,6 +10,20 @@ const controlDimensionStyleNames = new Set([
 ]);
 
 const shellOnlyStyleNames = new Set([
+  'display',
+  'flexDirection',
+  'justifyContent',
+  'alignItems',
+  'gap',
+  'rowGap',
+  'columnGap',
+  'position',
+  'top',
+  'right',
+  'bottom',
+  'left',
+  'zIndex',
+  'overflow',
   'margin',
   'marginTop',
   'marginRight',
@@ -17,12 +31,18 @@ const shellOnlyStyleNames = new Set([
   'marginLeft',
 ]);
 
+const dualStyleNames = new Set([
+  ...controlDimensionStyleNames,
+  'opacity',
+  'visibility',
+]);
+
 export function splitControlStyles(styles?: CSSProperties) {
   const shellStyles: CSSProperties = {};
   const controlStyles: CSSProperties = {};
 
   Object.entries(styles || {}).forEach(([name, value]) => {
-    if (controlDimensionStyleNames.has(name)) {
+    if (dualStyleNames.has(name)) {
       shellStyles[name as keyof CSSProperties] = value as never;
       controlStyles[name as keyof CSSProperties] = value as never;
       return;

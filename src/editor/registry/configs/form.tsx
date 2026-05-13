@@ -24,12 +24,12 @@ import {
   UploadProd,
 } from '../../materials/p3';
 import {
-  boolOptions,
   commonStyleSetters,
   defineEvent,
   inputSetter,
   numberSetter,
   selectSetter,
+  switchSetter,
   valueChangeEvent,
 } from '../factory';
 
@@ -48,9 +48,11 @@ Input: {
             keywords: ['input', 'field', '输入框'],
             sort: 10,
             setter: [
-                inputSetter('placeholder', '占位提示'),
+                inputSetter('placeholder', '占位提示', { placeholder: '请输入' }),
                 inputSetter('defaultValue', '默认值'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法输入或修改内容。' }),
+                switchSetter('allowClear', '允许清除', { help: '输入框右侧显示一键清空按钮。' }),
+                numberSetter('maxLength', '最大长度', { group: 'advanced', min: 1 }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -78,7 +80,9 @@ Textarea: {
                 inputSetter('placeholder', '占位提示'),
                 inputSetter('defaultValue', '默认值'),
                 numberSetter('rows', '行数'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法输入或修改内容。' }),
+                switchSetter('showCount', '显示字数', { help: '在输入框下方显示当前字数和最大字数。' }),
+                numberSetter('maxLength', '最大长度', { group: 'advanced', min: 1 }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -102,8 +106,18 @@ Select: {
             sort: 30,
             setter: [
                 inputSetter('placeholder', '占位提示'),
-                inputSetter('optionsText', '选项'),
-                selectSetter('disabled', '禁用', boolOptions),
+                inputSetter('optionsText', '选项', {
+                    group: 'data',
+                    help: '用逗号或换行分隔选项。',
+                }),
+                inputSetter('defaultValue', '默认值'),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法选择选项。' }),
+                switchSetter('allowClear', '允许清除', { help: '允许用户清空当前选择。' }),
+                selectSetter('mode', '选择模式', [
+                    { label: '单选', value: '' },
+                    { label: '多选', value: 'multiple' },
+                    { label: '标签', value: 'tags' },
+                ], { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -125,9 +139,9 @@ Radio: {
             keywords: ['radio', '单选'],
             sort: 40,
             setter: [
-                inputSetter('optionsText', '选项'),
+                inputSetter('optionsText', '选项', { group: 'data' }),
                 inputSetter('defaultValue', '默认值'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法选择。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [valueChangeEvent],
@@ -147,9 +161,9 @@ Checkbox: {
             keywords: ['checkbox', '多选'],
             sort: 50,
             setter: [
-                inputSetter('optionsText', '选项'),
+                inputSetter('optionsText', '选项', { group: 'data' }),
                 inputSetter('defaultValue', '默认值'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法选择。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [valueChangeEvent],
@@ -171,7 +185,8 @@ DatePicker: {
             setter: [
                 inputSetter('placeholder', '占位提示'),
                 inputSetter('defaultValue', '默认值'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法选择日期。' }),
+                inputSetter('format', '日期格式', { group: 'advanced', placeholder: 'YYYY-MM-DD' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -194,9 +209,10 @@ Switch: {
             keywords: ['switch', 'toggle', '开关'],
             sort: 70,
             setter: [
+                switchSetter('checked', '默认开启', { help: '设置开关初始状态为开启。' }),
                 inputSetter('checkedChildren', '开启文案'),
                 inputSetter('unCheckedChildren', '关闭文案'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法切换开关。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -218,7 +234,9 @@ Upload: {
             sort: 80,
             setter: [
                 inputSetter('buttonText', '按钮文案'),
-                selectSetter('disabled', '禁用', boolOptions),
+                inputSetter('accept', '允许类型', { group: 'advanced', placeholder: '.png,.jpg' }),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法上传文件。' }),
+                switchSetter('multiple', '允许多选', { help: '允许一次选择多个文件。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -242,7 +260,8 @@ Rate: {
             setter: [
                 numberSetter('defaultValue', '默认值'),
                 numberSetter('count', '数量'),
-                selectSetter('disabled', '禁用', boolOptions),
+                switchSetter('allowHalf', '允许半星', { help: '允许评分选择 0.5 的半星值。' }),
+                switchSetter('disabled', '禁用', { help: '禁用后用户无法修改评分。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [valueChangeEvent],
@@ -253,6 +272,7 @@ Form: {
             name: 'Form',
             defaultProps: {
                 title: '表单',
+                layout: 'horizontal',
                 showActions: true,
                 submitText: '提交',
                 resetText: '重置',
@@ -265,9 +285,15 @@ Form: {
             sort: 100,
             setter: [
                 inputSetter('title', '标题'),
-                selectSetter('showActions', '显示按钮', boolOptions),
+                selectSetter('layout', '表单布局', [
+                    { label: '水平', value: 'horizontal' },
+                    { label: '垂直', value: 'vertical' },
+                    { label: '行内', value: 'inline' },
+                ]),
+                switchSetter('showActions', '显示按钮', { help: '控制表单底部提交和重置按钮是否显示。' }),
                 inputSetter('submitText', '提交文案'),
                 inputSetter('resetText', '重置文案'),
+                switchSetter('disabled', '整体禁用', { group: 'advanced', help: '禁用整个表单内的输入控件。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -316,12 +342,13 @@ FormItem: {
                 inputSetter('name', '字段'),
                 inputSetter('placeholder', '占位提示'),
                 inputSetter('defaultValue', '默认值'),
-                inputSetter('optionsText', '选项'),
+                inputSetter('optionsText', '选项', { group: 'data' }),
                 selectSetter('rules', '校验', [
                     { label: '无', value: '' },
                     { label: '必填', value: 'required' },
                     { label: '邮箱', value: 'email' },
                 ]),
+                switchSetter('required', '必填标记', { group: 'advanced' }),
             ]
         },
 };

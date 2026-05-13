@@ -11,6 +11,7 @@
     "pretest": "npm run build --prefix server",
     "test": "node --test scripts/test/*.test.mjs",
     "check:architecture": "node scripts/architecture/check-boundaries.mjs",
+    "check:editor-props": "node scripts/audit/editor-prop-contract.mjs",
     "test:e2e": "playwright test",
     "test:e2e:editor": "playwright test e2e/editor-regression.spec.ts",
     "smoke:api": "node scripts/smoke/api-smoke.mjs",

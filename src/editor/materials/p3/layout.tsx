@@ -52,7 +52,7 @@ export function GridProd({ id: _id, name: _name, styles, children, columns, gap,
   </div>;
 }
 
-export function TabsDev({ itemsText, activeKey, ...props }: CommonComponentProps) {
+export function TabsDev({ itemsText, activeKey, type, ...props }: CommonComponentProps) {
   const items = parseLineItems(itemsText).map(item => ({
     key: item.key,
     label: item.label,
@@ -60,26 +60,26 @@ export function TabsDev({ itemsText, activeKey, ...props }: CommonComponentProps
   }));
 
   return <DraggableBlock {...props}>
-    <Tabs activeKey={activeKey} items={items} />
+    <Tabs activeKey={activeKey} type={type || 'line'} items={items} />
   </DraggableBlock>;
 }
 
-export function TabsProd({ id: _id, name: _name, children: _children, itemsText, activeKey, styles, ...restProps }: CommonComponentProps) {
+export function TabsProd({ id: _id, name: _name, children: _children, itemsText, activeKey, type, styles, ...restProps }: CommonComponentProps) {
   const items = parseLineItems(itemsText).map(item => ({
     key: item.key,
     label: item.label,
     children: item.children || `${item.label}内容`,
   }));
 
-  return <div style={styles}><Tabs activeKey={activeKey} items={items} {...restProps} /></div>;
+  return <div style={styles}><Tabs activeKey={activeKey} type={type || 'line'} items={items} {...restProps} /></div>;
 }
 
-export function StepsDev({ itemsText, current, ...props }: CommonComponentProps) {
+export function StepsDev({ itemsText, current, direction, ...props }: CommonComponentProps) {
   return <DraggableBlock {...props}>
-    <Steps current={Number(current) || 0} items={parseLineItems(itemsText)} />
+    <Steps current={Number(current) || 0} direction={direction} items={parseLineItems(itemsText)} />
   </DraggableBlock>;
 }
 
-export function StepsProd({ id: _id, name: _name, children: _children, itemsText, current, styles, ...restProps }: CommonComponentProps) {
-  return <div style={styles}><Steps current={Number(current) || 0} items={parseLineItems(itemsText)} {...restProps} /></div>;
+export function StepsProd({ id: _id, name: _name, children: _children, itemsText, current, direction, styles, ...restProps }: CommonComponentProps) {
+  return <div style={styles}><Steps current={Number(current) || 0} direction={direction} items={parseLineItems(itemsText)} {...restProps} /></div>;
 }

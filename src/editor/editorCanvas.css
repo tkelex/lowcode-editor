@@ -21,6 +21,108 @@
   background: #eef2f7;
 }
 
+.editor-split-shell {
+  position: relative;
+}
+
+.editor-pane-shell {
+  position: relative;
+  box-sizing: border-box;
+  height: 100%;
+  min-width: 0;
+}
+
+.editor-pane-shell-left {
+  background: #f8fafc;
+  padding-right: 22px;
+}
+
+.editor-pane-shell-right {
+  background: #ffffff;
+  padding-left: 22px;
+}
+
+.editor-pane-shell-left::after,
+.editor-pane-shell-right::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 22px;
+  pointer-events: none;
+}
+
+.editor-pane-shell-left::after {
+  right: 0;
+  border-left: 1px solid #e2e8f0;
+  background: linear-gradient(90deg, rgba(248, 250, 252, 0), #f8fafc 42%);
+}
+
+.editor-pane-shell-right::before {
+  left: 0;
+  border-right: 1px solid #e2e8f0;
+  background: linear-gradient(90deg, #ffffff 58%, rgba(255, 255, 255, 0));
+}
+
+.editor-pane-toggle {
+  position: absolute;
+  z-index: 12;
+  top: 50%;
+  display: inline-flex;
+  width: 18px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #dbe2ea;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  color: #64748b;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  opacity: 0.78;
+  padding: 0;
+  transform: translateY(-50%);
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.editor-pane-toggle:hover,
+.editor-pane-toggle:focus-visible {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.16);
+  color: #2563eb;
+  opacity: 1;
+  outline: none;
+}
+
+.editor-pane-toggle-left {
+  left: 0;
+  border-left: 0;
+  border-radius: 0 7px 7px 0;
+}
+
+.editor-pane-toggle-left.is-open {
+  left: auto;
+  right: 2px;
+  border-right-color: #dbe2ea;
+  border-radius: 6px;
+}
+
+.editor-pane-toggle-right {
+  right: 0;
+  border-right: 0;
+  border-radius: 7px 0 0 7px;
+}
+
+.editor-pane-toggle-right.is-open {
+  left: 2px;
+  right: auto;
+  border-left-color: #dbe2ea;
+  border-radius: 6px;
+}
+
 .editor-split-layout .sash {
   background: #dbe2ea;
   transition: background 0.16s ease, box-shadow 0.16s ease;
@@ -220,6 +322,51 @@
 .editor-page {
   position: relative;
   z-index: 1;
+}
+
+.editor-page-config-header {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.86);
+  padding-bottom: 14px;
+}
+
+.editor-page-config-title {
+  color: #0f172a;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 30px;
+}
+
+.editor-page-config-subtitle {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.editor-page-config-badges {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.editor-page-config-badges span {
+  border: 1px solid #dbeafe;
+  border-radius: 5px;
+  background: #eff6ff;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 20px;
+  padding: 0 7px;
 }
 
 .editor-page-drop-zone {

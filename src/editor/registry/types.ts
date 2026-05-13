@@ -1,9 +1,50 @@
 import type { ActionType, EventCategory } from '../events/types';
 
+export type ComponentSetterGroup =
+  | 'basic'
+  | 'data'
+  | 'mobile'
+  | 'advanced'
+  | 'layout'
+  | 'size'
+  | 'spacing'
+  | 'typography'
+  | 'background'
+  | 'border'
+  | 'effect'
+  | 'display'
+  | 'custom'
+  | string;
+
+export type StyleSetterUnit = 'px' | 'number' | 'text';
+
+export type StyleSetterControl = 'input' | 'number' | 'select' | 'color';
+
+export interface ComponentSetterOption {
+  label: string;
+  value: any;
+}
+
 export interface ComponentSetter {
   name: string;
   label: string;
   type: string;
+  group?: ComponentSetterGroup;
+  groupLabel?: string;
+  keywords?: string[];
+  unit?: StyleSetterUnit;
+  control?: StyleSetterControl;
+  help?: string;
+  placeholder?: string;
+  rows?: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  mode?: 'json' | 'text' | 'url' | string;
+  options?: ComponentSetterOption[];
+  componentProps?: Record<string, any>;
+  valuePropName?: string;
+  validate?: 'json' | string;
   [key: string]: any;
 }
 

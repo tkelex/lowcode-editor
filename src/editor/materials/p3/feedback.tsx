@@ -21,7 +21,7 @@ export interface DrawerRef {
 }
 
 export const DrawerProd = forwardRef<DrawerRef, CommonComponentProps>(function DrawerProd(
-  { id: _id, name: _name, title, placement, width, children, styles, onClose, ...restProps },
+  { id: _id, name: _name, title, placement, width, maskClosable, children, styles, onClose, ...restProps },
   ref,
 ) {
   const [open, setOpen] = useState(false);
@@ -35,6 +35,7 @@ export const DrawerProd = forwardRef<DrawerRef, CommonComponentProps>(function D
     title={title}
     placement={placement}
     width={width}
+    maskClosable={maskClosable}
     style={styles}
     open={open}
     onClose={(event) => {
@@ -47,28 +48,28 @@ export const DrawerProd = forwardRef<DrawerRef, CommonComponentProps>(function D
   </Drawer>;
 });
 
-export function TooltipDev({ title, text, ...props }: CommonComponentProps) {
+export function TooltipDev({ title, text, placement, ...props }: CommonComponentProps) {
   return <DraggableInline {...props} className="rounded-[6px] p-[2px]">
-    <Tooltip title={title}><span className="cursor-help text-[#1677ff]">{text || '提示文本'}</span></Tooltip>
+    <Tooltip title={title} placement={placement}><span className="cursor-help text-[#1677ff]">{text || '提示文本'}</span></Tooltip>
   </DraggableInline>;
 }
 
-export function TooltipProd({ id: _id, name: _name, children: _children, title, text, styles, ...restProps }: CommonComponentProps) {
-  return <Tooltip title={title} {...restProps}>
+export function TooltipProd({ id: _id, name: _name, children: _children, title, text, placement, styles, ...restProps }: CommonComponentProps) {
+  return <Tooltip title={title} placement={placement} {...restProps}>
     <span style={styles} className="cursor-help">{text || '提示文本'}</span>
   </Tooltip>;
 }
 
-export function PopoverDev({ title, content, text, ...props }: CommonComponentProps) {
+export function PopoverDev({ title, content, text, placement, ...props }: CommonComponentProps) {
   const { shellStyles, controlStyles } = splitControlStyles(props.styles);
 
   return <DraggableInline {...props} styles={shellStyles} className="rounded-[6px]">
-    <Popover title={title} content={content}><Button style={controlStyles}>{text || '打开气泡卡片'}</Button></Popover>
+    <Popover title={title} content={content} placement={placement}><Button style={controlStyles}>{text || '打开气泡卡片'}</Button></Popover>
   </DraggableInline>;
 }
 
-export function PopoverProd({ id: _id, name: _name, children: _children, title, content, text, styles, ...restProps }: CommonComponentProps) {
-  return <Popover title={title} content={content} {...restProps}>
+export function PopoverProd({ id: _id, name: _name, children: _children, title, content, text, placement, styles, ...restProps }: CommonComponentProps) {
+  return <Popover title={title} content={content} placement={placement} {...restProps}>
     <Button style={styles}>{text || '打开气泡卡片'}</Button>
   </Popover>;
 }
@@ -81,7 +82,7 @@ export function NotificationDev({ title, description: _description, buttonText, 
   </DraggableInline>;
 }
 
-export function NotificationProd({ id: _id, name: _name, children: _children, title, description, buttonText, type, styles, onClick, ...restProps }: CommonComponentProps) {
+export function NotificationProd({ id: _id, name: _name, children: _children, title, description, buttonText, type, placement, styles, onClick, ...restProps }: CommonComponentProps) {
   return <Button
     style={styles}
     onClick={(event) => {
@@ -89,6 +90,7 @@ export function NotificationProd({ id: _id, name: _name, children: _children, ti
       notify({
         message: title || '通知',
         description,
+        placement,
       });
       onClick?.(event);
     }}
@@ -98,15 +100,15 @@ export function NotificationProd({ id: _id, name: _name, children: _children, ti
   </Button>;
 }
 
-export function ResultDev({ status, title, subTitle, ...props }: CommonComponentProps) {
+export function ResultDev({ status, title, subTitle, extraText, ...props }: CommonComponentProps) {
   return <DraggableBlock {...props}>
-    <Result status={status || 'success'} title={title} subTitle={subTitle} />
+    <Result status={status || 'success'} title={title} subTitle={subTitle} extra={extraText ? <Button type="primary">{extraText}</Button> : undefined} />
   </DraggableBlock>;
 }
 
-export function ResultProd({ id: _id, name: _name, children: _children, status, title, subTitle, styles, ...restProps }: CommonComponentProps) {
+export function ResultProd({ id: _id, name: _name, children: _children, status, title, subTitle, extraText, styles, ...restProps }: CommonComponentProps) {
   return <div style={styles}>
-    <Result {...restProps} status={status || 'success'} title={title} subTitle={subTitle} />
+    <Result {...restProps} status={status || 'success'} title={title} subTitle={subTitle} extra={extraText ? <Button type="primary">{extraText}</Button> : undefined} />
   </div>;
 }
 

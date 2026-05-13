@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import type { ComponentConfig } from './types';
-export type { ComponentCategory, ComponentConfig, ComponentEvent, ComponentMethod, ComponentSetter } from './types';
+export type {
+  ComponentCategory,
+  ComponentConfig,
+  ComponentEvent,
+  ComponentMethod,
+  ComponentSetter,
+  StyleSetterControl,
+  StyleSetterUnit,
+} from './types';
 import { basicComponentConfigs } from './configs/basic';
 import { dataComponentConfigs } from './configs/data';
 import { feedbackComponentConfigs } from './configs/feedback';

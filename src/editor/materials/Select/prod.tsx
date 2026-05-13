@@ -1,6 +1,7 @@
 import { Select as AntdSelect } from 'antd';
 import { useMemo } from 'react';
 import { CommonComponentProps } from '../../interface';
+import { splitControlStyles } from '../styleSplit';
 
 function toOptions(optionsText?: string) {
     return (optionsText || '')
@@ -10,11 +11,22 @@ function toOptions(optionsText?: string) {
         .map(item => ({ label: item, value: item }));
 }
 
-const Select = ({ id: _id, name: _name, placeholder, optionsText, disabled, styles, ...restProps }: CommonComponentProps) => {
+const Select = ({ id: _id, name: _name, placeholder, optionsText, defaultValue, disabled, allowClear, mode, styles, ...restProps }: CommonComponentProps) => {
+    const { shellStyles, controlStyles } = splitControlStyles(styles);
     const options = useMemo(() => toOptions(optionsText), [optionsText]);
 
-    return <div style={styles} className="inline-block min-w-[180px]">
-        <AntdSelect {...restProps} placeholder={placeholder} options={options} disabled={disabled} className="w-full" />
+    return <div style={shellStyles} className="inline-block min-w-[180px]">
+        <AntdSelect
+            {...restProps}
+            style={controlStyles}
+            placeholder={placeholder}
+            options={options}
+            defaultValue={defaultValue}
+            disabled={disabled}
+            allowClear={allowClear}
+            mode={mode || undefined}
+            className="w-full"
+        />
     </div>
 }
 

@@ -4,7 +4,18 @@ import { useDrag } from 'react-dnd';
 import { useMaterialDrop } from '../../hooks/useMaterialDrop';
 import { CommonComponentProps } from '../../interface';
 
-function Form({ id, name, children, title, showActions = true, submitText = '提交', resetText = '重置', styles }: CommonComponentProps) {
+function Form({
+    id,
+    name,
+    children,
+    title,
+    layout = 'horizontal',
+    showActions = true,
+    submitText = '提交',
+    resetText = '重置',
+    disabled,
+    styles,
+}: CommonComponentProps) {
     const [form] = AntdForm.useForm();
 
     const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop(['FormItem'], id);
@@ -35,6 +46,7 @@ function Form({ id, name, children, title, showActions = true, submitText = '提
                 defaultValue: item.props?.defaultValue,
                 optionsText: item.props?.optionsText,
                 rules: item.props?.rules,
+                required: item.props?.required,
             }
         }) || [];
     }, [children]);
@@ -51,7 +63,13 @@ function Form({ id, name, children, title, showActions = true, submitText = '提
         </div>
         <div className="editor-panel-body">
             {formItems.length === 0 ? <div className="editor-empty">拖入表单项</div> : (
-                <AntdForm labelCol={{ span: 6 }} wrapperCol={{ span: 18 }} form={form}>
+                <AntdForm
+                    labelCol={layout === 'horizontal' ? { span: 6 } : undefined}
+                    wrapperCol={layout === 'horizontal' ? { span: 18 } : undefined}
+                    layout={layout}
+                    disabled={disabled}
+                    form={form}
+                >
                     {formItems.map((item: any) => {
                         return <AntdForm.Item
                             key={item.name}
@@ -59,7 +77,7 @@ function Form({ id, name, children, title, showActions = true, submitText = '提
                             name={item.name}
                             label={item.label}
                             initialValue={item.defaultValue}
-                            rules={item.rules === 'required' ? [{ required: true, message: '不能为空' }] : []}
+                            rules={getRules(item.rules, item.required)}
                         >
                             {renderControl(item)}
                         </AntdForm.Item>
@@ -111,6 +129,18 @@ function renderControl(item: Record<string, any>) {
     }
 
     return <Input {...commonProps} />;
+}
+
+function getRules(ruleType?: string, required?: boolean | string) {
+    if (ruleType === 'required' || required === true || required === 'true') {
+        return [{ required: true, message: '不能为空' }];
+    }
+
+    if (ruleType === 'email') {
+        return [{ type: 'email' as const, message: '请输入正确的邮箱' }];
+    }
+
+    return [];
 }
 
 function parseOptions(optionsText?: string) {

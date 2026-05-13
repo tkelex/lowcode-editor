@@ -13,6 +13,8 @@ const Table = ({
   pageSize = 10,
   emptyText = '暂无数据',
   rowKey = 'id',
+  bordered,
+  showHeader,
   styles,
   onChange,
   runtimeDataSources,
@@ -86,6 +88,8 @@ const Table = ({
       <AntdTable
         columns={columns}
         dataSource={data}
+        bordered={bordered}
+        showHeader={showHeader !== false}
         pagination={pagination ? { pageSize: Number(pageSize) || 10 } : false}
         rowKey={(record) => String(record[rowKey] || record.id || record.key)}
         loading={loading || runtimeDataSource?.loading}

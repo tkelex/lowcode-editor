@@ -17,10 +17,12 @@ const Form: ForwardRefRenderFunction<FormRef, FormProps> = ({
     onFinish,
     onFinishFailed,
     onValuesChange,
-    title: _title,
+    title,
+    layout = 'horizontal',
     showActions = true,
     submitText = '提交',
     resetText = '重置',
+    disabled,
     styles,
 }, ref)  => {
     const [form] = AntdForm.useForm();
@@ -49,6 +51,7 @@ const Form: ForwardRefRenderFunction<FormRef, FormProps> = ({
                 placeholder: item.props?.placeholder,
                 defaultValue: item.props?.defaultValue,
                 optionsText: item.props?.optionsText,
+                required: item.props?.required,
             }
         }) || [];
     }, [children]);
@@ -68,39 +71,43 @@ const Form: ForwardRefRenderFunction<FormRef, FormProps> = ({
         onFinish?.(nextValues);
     }
 
-    return <AntdForm
-        name='form'
-        labelCol={{ span: 5 }}
-        wrapperCol={{ span: 18 }}
-        form={form}
-        style={styles}
-        initialValues={initialValues}
-        onFinish={save}
-        onFinishFailed={onFinishFailed}
-        onValuesChange={(changedValues, allValues) => {
-            onValuesChange?.(formatValues(changedValues), formatValues(allValues));
-        }}
-    >
-        {formItems.map((item: any) => {
-            return (
-                <AntdForm.Item
-                    key={item.name}
-                    name={item.name}
-                    label={item.label}
-                    valuePropName={item.type === 'switch' ? 'checked' : undefined}
-                    rules={getRules(item.rules)}
-                >
-                    {renderControl(item)}
+    return <div style={styles}>
+        {title && <div className="mb-[12px] text-[16px] font-semibold leading-[24px] text-[#0f172a]">{title}</div>}
+        <AntdForm
+            name='form'
+            labelCol={layout === 'horizontal' ? { span: 5 } : undefined}
+            wrapperCol={layout === 'horizontal' ? { span: 18 } : undefined}
+            layout={layout}
+            disabled={disabled}
+            form={form}
+            initialValues={initialValues}
+            onFinish={save}
+            onFinishFailed={onFinishFailed}
+            onValuesChange={(changedValues, allValues) => {
+                onValuesChange?.(formatValues(changedValues), formatValues(allValues));
+            }}
+        >
+            {formItems.map((item: any) => {
+                return (
+                    <AntdForm.Item
+                        key={item.name}
+                        name={item.name}
+                        label={item.label}
+                        valuePropName={item.type === 'switch' ? 'checked' : undefined}
+                        rules={getRules(item.rules, item.required)}
+                    >
+                        {renderControl(item)}
+                    </AntdForm.Item>
+                )
+            })}
+            {showActions && (
+                <AntdForm.Item wrapperCol={{ offset: 5, span: 18 }}>
+                    <Button type="primary" htmlType="submit" className="mr-[8px]">{submitText}</Button>
+                    <Button htmlType="button" onClick={() => form.resetFields()}>{resetText}</Button>
                 </AntdForm.Item>
-            )
-        })}
-        {showActions && (
-            <AntdForm.Item wrapperCol={{ offset: 5, span: 18 }}>
-                <Button type="primary" htmlType="submit" className="mr-[8px]">{submitText}</Button>
-                <Button htmlType="button" onClick={() => form.resetFields()}>{resetText}</Button>
-            </AntdForm.Item>
-        )}
-    </AntdForm>
+            )}
+        </AntdForm>
+    </div>
 }
 
 function renderControl(item: Record<string, any>) {
@@ -135,8 +142,8 @@ function renderControl(item: Record<string, any>) {
     return <Input placeholder={item.placeholder} />;
 }
 
-function getRules(ruleType?: string) {
-    if (ruleType === 'required') {
+function getRules(ruleType?: string, required?: boolean | string) {
+    if (ruleType === 'required' || required === true || required === 'true') {
         return [{ required: true, message: '不能为空' }];
     }
 

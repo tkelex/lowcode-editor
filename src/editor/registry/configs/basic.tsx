@@ -18,15 +18,17 @@ import {
   TabsProd,
 } from '../../materials/p3';
 import {
-  boolOptions,
   clickEvents,
   commonStyleSetters,
   defineEvent,
   doubleClickEvent,
+  imageStyleSetters,
   inputSetter,
   numberSetter,
   openTargetOptions,
   selectSetter,
+  switchSetter,
+  urlSetter,
 } from '../factory';
 
 export const basicComponentConfigs: Record<string, ComponentConfig> = {
@@ -34,7 +36,11 @@ Button: {
             name: 'Button',
             defaultProps: {
                 type: 'primary',
-                text: '按钮'
+                text: '按钮',
+                disabled: false,
+                block: false,
+                loading: false,
+                danger: false,
             },
             setter: [
                 selectSetter('type', '按钮类型', [
@@ -44,7 +50,15 @@ Button: {
                     {label: '链接按钮', value: 'link'},
                 ]),
                 inputSetter('text', '文本'),
-                selectSetter('disabled', '禁用', boolOptions),
+                selectSetter('size', '尺寸', [
+                    { label: '小', value: 'small' },
+                    { label: '中', value: 'middle' },
+                    { label: '大', value: 'large' },
+                ]),
+                switchSetter('disabled', '禁用', { help: '禁用后按钮不可点击，也不会触发点击事件。' }),
+                switchSetter('block', '块级按钮', { help: '按钮宽度撑满父容器。' }),
+                switchSetter('loading', '加载中', { help: '展示加载状态，常用于提交中或接口请求中。' }),
+                switchSetter('danger', '危险按钮', { help: '用于删除、撤销等高风险操作的视觉强调。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -73,8 +87,9 @@ Link: {
             sort: 12,
             setter: [
                 inputSetter('text', '文本'),
-                inputSetter('href', '链接地址'),
+                urlSetter('href', '链接地址'),
                 selectSetter('target', '打开方式', openTargetOptions),
+                switchSetter('disabled', '禁用', { help: '禁用后链接不可点击。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,
@@ -124,17 +139,18 @@ Text: {
             sort: 20,
             setter: [
                 inputSetter('text', '文本'),
+                selectSetter('copyable', '可复制', [
+                    { label: '关闭', value: false },
+                    { label: '开启', value: true },
+                ]),
                 selectSetter('level', '样式', [
                     { label: '普通', value: 'normal' },
                     { label: '加粗', value: 'strong' },
                     { label: '斜体', value: 'italic' },
                 ]),
+                switchSetter('ellipsis', '超出省略', { help: '文本超出容器时使用省略号展示。' }),
             ],
-            stylesSetter: [
-                numberSetter('fontSize', '字号'),
-                inputSetter('color', '颜色'),
-                ...commonStyleSetters,
-            ],
+            stylesSetter: commonStyleSetters,
             events: [
                 defineEvent('click', '点击事件', 'ui', '用户点击文本时触发', ['args']),
                 doubleClickEvent,
@@ -150,6 +166,7 @@ Image: {
                 width: 240,
                 height: 135,
                 preview: false,
+                fallback: '',
             },
             desc: '图片',
             category: 'basic',
@@ -157,12 +174,14 @@ Image: {
             keywords: ['image', 'picture', '图片'],
             sort: 30,
             setter: [
-                inputSetter('src', '图片地址'),
+                urlSetter('src', '图片地址'),
                 inputSetter('alt', '替代文本'),
                 numberSetter('width', '宽度'),
                 numberSetter('height', '高度'),
+                switchSetter('preview', '允许预览', { help: '开启后点击图片可查看大图预览。' }),
+                urlSetter('fallback', '加载失败图', { group: 'advanced' }),
             ],
-            stylesSetter: commonStyleSetters,
+            stylesSetter: imageStyleSetters,
             events: [
                 defineEvent('click', '点击事件', 'ui', '用户点击图片时触发', ['args']),
                 doubleClickEvent,
@@ -176,6 +195,7 @@ Divider: {
                 text: '分割线',
                 dashed: false,
                 orientation: 'center',
+                plain: false,
             },
             desc: '分割线',
             category: 'basic',
@@ -189,7 +209,8 @@ Divider: {
                     { label: '左侧', value: 'left' },
                     { label: '右侧', value: 'right' },
                 ]),
-                selectSetter('dashed', '虚线', boolOptions),
+                switchSetter('dashed', '虚线', { help: '将分割线显示为虚线样式。' }),
+                switchSetter('plain', '普通文字'),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -210,8 +231,15 @@ Tabs: {
             keywords: ['tabs', 'tab', '标签页'],
             sort: 50,
             setter: [
-                inputSetter('itemsText', '标签配置'),
+                inputSetter('itemsText', '标签配置', {
+                    help: '每行一个标签，格式：标题:内容',
+                }),
                 inputSetter('activeKey', '默认激活'),
+                selectSetter('type', '标签样式', [
+                    { label: '线条', value: 'line' },
+                    { label: '卡片', value: 'card' },
+                    { label: '可编辑卡片', value: 'editable-card' },
+                ]),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -232,8 +260,14 @@ Steps: {
             keywords: ['steps', '步骤条', '流程'],
             sort: 60,
             setter: [
-                inputSetter('itemsText', '步骤配置'),
+                inputSetter('itemsText', '步骤配置', {
+                    help: '每行一步，格式：标题:描述',
+                }),
                 numberSetter('current', '当前步骤'),
+                selectSetter('direction', '方向', [
+                    { label: '水平', value: 'horizontal' },
+                    { label: '垂直', value: 'vertical' },
+                ]),
             ],
             stylesSetter: commonStyleSetters,
             events: [

@@ -1,5 +1,9 @@
-import { Component, ReactNode } from 'react';
+import { Component, ReactNode, useState } from 'react';
 import { Button, Space } from 'antd';
+import {
+    DoubleLeftOutlined,
+    DoubleRightOutlined,
+} from '@ant-design/icons';
 import { Allotment } from "allotment";
 import 'allotment/dist/style.css';
 import { Header } from "./components/Header";
@@ -12,6 +16,8 @@ import type { ProjectRole } from '../shared/api/types';
 
 const LEFT_PANEL_MIN_SIZE = 320;
 const LEFT_PANEL_PREFERRED_SIZE = 340;
+const RIGHT_PANEL_MIN_SIZE = 300;
+const RIGHT_PANEL_PREFERRED_SIZE = 320;
 
 export interface LowcodeEditorProps {
     pageId?: number;
@@ -70,9 +76,56 @@ class EditorBodyBoundary extends Component<EditorBodyBoundaryProps, EditorBodyBo
 export default function ReactPlayground({ pageId, projectId, projectRole, onBack }: LowcodeEditorProps) {
     const mode = useComponetsStore((state) => state.mode);
     const setMode = useComponetsStore((state) => state.setMode);
+    const [leftPanelVisible, setLeftPanelVisible] = useState(true);
+    const [rightPanelVisible, setRightPanelVisible] = useState(true);
+    const [leftPaneSize, setLeftPaneSize] = useState(LEFT_PANEL_PREFERRED_SIZE);
+    const [rightPaneSize, setRightPaneSize] = useState(RIGHT_PANEL_PREFERRED_SIZE);
 
     function exitPreview() {
         setMode('edit');
+    }
+
+    function handlePaneSizesChange(nextPaneSizes: number[]) {
+        if (leftPanelVisible && rightPanelVisible && nextPaneSizes.length === 3) {
+            setLeftPaneSize(nextPaneSizes[0]);
+            setRightPaneSize(nextPaneSizes[2]);
+            return;
+        }
+
+        if (leftPanelVisible && !rightPanelVisible && nextPaneSizes.length === 2) {
+            setLeftPaneSize(nextPaneSizes[0]);
+            return;
+        }
+
+        if (!leftPanelVisible && rightPanelVisible && nextPaneSizes.length === 2) {
+            setRightPaneSize(nextPaneSizes[1]);
+        }
+    }
+
+    function renderLeftPanelToggle() {
+        return <button
+            type="button"
+            className={`editor-pane-toggle editor-pane-toggle-left ${leftPanelVisible ? 'is-open' : 'is-closed'}`}
+            aria-label={leftPanelVisible ? '隐藏左侧面板' : '显示左侧面板'}
+            aria-expanded={leftPanelVisible}
+            title={leftPanelVisible ? '隐藏左侧面板' : '显示左侧面板'}
+            onClick={() => setLeftPanelVisible((visible) => !visible)}
+        >
+            {leftPanelVisible ? <DoubleLeftOutlined /> : <DoubleRightOutlined />}
+        </button>
+    }
+
+    function renderRightPanelToggle() {
+        return <button
+            type="button"
+            className={`editor-pane-toggle editor-pane-toggle-right ${rightPanelVisible ? 'is-open' : 'is-closed'}`}
+            aria-label={rightPanelVisible ? '隐藏右侧面板' : '显示右侧面板'}
+            aria-expanded={rightPanelVisible}
+            title={rightPanelVisible ? '隐藏右侧面板' : '显示右侧面板'}
+            onClick={() => setRightPanelVisible((visible) => !visible)}
+        >
+            {rightPanelVisible ? <DoubleRightOutlined /> : <DoubleLeftOutlined />}
+        </button>
     }
 
     return <div className='editor-workbench relative h-[100vh] flex flex-col bg-[#eef2f7]'>
@@ -82,17 +135,29 @@ export default function ReactPlayground({ pageId, projectId, projectRole, onBack
         <EditorBodyBoundary mode={mode} onExitPreview={exitPreview} onBack={onBack}>
             {
                 mode === 'edit'
-                    ? <div className="min-h-0 flex-1">
-                        <Allotment className="editor-split-layout">
-                            <Allotment.Pane preferredSize={LEFT_PANEL_PREFERRED_SIZE} maxSize={420} minSize={LEFT_PANEL_MIN_SIZE}>
-                                <MaterialWrapper projectId={projectId} projectRole={projectRole} />
-                            </Allotment.Pane>
-                            <Allotment.Pane>
+                    ? <div className="editor-split-shell min-h-0 flex-1">
+                        {!leftPanelVisible && renderLeftPanelToggle()}
+                        {!rightPanelVisible && renderRightPanelToggle()}
+                        <Allotment className="editor-split-layout" onChange={handlePaneSizesChange}>
+                            {leftPanelVisible && (
+                                <Allotment.Pane key="left-panel" preferredSize={leftPaneSize} maxSize={420} minSize={LEFT_PANEL_MIN_SIZE}>
+                                    <div className="editor-pane-shell editor-pane-shell-left">
+                                        <MaterialWrapper projectId={projectId} projectRole={projectRole} />
+                                        {renderLeftPanelToggle()}
+                                    </div>
+                                </Allotment.Pane>
+                            )}
+                            <Allotment.Pane key="canvas-panel">
                                 <EditArea />
                             </Allotment.Pane>
-                            <Allotment.Pane preferredSize={320} maxSize={520} minSize={300}>
-                                <Setting />
-                            </Allotment.Pane>
+                            {rightPanelVisible && (
+                                <Allotment.Pane key="right-panel" preferredSize={rightPaneSize} maxSize={520} minSize={RIGHT_PANEL_MIN_SIZE}>
+                                    <div className="editor-pane-shell editor-pane-shell-right">
+                                        <Setting />
+                                        {renderRightPanelToggle()}
+                                    </div>
+                                </Allotment.Pane>
+                            )}
                         </Allotment>
                     </div>
                     : <Preview/>

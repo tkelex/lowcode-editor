@@ -20,14 +20,21 @@ const iconMap = {
   UserOutlined,
 };
 
-export function LinkDev({ href, text, target, ...props }: CommonComponentProps) {
+export function LinkDev({ href, text, target, disabled, ...props }: CommonComponentProps) {
   return <DraggableInline {...props} className="rounded-[6px] p-[2px]">
-    <a href={href || '#'} target={target} onClick={(event) => event.preventDefault()}>{text || '链接'}</a>
+    <a
+      href={disabled ? undefined : (href || '#')}
+      target={target}
+      className={disabled ? 'pointer-events-none text-[#94a3b8]' : undefined}
+      onClick={(event) => event.preventDefault()}
+    >
+      {text || '链接'}
+    </a>
   </DraggableInline>;
 }
 
-export function LinkProd({ id: _id, name: _name, children: _children, href, text, target, styles, ...restProps }: CommonComponentProps) {
-  return <a href={href || '#'} target={target} style={styles} rel={target === '_blank' ? 'noreferrer' : undefined} {...restProps}>
+export function LinkProd({ id: _id, name: _name, children: _children, href, text, target, disabled, styles, ...restProps }: CommonComponentProps) {
+  return <a href={disabled ? undefined : (href || '#')} target={target} style={styles} aria-disabled={disabled} rel={target === '_blank' ? 'noreferrer' : undefined} {...restProps}>
     {text || '链接'}
   </a>;
 }

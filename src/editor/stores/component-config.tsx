@@ -11,4 +11,6 @@ export type {
   ComponentEvent,
   ComponentMethod,
   ComponentSetter,
+  StyleSetterControl,
+  StyleSetterUnit,
 } from '../registry/component-config';

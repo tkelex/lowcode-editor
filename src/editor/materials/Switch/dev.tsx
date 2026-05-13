@@ -15,7 +15,7 @@ const Switch = ({ id, name, checked, disabled, checkedChildren, unCheckedChildre
     });
 
     return <div ref={drag} data-component-id={id} style={shellStyles} className="editor-component editor-inline-component rounded-[6px] p-[4px]">
-        <AntdSwitch style={controlStyles} defaultChecked={checked} disabled={disabled} checkedChildren={checkedChildren} unCheckedChildren={unCheckedChildren} />
+        <AntdSwitch style={controlStyles} checked={checked} disabled={disabled} checkedChildren={checkedChildren} unCheckedChildren={unCheckedChildren} />
     </div>
 }
 

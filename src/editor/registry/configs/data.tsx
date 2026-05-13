@@ -16,13 +16,15 @@ import {
   StatisticProd,
 } from '../../materials/p3';
 import {
-  boolOptions,
   clickEvents,
   commonStyleSetters,
   defineEvent,
   inputSetter,
+  jsonSetter,
   numberSetter,
   selectSetter,
+  switchSetter,
+  urlSetter,
 } from '../factory';
 
 export const dataComponentConfigs: Record<string, ComponentConfig> = {
@@ -43,13 +45,19 @@ Table: {
             keywords: ['table', 'data', '表格', '数据'],
             sort: 10,
             setter: [
-                inputSetter('dataSourceId', '数据源 ID'),
-                inputSetter('url', '数据接口'),
-                inputSetter('dataText', '静态数据'),
-                selectSetter('pagination', '开启分页', boolOptions),
-                numberSetter('pageSize', '每页条数'),
+                inputSetter('dataSourceId', '数据源 ID', { group: 'data', placeholder: '如 table' }),
+                urlSetter('url', '数据接口', { group: 'data' }),
+                jsonSetter('dataText', '静态数据', {
+                    group: 'data',
+                    rows: 5,
+                    placeholder: '[\n  { "id": 1, "name": "张三" }\n]',
+                }),
+                switchSetter('pagination', '开启分页', { help: '开启后表格按页展示数据。' }),
+                numberSetter('pageSize', '每页条数', { min: 1, max: 100, help: '分页开启时每页展示的数据数量。' }),
                 inputSetter('emptyText', '空状态文案'),
-                inputSetter('rowKey', '行主键字段'),
+                inputSetter('rowKey', '行主键字段', { help: '用于稳定识别每一行数据，建议使用唯一 id 字段。' }),
+                switchSetter('bordered', '显示边框', { help: '开启后表格展示外框和单元格边框。' }),
+                switchSetter('showHeader', '显示表头', { help: '控制表格列标题行是否显示。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -80,10 +88,14 @@ TableColumn: {
                 ]),
                 inputSetter('title', '标题'),
                 inputSetter('dataIndex', '字段'),
-                inputSetter('width', '宽度'),
+                numberSetter('width', '宽度'),
                 inputSetter('format', '日期格式'),
                 inputSetter('actionText', '操作文案'),
-                inputSetter('actionUrl', '操作链接'),
+                urlSetter('actionUrl', '操作链接'),
+                selectSetter('target', '打开方式', [
+                    { label: '当前窗口', value: '_self' },
+                    { label: '新窗口', value: '_blank' },
+                ]),
             ],
             dev: TableColumnDev,
             prod: TableColumnProd,
@@ -100,8 +112,16 @@ List: {
             keywords: ['list', '列表'],
             sort: 30,
             setter: [
-                inputSetter('dataText', '列表数据'),
-                selectSetter('bordered', '显示边框', boolOptions),
+                jsonSetter('dataText', '列表数据', {
+                    group: 'data',
+                    rows: 5,
+                    placeholder: '[\n  { "title": "列表项", "description": "说明" }\n]',
+                }),
+                switchSetter('bordered', '显示边框', { help: '开启后列表展示外边框。' }),
+                selectSetter('itemLayout', '列表布局', [
+                    { label: '水平', value: 'horizontal' },
+                    { label: '垂直', value: 'vertical' },
+                ], { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,
@@ -125,7 +145,12 @@ Descriptions: {
                 inputSetter('title', '标题'),
                 inputSetter('pairsText', '字段配置'),
                 numberSetter('column', '列数'),
-                selectSetter('bordered', '显示边框', boolOptions),
+                switchSetter('bordered', '显示边框', { help: '开启后描述列表展示表格式边框。' }),
+                selectSetter('size', '尺寸', [
+                    { label: '默认', value: 'default' },
+                    { label: '中等', value: 'middle' },
+                    { label: '紧凑', value: 'small' },
+                ]),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,
@@ -150,6 +175,7 @@ Statistic: {
                 inputSetter('value', '数值'),
                 inputSetter('prefix', '前缀'),
                 inputSetter('suffix', '后缀'),
+                numberSetter('precision', '小数位数', { min: 0, max: 6 }),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,
@@ -172,6 +198,7 @@ Pagination: {
                 numberSetter('current', '当前页'),
                 numberSetter('total', '总数'),
                 numberSetter('pageSize', '每页条数'),
+                switchSetter('showSizeChanger', '允许切换条数', { help: '允许用户在分页器中切换每页条数。' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -193,7 +220,10 @@ Chart: {
             sort: 70,
             setter: [
                 inputSetter('title', '标题'),
-                inputSetter('dataText', '数据'),
+                inputSetter('dataText', '数据', {
+                    group: 'data',
+                    help: '每行一条，格式：名称:数值',
+                }),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,

@@ -20,13 +20,13 @@ import {
 import { COMMON_CHILDREN } from '../../materials/commonChildren';
 import {
   ACTIONS,
-  boolOptions,
   clickEvents,
   commonStyleSetters,
   defineEvent,
   inputSetter,
   numberSetter,
   selectSetter,
+  switchSetter,
 } from '../factory';
 
 export const feedbackComponentConfigs: Record<string, ComponentConfig> = {
@@ -52,7 +52,8 @@ Alert: {
                 ]),
                 inputSetter('message', '标题'),
                 inputSetter('description', '描述'),
-                selectSetter('showIcon', '显示图标', boolOptions),
+                switchSetter('showIcon', '显示图标'),
+                switchSetter('closable', '可关闭'),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -65,11 +66,16 @@ Alert: {
 Modal: {
             name: 'Modal',
             defaultProps: {
-                title: '弹窗'
+                title: '弹窗',
+                width: 520,
+                centered: false,
             },
             acceptsChildren: COMMON_CHILDREN,
             setter: [
                 inputSetter('title', '标题'),
+                numberSetter('width', '宽度'),
+                switchSetter('centered', '居中显示'),
+                switchSetter('maskClosable', '点击遮罩关闭', { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -110,6 +116,7 @@ Drawer: {
                     { label: '底部', value: 'bottom' },
                 ]),
                 numberSetter('width', '宽度'),
+                switchSetter('maskClosable', '点击遮罩关闭', { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -137,6 +144,12 @@ Tooltip: {
             setter: [
                 inputSetter('title', '提示内容'),
                 inputSetter('text', '触发文本'),
+                selectSetter('placement', '位置', [
+                    { label: '顶部', value: 'top' },
+                    { label: '右侧', value: 'right' },
+                    { label: '底部', value: 'bottom' },
+                    { label: '左侧', value: 'left' },
+                ], { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -161,6 +174,12 @@ Popover: {
                 inputSetter('title', '标题'),
                 inputSetter('content', '内容'),
                 inputSetter('text', '按钮文本'),
+                selectSetter('placement', '位置', [
+                    { label: '顶部', value: 'top' },
+                    { label: '右侧', value: 'right' },
+                    { label: '底部', value: 'bottom' },
+                    { label: '左侧', value: 'left' },
+                ], { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: [
@@ -192,6 +211,12 @@ Notification: {
                 inputSetter('title', '标题'),
                 inputSetter('description', '内容'),
                 inputSetter('buttonText', '按钮文本'),
+                selectSetter('placement', '位置', [
+                    { label: '右上', value: 'topRight' },
+                    { label: '右下', value: 'bottomRight' },
+                    { label: '左上', value: 'topLeft' },
+                    { label: '左下', value: 'bottomLeft' },
+                ], { group: 'advanced' }),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,
@@ -221,6 +246,7 @@ Result: {
                 ]),
                 inputSetter('title', '标题'),
                 inputSetter('subTitle', '副标题'),
+                inputSetter('extraText', '操作文案'),
             ],
             stylesSetter: commonStyleSetters,
             events: clickEvents,

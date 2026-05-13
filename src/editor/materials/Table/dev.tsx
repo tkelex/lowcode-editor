@@ -4,7 +4,21 @@ import { useDrag } from 'react-dnd';
 import { useMaterialDrop } from '../../hooks/useMaterialDrop';
 import { CommonComponentProps } from '../../interface';
 
-function Table({ id, name, children, styles, dataText, pagination = false, pageSize = 5, emptyText = '暂无数据' }: CommonComponentProps) {
+function Table({
+    id,
+    name,
+    children,
+    styles,
+    dataSourceId,
+    url,
+    dataText,
+    pagination = false,
+    pageSize = 5,
+    emptyText = '暂无数据',
+    rowKey = 'id',
+    bordered,
+    showHeader,
+}: CommonComponentProps) {
 
     const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop(['TableColumn'], id);
     const divRef = useRef<HTMLDivElement>(null);
@@ -27,12 +41,29 @@ function Table({ id, name, children, styles, dataText, pagination = false, pageS
         return React.Children.map(children, (item: any) => {
             const type = item.props?.type;
             if (type === 'action') {
+                const actionUrl = item.props?.actionUrl;
+                const target = item.props?.target;
+
                 return {
                     title: <div className='m-[-16px] p-[16px]' data-component-id={item.props?.id}>{item.props?.title || '操作'}</div>,
                     dataIndex: item.props?.dataIndex || 'action',
                     key: item.props?.id,
                     width: item.props?.width,
-                    render: () => <Button size="small" type="link">{item.props?.actionText || '查看'}</Button>,
+                    render: () => (
+                        <Button size="small" type="link" href={actionUrl} target={target}>
+                            {item.props?.actionText || '查看'}
+                        </Button>
+                    ),
+                }
+            }
+
+            if (type === 'date') {
+                return {
+                    title: <div className='m-[-16px] p-[16px]' data-component-id={item.props?.id}>{item.props?.title}</div>,
+                    dataIndex: item.props?.dataIndex,
+                    key: item.props?.id,
+                    width: item.props?.width,
+                    render: (value: unknown) => formatDatePreview(value, item.props?.format),
                 }
             }
 
@@ -58,16 +89,23 @@ function Table({ id, name, children, styles, dataText, pagination = false, pageS
         >
             <div className="editor-panel-header">
                 <span>表格</span>
-                <span className="rounded-[4px] bg-[#f8fafc] px-[6px] py-[2px] text-[11px] font-medium text-[#475569]">Table</span>
+                <div className="flex items-center gap-[6px]">
+                    {dataSourceId && <span className="rounded-[4px] bg-[#f0fdf4] px-[6px] py-[2px] text-[11px] font-medium text-[#16a34a]">数据源:{dataSourceId}</span>}
+                    {url && <span className="rounded-[4px] bg-[#eff6ff] px-[6px] py-[2px] text-[11px] font-medium text-[#2563eb]">接口</span>}
+                    <span className="rounded-[4px] bg-[#f8fafc] px-[6px] py-[2px] text-[11px] font-medium text-[#475569]">Table</span>
+                </div>
             </div>
             <div className="editor-panel-body p-0">
                 {columns.length === 0 ? <div className="editor-empty m-[14px]">拖入表格列</div> : (
                     <AntdTable
                         columns={columns}
                         dataSource={dataSource}
+                        bordered={bordered}
+                        showHeader={showHeader !== false}
                         locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={emptyText} /> }}
                         pagination={pagination ? { pageSize: Number(pageSize) || 5 } : false}
-                        rowKey={(record) => String(record.id || record.key)}
+                        rowKey={(record) => String(record[rowKey] || record.id || record.key)}
+                        onChange={undefined}
                     />
                 )}
             </div>
@@ -84,6 +122,21 @@ function parseDataSource(dataText?: string) {
     } catch {
         return [];
     }
+}
+
+function formatDatePreview(value: unknown, format?: string) {
+    if (!value) return null;
+
+    const date = new Date(String(value));
+    if (Number.isNaN(date.getTime())) {
+        return String(value);
+    }
+
+    if (format === 'YYYY-MM-DD HH:mm:ss') {
+        return date.toLocaleString();
+    }
+
+    return date.toLocaleDateString();
 }
 
 export default Table;

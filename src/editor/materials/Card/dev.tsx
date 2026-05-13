@@ -5,7 +5,7 @@ import { useMaterialDrop } from '../../hooks/useMaterialDrop';
 import { CommonComponentProps } from '../../interface';
 import { COMMON_CHILDREN } from '../commonChildren';
 
-const Card = ({ id, name, title, bordered, children, styles }: CommonComponentProps) => {
+const Card = ({ id, name, title, bordered, hoverable, children, styles }: CommonComponentProps) => {
     const { canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop(COMMON_CHILDREN, id);
     const divRef = useRef<HTMLDivElement>(null);
 
@@ -27,6 +27,7 @@ const Card = ({ id, name, title, bordered, children, styles }: CommonComponentPr
         <AntdCard
             title={title}
             bordered={bordered}
+            hoverable={hoverable}
             className={`editor-panel editor-drop-zone ${canDrop ? 'can-drop' : ''} ${canDropCurrent ? 'is-drop-target' : ''} ${isOverCurrent && !canDropCurrent ? 'is-drop-disabled' : ''}`}
             styles={{
                 header: {
