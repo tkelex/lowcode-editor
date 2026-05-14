@@ -141,7 +141,7 @@ export async function runLowcodeAction(
   }
 
   if (action.actionType === 'componentControl') {
-    runComponentControlAction(action, context);
+    runComponentControlAction(action, context, adapters);
     return;
   }
 
@@ -337,7 +337,11 @@ function runComponentAction(action: ComponentAction, context: LowcodeActionRunti
   }
 }
 
-function runComponentControlAction(action: ComponentControlAction, context: LowcodeActionRuntimeContext) {
+function runComponentControlAction(
+  action: ComponentControlAction,
+  context: LowcodeActionRuntimeContext,
+  adapters: LowcodeActionRuntimeAdapters,
+) {
   const operation = action.args?.operation;
   if (!action.componentId || !operation) return;
 
@@ -363,7 +367,7 @@ function runComponentControlAction(action: ComponentControlAction, context: Lowc
 
   if (operation === 'setValue') {
     context.updateComponentProps?.(action.componentId, {
-      [action.args?.valueProp || 'value']: action.args?.value,
+      [action.args?.valueProp || 'value']: resolveComponentControlValue(action, context, adapters),
     });
     return;
   }
@@ -388,6 +392,42 @@ function runComponentControlAction(action: ComponentControlAction, context: Lowc
   if (target && method) {
     target[method]?.();
   }
+}
+
+function resolveComponentControlValue(
+  action: ComponentControlAction,
+  context: LowcodeActionRuntimeContext,
+  adapters: LowcodeActionRuntimeAdapters,
+) {
+  const value = action.args?.value;
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  const trimmedValue = value.trim();
+  const templateExpression = trimmedValue.match(/^\{\{\s*([\s\S]+?)\s*\}\}$/);
+  const expression = templateExpression?.[1] || (isRuntimeValuePath(trimmedValue) ? trimmedValue : '');
+
+  if (!expression) {
+    return value;
+  }
+
+  try {
+    return evaluateSafeExpression(expression, {
+      context: buildScriptContext(context),
+      event: context.eventData,
+      variables: context.variables,
+      args: context.args,
+    });
+  } catch (error) {
+    adapters.showMessage?.('组件联动值表达式执行失败', 'error');
+    adapters.onError?.(error, context, action);
+    return value;
+  }
+}
+
+function isRuntimeValuePath(value: string) {
+  return /^(event|variables|context|args)(\.|\[|$)/.test(value);
 }
 
 async function runCustomAction(

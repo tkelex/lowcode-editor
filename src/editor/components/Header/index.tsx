@@ -241,7 +241,7 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
   async function handleRollback(version: PageVersion) {
     if (!pageId) return;
     if (!canWritePage) {
-      message.warning('当前角色只有查看权限，不能删除版本');
+      message.warning('当前角色只有查看权限，不能回滚页面');
       return;
     }
 

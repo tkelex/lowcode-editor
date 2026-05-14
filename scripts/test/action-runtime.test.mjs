@@ -229,6 +229,68 @@ describe('lowcode action runtime', () => {
     assert.deepEqual(harness.componentCalls, [['open'], ['submit']]);
   });
 
+  it('resolves component control setValue sources at runtime', async () => {
+    const harness = createRuntimeHarness({
+      context: {
+        eventData: {
+          value: 'Ada',
+          values: {
+            role: 'Admin',
+          },
+        },
+        variables: {
+          fallback: 'Guest',
+        },
+      },
+    });
+
+    await runLowcodeActions([
+      {
+        actionType: 'componentControl',
+        componentId: 3,
+        args: {
+          operation: 'setValue',
+          valueProp: 'value',
+          value: 'fixed',
+        },
+      },
+      {
+        actionType: 'componentControl',
+        componentId: 3,
+        args: {
+          operation: 'setValue',
+          valueProp: 'defaultValue',
+          value: 'event.value',
+        },
+      },
+      {
+        actionType: 'componentControl',
+        componentId: 3,
+        args: {
+          operation: 'setValue',
+          valueProp: 'placeholder',
+          value: '{{event.values.role}}',
+        },
+      },
+      {
+        actionType: 'componentControl',
+        componentId: 3,
+        args: {
+          operation: 'setValue',
+          valueProp: 'title',
+          value: '{{event.missing || variables.fallback}}',
+        },
+      },
+    ], harness.context, harness.adapters);
+
+    assert.deepEqual(harness.propsUpdates, [
+      { componentId: 3, props: { value: 'fixed' } },
+      { componentId: 3, props: { defaultValue: 'Ada' } },
+      { componentId: 3, props: { placeholder: 'Admin' } },
+      { componentId: 3, props: { title: 'Guest' } },
+    ]);
+  });
+
   it('sets page variables from event expressions', async () => {
     const harness = createRuntimeHarness({
       context: {

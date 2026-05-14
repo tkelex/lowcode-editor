@@ -10,16 +10,10 @@ function Page({
     subTitle,
     showContent = true,
     showHeader = true,
-    showToolbar = true,
-    showSidebar = true,
-    showControlTips,
-    sidebarResizable,
-    sidebarFixed,
-    pullRefresh,
 }: CommonComponentProps) {
 
     const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop([...COMMON_CHILDREN, 'Modal'], id);
-    const hasHeader = showHeader && (pageTitle || subTitle || showToolbar || showSidebar);
+    const hasHeader = showHeader && (pageTitle || subTitle);
 
     return (
         <div
@@ -33,13 +27,6 @@ function Page({
                     <div className="min-w-0">
                         {pageTitle && <div className="editor-page-config-title">{pageTitle}</div>}
                         {subTitle && <div className="editor-page-config-subtitle">{subTitle}</div>}
-                    </div>
-                    <div className="editor-page-config-badges">
-                        {showToolbar && <span>工具栏</span>}
-                        {showSidebar && <span>{sidebarFixed ? '固定边栏' : '边栏'}</span>}
-                        {showSidebar && sidebarResizable && <span>边栏可调</span>}
-                        {showControlTips && <span>控件提示</span>}
-                        {pullRefresh && <span>下拉刷新</span>}
                     </div>
                 </div>
             )}

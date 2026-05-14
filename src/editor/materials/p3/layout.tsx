@@ -1,4 +1,5 @@
 import { Flex as AntdFlex, Space as AntdSpace, Steps, Tabs } from 'antd';
+import { useEffect, useState } from 'react';
 import { DraggableBlock, DropShell } from './common';
 import { parseLineItems } from './utils';
 import type { CommonComponentProps } from '../../interface';
@@ -70,8 +71,25 @@ export function TabsProd({ id: _id, name: _name, children: _children, itemsText,
     label: item.label,
     children: item.children || `${item.label}内容`,
   }));
+  const initialActiveKey = getValidTabKey(activeKey, items);
+  const [runtimeActiveKey, setRuntimeActiveKey] = useState(initialActiveKey);
 
-  return <div style={styles}><Tabs activeKey={activeKey} type={type || 'line'} items={items} {...restProps} /></div>;
+  useEffect(() => {
+    setRuntimeActiveKey(initialActiveKey);
+  }, [initialActiveKey]);
+
+  return <div style={styles}>
+    <Tabs
+      {...restProps}
+      activeKey={runtimeActiveKey}
+      type={type || 'line'}
+      items={items}
+      onChange={(nextActiveKey) => {
+        setRuntimeActiveKey(nextActiveKey);
+        restProps.onChange?.(nextActiveKey);
+      }}
+    />
+  </div>;
 }
 
 export function StepsDev({ itemsText, current, direction, ...props }: CommonComponentProps) {
@@ -81,5 +99,28 @@ export function StepsDev({ itemsText, current, direction, ...props }: CommonComp
 }
 
 export function StepsProd({ id: _id, name: _name, children: _children, itemsText, current, direction, styles, ...restProps }: CommonComponentProps) {
-  return <div style={styles}><Steps current={Number(current) || 0} direction={direction} items={parseLineItems(itemsText)} {...restProps} /></div>;
+  const initialCurrent = Number(current) || 0;
+  const [runtimeCurrent, setRuntimeCurrent] = useState(initialCurrent);
+
+  useEffect(() => {
+    setRuntimeCurrent(initialCurrent);
+  }, [initialCurrent]);
+
+  return <div style={styles}>
+    <Steps
+      {...restProps}
+      current={runtimeCurrent}
+      direction={direction}
+      items={parseLineItems(itemsText)}
+      onChange={(nextCurrent) => {
+        setRuntimeCurrent(nextCurrent);
+        restProps.onChange?.(nextCurrent);
+      }}
+    />
+  </div>;
+}
+
+function getValidTabKey(activeKey: unknown, items: Array<{ key: string }>) {
+  const key = activeKey === undefined || activeKey === null ? '' : String(activeKey);
+  return items.some(item => item.key === key) ? key : items[0]?.key;
 }

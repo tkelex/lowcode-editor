@@ -43,6 +43,21 @@ describe('safe expression evaluator', () => {
     }), true);
   });
 
+  it('returns operand values for logical fallback expressions', () => {
+    assert.equal(evaluateSafeExpression('event.missing || variables.defaultValue', {
+      ...context,
+      variables: {
+        defaultValue: 'Guest',
+      },
+    }), 'Guest');
+    assert.equal(evaluateSafeExpression('event.value && variables.defaultValue', {
+      ...context,
+      variables: {
+        defaultValue: 'Guest',
+      },
+    }), 'Guest');
+  });
+
   it('rejects unsafe expressions instead of executing code', () => {
     assert.throws(
       () => evaluateSafeExpression('globalThis.process.exit()', context),

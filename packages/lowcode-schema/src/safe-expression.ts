@@ -342,8 +342,8 @@ function readProperty(value: unknown, property: unknown) {
 }
 
 function applyBinaryOperator(operator: string, left: unknown, right: unknown) {
-  if (operator === '&&') return Boolean(left) && Boolean(right);
-  if (operator === '||') return Boolean(left) || Boolean(right);
+  if (operator === '&&') return left ? right : left;
+  if (operator === '||') return left ? left : right;
   if (operator === '==') return left === right;
   if (operator === '!=') return left !== right;
   if (operator === '===') return left === right;

@@ -69,22 +69,18 @@ class PreviewComponentBoundary extends React.Component<PreviewComponentBoundaryP
 
 export function Preview({ components: propsComponents, allowCustomJS = true }: PreviewProps) {
     const storeComponents = useComponetsStore((state) => state.components);
-    const updateStoreComponentProps = useComponetsStore((state) => state.updateComponentProps);
-    const updateStoreComponentStyles = useComponetsStore((state) => state.updateComponentStyles);
-    const [runtimeComponents, setRuntimeComponents] = useState<Component[]>(() => cloneComponents(propsComponents || []));
+    const sourceComponents = propsComponents ?? storeComponents;
+    const [runtimeComponents, setRuntimeComponents] = useState<Component[]>(() => cloneComponents(sourceComponents));
     const [variables, setVariables] = useState<Record<string, any>>({});
     const [dataSourceState, setDataSourceState] = useState<RuntimeDataSourceState>({});
-    const usingExternalComponents = propsComponents !== undefined;
-    const components = usingExternalComponents ? runtimeComponents : storeComponents;
+    const components = runtimeComponents;
     const { componentConfig } = useComponentConfigStore();
 
     const componentRefs = useRef<Record<string, any>>({});
 
     useEffect(() => {
-        if (propsComponents) {
-            setRuntimeComponents(cloneComponents(propsComponents));
-        }
-    }, [propsComponents]);
+        setRuntimeComponents(cloneComponents(sourceComponents));
+    }, [sourceComponents]);
 
     const pageProps = components[0]?.name === 'Page' ? components[0].props || {} : {};
     const dataSources = parseRuntimeDataSources(pageProps.dataSources);
@@ -189,8 +185,8 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
                         allowCustomJS,
                         variables,
                         setVariable: setRuntimeVariable,
-                        updateComponentProps: usingExternalComponents ? updateRuntimeComponentProps : updateStoreComponentProps,
-                        updateComponentStyles: usingExternalComponents ? updateRuntimeComponentStyles : updateStoreComponentStyles,
+                        updateComponentProps: updateRuntimeComponentProps,
+                        updateComponentStyles: updateRuntimeComponentStyles,
                         getAuthToken: () => getStoredToken() || undefined,
                     }).catch(() => {
                         message.error('事件动作执行失败');

@@ -1,4 +1,5 @@
 import { Descriptions, List, Pagination, Statistic } from 'antd';
+import { useEffect, useState } from 'react';
 import { DraggableBlock } from './common';
 import { parseChartData, parseDescriptions, parseJsonArray } from './utils';
 import type { CommonComponentProps } from '../../interface';
@@ -56,8 +57,32 @@ export function PaginationDev({ current, total, pageSize, showSizeChanger, ...pr
 }
 
 export function PaginationProd({ id: _id, name: _name, children: _children, current, total, pageSize, showSizeChanger, styles, ...restProps }: CommonComponentProps) {
+  const initialCurrent = Number(current) || 1;
+  const initialPageSize = Number(pageSize) || 10;
+  const [runtimeCurrent, setRuntimeCurrent] = useState(initialCurrent);
+  const [runtimePageSize, setRuntimePageSize] = useState(initialPageSize);
+
+  useEffect(() => {
+    setRuntimeCurrent(initialCurrent);
+  }, [initialCurrent]);
+
+  useEffect(() => {
+    setRuntimePageSize(initialPageSize);
+  }, [initialPageSize]);
+
   return <div style={styles}>
-    <Pagination {...restProps} current={Number(current) || 1} total={Number(total) || 50} pageSize={Number(pageSize) || 10} showSizeChanger={showSizeChanger} />
+    <Pagination
+      {...restProps}
+      current={runtimeCurrent}
+      total={Number(total) || 50}
+      pageSize={runtimePageSize}
+      showSizeChanger={showSizeChanger}
+      onChange={(nextCurrent, nextPageSize) => {
+        setRuntimeCurrent(nextCurrent);
+        setRuntimePageSize(nextPageSize);
+        restProps.onChange?.(nextCurrent, nextPageSize);
+      }}
+    />
   </div>;
 }
 

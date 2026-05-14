@@ -23,8 +23,6 @@ const configOnlyProps = new Map([
     new Set([
       'variables',
       'dataSources',
-      'componentData',
-      'initApi',
       'seoTitle',
       'seoDescription',
       'favicon',
@@ -33,7 +31,6 @@ const configOnlyProps = new Map([
 ]);
 
 const modeOptionalProps = new Map([
-  ['Page:prod', new Set(['showToolbar', 'showSidebar', 'showControlTips', 'sidebarResizable', 'sidebarFixed', 'pullRefresh'])],
   ['Drawer:dev', new Set(['placement', 'width', 'maskClosable'])],
   ['Notification:dev', new Set(['description', 'placement'])],
 ]);
