@@ -223,6 +223,116 @@ const longPageRecord = {
   },
 };
 
+const aiGeneratedResult = {
+  summary: '已生成 AI 测试页面草稿',
+  warnings: ['这是 e2e mock 返回的可编辑草稿'],
+  assumptions: ['用户确认前不会写入当前页面'],
+  components: [
+    {
+      id: 1,
+      name: 'Page',
+      props: {},
+      desc: '页面',
+      children: [
+        {
+          id: 3001,
+          name: 'Container',
+          desc: 'AI 容器',
+          parentId: 1,
+          props: {},
+          styles: { padding: 16 },
+          children: [
+            {
+              id: 3002,
+              name: 'Text',
+              desc: 'AI 标题',
+              parentId: 3001,
+              props: { text: 'AI 测试页面' },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+};
+
+const aiAgentRunResult = {
+  runId: 'agent-e2e',
+  status: 'awaiting_confirmation',
+  context: {
+    projectId: project.id,
+    pageId: pageRecord.id,
+    selectedComponentId: 1001,
+    selectedComponentName: 'Container',
+    targetScope: 'selection',
+    userPrompt: '给当前容器添加说明文本',
+    componentSummaries: [],
+    materials: [],
+  },
+  plan: ['读取当前页面上下文', '生成候选 patch', '校验候选修改'],
+  events: [
+    {
+      id: 'event-1',
+      type: 'plan',
+      title: '执行计划已创建',
+      detail: '读取当前页面上下文 / 生成候选 patch / 校验候选修改',
+      createdAt: now,
+    },
+    {
+      id: 'event-2',
+      type: 'candidate',
+      title: '候选修改已准备好',
+      detail: '给当前容器添加说明文本',
+      createdAt: now,
+    },
+  ],
+  toolCalls: [],
+  candidate: {
+    id: 'candidate-e2e',
+    kind: 'patch',
+    summary: '给当前容器添加一段 Agent 说明文本。',
+    impactScope: 'selection',
+    warnings: ['这是 e2e mock 返回的候选 patch'],
+    assumptions: ['只修改当前选中容器'],
+    validationErrors: [],
+    validationWarnings: [],
+    patch: {
+      operations: [
+        {
+          type: 'addChild',
+          parentId: 1001,
+          component: {
+            id: 4001,
+            name: 'Text',
+            desc: 'Agent 文本',
+            props: { text: 'Agent 修改已应用' },
+          },
+        },
+      ],
+    },
+    previewComponents: [
+      {
+        ...pageRecord.schema.components[0],
+        children: [
+          {
+            ...pageRecord.schema.components[0].children[0],
+            children: [
+              ...pageRecord.schema.components[0].children[0].children,
+              {
+                id: 4001,
+                name: 'Text',
+                desc: 'Agent 文本',
+                parentId: 1001,
+                props: { text: 'Agent 修改已应用' },
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+
 test('editor setting panel stays readable and preview remains recoverable', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -262,6 +372,43 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await page.getByRole('button', { name: '退出预览' }).click();
   await expect(settingPanel).toBeVisible();
 });
+
+test('ai builder previews and applies generated page after confirmation', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+  await page.getByText('AI', { exact: true }).click();
+  await page.getByPlaceholder('例如：生成一个用户管理页面，包含统计卡片、用户列表、新增/编辑表单').fill('生成一个用户管理页面');
+
+  await page.getByRole('button', { name: '生成草稿' }).click();
+  await expect(page.getByText('已生成 AI 测试页面草稿')).toBeVisible();
+  await expect(page.getByText('用户确认前不会写入当前页面')).toBeVisible();
+  await expect(page.getByText('AI 测试页面', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: '应用到页面' }).click();
+  await expect(page.locator('[data-component-id="3002"]')).toContainText('AI 测试页面');
+});
+
+test('ai agent shows run details and applies candidate patch after confirmation', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+  await page.locator('[data-component-id="1001"]').first().click();
+  await page.getByText('AI', { exact: true }).click();
+  await page.getByPlaceholder('例如：生成一个用户管理页面，包含统计卡片、用户列表、新增/编辑表单').fill('给当前容器添加说明文本');
+
+  await page.getByRole('button', { name: 'Agent 修改' }).click();
+  await expect(page.getByText('执行计划已创建')).toBeVisible();
+  await expect(page.getByText('候选修改已准备好')).toBeVisible();
+  await expect(page.getByText('给当前容器添加一段 Agent 说明文本。').first()).toBeVisible();
+  await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: '应用 Agent 修改' }).click();
+  await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
+});
+
 
 test('editor side panes can be hidden and restored from border toggles', async ({ page }) => {
   await mockEditorApi(page);
@@ -521,9 +668,9 @@ test('setting property panel groups searchable fields and edits extended props',
 
   await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^基本/ })).toBeVisible();
   await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^数据/ })).toBeVisible();
-  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^移动端/ })).toBeVisible();
+  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^移动端/ })).toHaveCount(0);
   await expect(settingPanel.getByLabel('页面标题')).toBeVisible();
-  await expect(settingPanel.getByRole('textbox', { name: /组件静态数据/ })).toBeVisible();
+  await expect(settingPanel.getByRole('textbox', { name: /数据源 JSON/ })).toBeVisible();
 
   const pageTitleInput = settingPanel.getByLabel('页面标题');
   await pageTitleInput.fill('属性面板标题');
@@ -533,13 +680,9 @@ test('setting property panel groups searchable fields and edits extended props',
   await settingPanel.getByLabel('副标题').fill('来自属性页签');
   await expect(page.locator('.editor-page-config-subtitle')).toHaveText('来自属性页签');
 
-  const pullRefresh = settingPanel.getByRole('switch', { name: '下拉刷新' });
-  await pullRefresh.click();
-  await expect(page.locator('.editor-page-config-badges')).toContainText('下拉刷新');
-
   const search = settingPanel.getByPlaceholder('搜索属性配置');
-  await search.fill('初始化接口');
-  await expect(settingPanel.getByLabel('初始化接口')).toBeVisible();
+  await search.fill('数据源');
+  await expect(settingPanel.getByRole('textbox', { name: /数据源 JSON/ })).toBeVisible();
   await expect(settingPanel.getByLabel('页面标题')).toHaveCount(0);
   await search.fill('');
 
@@ -739,6 +882,16 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
 
     if (method === 'GET' && pathname === `/pages/${editorPage.id}`) {
       await json(route, editorPage);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/pages/${editorPage.id}/ai/page-generation`) {
+      await json(route, aiGeneratedResult);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/pages/${editorPage.id}/ai/agent-runs`) {
+      await json(route, aiAgentRunResult);
       return;
     }
 

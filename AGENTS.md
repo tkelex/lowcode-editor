@@ -34,6 +34,16 @@ GitHub Copilot and path-specific agent instructions live in `.github/copilot-ins
 - Preview production build: `npm run preview`
 - Run full local check: `npm run check`
 
+## AI Page Builder
+
+- AI 页面搭建只生成当前低代码组件树 schema，不生成任意 React/Vue/HTML 源码。
+- AI agent 只能生成低代码 schema 或 schema patch；不得绕过现有编辑器 store、保存、版本和发布流程。
+- 模型调用必须走后端 AI 网关；前端不得保存或发送模型 API key。
+- 后端 AI provider 使用 `AI_PROVIDER_BASE_URL`、`AI_PROVIDER_API_KEY`、`AI_PROVIDER_MODEL`、`AI_PROVIDER_TIMEOUT_MS` 配置；未配置 key 时返回本地规则生成的可编辑草稿。
+- AI 输出写入编辑器前必须通过 `validateAiGeneratedComponents`，覆盖物料白名单、组件树、父子关系、事件动作和 custom JS 限制。
+- AI agent 候选 patch 应用前必须通过 `applyAiComponentPatch` 或等效校验，覆盖 stale baseline、目标组件、父子关系、物料白名单和 custom JS 限制。
+- AI 结果必须先展示摘要、warnings、assumptions、执行轨迹和预览，由用户确认后才能替换整页、插入当前容器或应用 patch。
+
 ## Project Overview
 
 This is a Vite + React + TypeScript low-code editor. The app entry is `src/main.tsx`, which renders `src/app/App.tsx` through `src/app/providers/AppProviders.tsx`. `src/App.tsx` is only a compatibility re-export.

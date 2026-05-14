@@ -66,11 +66,7 @@ export function ComponentMethod(props: ComponentMethodProps) {
         setSelectedComponent(nextComponent)
         setCurMethod(nextMethod);
 
-        if (nextMethod) {
-            emit(value, nextMethod, paramsText);
-        } else {
-            onChange?.(undefined);
-        }
+        emit(value, nextMethod || '', paramsText);
     }
 
     function componentMethodChange(value: string) {
@@ -89,9 +85,7 @@ export function ComponentMethod(props: ComponentMethodProps) {
         }
     }
 
-    function emit(componentId: number, method = curMethod, params = paramsText) {
-        if (!method) return;
-
+    function emit(componentId: number, method = curMethod || '', params = paramsText) {
         onChange?.({
             actionType: 'componentAction',
             componentId,

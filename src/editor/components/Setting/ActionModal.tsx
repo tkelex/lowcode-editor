@@ -13,6 +13,9 @@ import { ComponentControl } from "./actions/ComponentControl";
 import { SetVariable } from "./actions/SetVariable";
 import type { ActionType, LowcodeAction } from "../../events/types";
 import type { ComponentEvent } from "../../registry/component-config";
+import { useComponentConfigStore } from "../../registry/component-config";
+import type { Component } from "../../stores/components";
+import { useComponetsStore } from "../../stores/components";
 import {
     actionCatalog,
     actionCategories,
@@ -54,18 +57,24 @@ export function ActionModal(props: ActionModalProps) {
     const [curConfig, setCurConfig] = useState<ActionConfig>();
     const [commonControls, setCommonControls] = useState<ActionCommonControls>({});
     const [keyword, setKeyword] = useState('');
+    const components = useComponetsStore((state) => state.components);
+    const { componentConfig } = useComponentConfigStore();
 
     const allowedActions = useMemo(() => defaultActionOrder.filter((actionType) => {
         return event?.allowedActions?.includes(actionType) ?? true;
     }), [event]);
 
+    const availableActions = useMemo(() => {
+        return allowedActions.filter((actionType) => isActionAvailable(actionType, components, componentConfig));
+    }, [allowedActions, components, componentConfig]);
+
     const actionTypes = useMemo(() => {
-        if (action?.actionType && !allowedActions.includes(action.actionType)) {
-            return [action.actionType, ...allowedActions];
+        if (action?.actionType && !availableActions.includes(action.actionType)) {
+            return [action.actionType, ...availableActions];
         }
 
-        return allowedActions;
-    }, [action?.actionType, allowedActions]);
+        return availableActions;
+    }, [action?.actionType, availableActions]);
     const actionTypesKey = actionTypes.join('|');
 
     const actionItems = useMemo(() => {
@@ -328,4 +337,42 @@ function ActionTypeButton(props: {
         <span className="event-action-type-label">{item.label}</span>
         <span className="event-action-type-desc">{item.description}</span>
     </button>;
+}
+
+function isActionAvailable(
+    actionType: ActionType,
+    components: Component[],
+    componentConfig: Record<string, any>,
+) {
+    if (actionType === 'componentAction') {
+        return flattenComponents(components).some((component) => {
+            return (componentConfig[component.name]?.methods || []).length > 0;
+        });
+    }
+
+    if (
+        actionType === 'componentControl'
+        || actionType === 'setComponentProps'
+        || actionType === 'setComponentStyles'
+    ) {
+        return flattenComponents(components).some((component) => component.name !== 'Page');
+    }
+
+    return true;
+}
+
+function flattenComponents(components: Component[]) {
+    const result: Component[] = [];
+
+    function walk(items: Component[]) {
+        items.forEach((component) => {
+            result.push(component);
+            if (component.children?.length) {
+                walk(component.children);
+            }
+        });
+    }
+
+    walk(components);
+    return result;
 }

@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './ai';
 export * from './admin';
 export * from './assets';
 export * from './http';

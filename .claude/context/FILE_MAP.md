@@ -53,6 +53,7 @@
 | `packages/lowcode-schema/src/migrate.ts` | 共享 schema 迁移器，补齐旧数据并把旧事件字段迁移到 `props.onEvent`。 | 高风险；打开页面、回滚、公开发布页、本地缓存恢复和后端入库都会调用。 |
 | `packages/lowcode-schema/src/registry.ts` | 内置物料 schema registry，记录组件是否可接收子组件。 | 必须和 `src/editor/registry/component-config.tsx` 的物料/父子关系保持一致。 |
 | `packages/lowcode-schema/src/validate.ts` | 前后端共享组件树校验器。 | 高风险；过严会拦截旧页面，过松会放过非法 schema。 |
+| `packages/lowcode-schema/src/ai-*.ts` | AI 页面生成和 agent 共享协议、物料白名单、候选 patch、stale baseline 和写入前安全校验。 | AI 只能产出 schema/patch；改动需同步前端应用、后端 agent 和测试。 |
 
 ## 前端应用入口
 
@@ -85,6 +86,7 @@
 | `src/shared/api/auth.ts` | register/login/me/logout/token storage。 | 要和 `/api/auth/*` 保持一致。 |
 | `src/shared/api/projects.ts` | 项目 API 封装。 | 要和 ProjectsController 路由保持一致。 |
 | `src/shared/api/pages.ts` | 页面 API 封装、schema 保存、版本列表、回滚、版本删除、发布、取消发布和公开页读取。 | 影响保存、版本管理和发布访问闭环。 |
+| `src/shared/api/ai.ts` | AI 页面生成和 AI agent run API 封装。 | 前端不得持有模型 key；agent 候选结果必须用户确认后再应用。 |
 | `src/shared/api/admin.ts` | 平台管理员 API 封装。 | 要和 AdminController 路由保持一致。 |
 | `src/shared/api/types.ts` | 前端 API 类型，`PageSchema` 复用 `packages/lowcode-schema`。 | 后端响应结构或共享 schema 类型变化时同步。 |
 | `src/api/*` | 旧 API 路径兼容导出。 | 不要在这里新增主逻辑。 |
@@ -116,6 +118,7 @@
 | `src/editor/events.ts` | 旧事件单文件兼容导出。 | 不要在这里新增主逻辑。 |
 | `src/editor/components/Setting/index.tsx` | 设置面板入口。 | 影响属性、样式、事件配置。 |
 | `src/editor/components/Material/index.tsx` | 左侧物料面板，按分类展示并支持搜索、收藏和常用模板。 | 新物料分类、搜索关键字、模板引用和展示顺序依赖 registry 元信息。 |
+| `src/editor/components/AiBuilderPanel/index.tsx` | 左侧 AI 页签，支持一次性页面草稿和 AI agent 候选 patch；确认后写入组件树。 | 高风险；必须保留预览确认、stale 校验、custom JS 禁止和前端不持有模型 key。 |
 | `src/editor/components/Material/model.ts` | 物料面板分类元信息、模板类型、模板恢复和模板保存序列化工具。 | 只放物料面板内部模型和纯工具；内置模板后续可继续拆到独立文件。 |
 | `src/editor/components/Material/builtinTemplates.ts` | 物料面板内置区块/页面模板。 | 只放静态内置模板定义；项目模板 API 仍在 Material 主组件中编排。 |
 | `src/editor/components/MaterialItem/index.tsx` | 单个物料拖拽卡片。 | 拖拽 item.type 必须保持物料 name，否则无法添加组件。 |
@@ -182,6 +185,7 @@
 | `server/src/modules/pages/page-versions.service.ts` | PageVersion 列表、创建、回滚和删除。 | 高风险；影响版本号、回滚和删除历史版本。 |
 | `server/src/modules/pages/page-publish.service.ts` | 发布、取消发布和公开读取发布快照。 | 高风险；影响公开页和草稿/发布隔离。 |
 | `server/src/modules/pages/dto/*.ts` | 页面 DTO 校验，包括 routePath 和 rollback versionId。 | 前端创建页面和回滚接口要同步。 |
+| `server/src/modules/ai/*` | AI 页面生成、模型网关、agent 编排、上下文构建、白名单工具和审计。 | 高风险；模型 key 只在后端，工具不得直接保存/发布/执行任意代码，候选结果必须校验。 |
 
 ## 数据库
 

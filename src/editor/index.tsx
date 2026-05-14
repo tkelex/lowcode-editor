@@ -142,7 +142,7 @@ export default function ReactPlayground({ pageId, projectId, projectRole, onBack
                             {leftPanelVisible && (
                                 <Allotment.Pane key="left-panel" preferredSize={leftPaneSize} maxSize={420} minSize={LEFT_PANEL_MIN_SIZE}>
                                     <div className="editor-pane-shell editor-pane-shell-left">
-                                        <MaterialWrapper projectId={projectId} projectRole={projectRole} />
+                                        <MaterialWrapper pageId={pageId} projectId={projectId} projectRole={projectRole} />
                                         {renderLeftPanelToggle()}
                                     </div>
                                 </Allotment.Pane>

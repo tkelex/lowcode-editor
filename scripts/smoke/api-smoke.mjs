@@ -141,6 +141,61 @@ async function main() {
 
   assertEqual(savedPage.schema.components[0].children[0].name, 'Text', 'saved schema should keep Text component');
 
+  const aiDraft = await request(`/pages/${page.id}/ai/page-generation`, {
+    method: 'POST',
+    token: editor.token,
+    body: {
+      prompt: '生成一个用户管理 CRUD 页面',
+      target: 'crud',
+      writeMode: 'replacePage',
+      responseSample: {
+        data: {
+          items: [
+            { id: 1, name: '张三', status: '启用' },
+          ],
+        },
+      },
+    },
+  });
+  assertEqual(aiDraft.components[0].name, 'Page', 'AI draft should return editable Page schema');
+  if (!Array.isArray(aiDraft.warnings)) {
+    throw new Error('AI draft should include warnings array');
+  }
+
+  const viewerAiDenied = await request(`/pages/${page.id}/ai/page-generation`, {
+    method: 'POST',
+    token: viewer.token,
+    body: {
+      prompt: 'viewer should not generate',
+    },
+    expectedStatus: 403,
+  });
+  assertEqual(viewerAiDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not generate AI pages');
+
+  const agentRun = await request(`/pages/${page.id}/ai/agent-runs`, {
+    method: 'POST',
+    token: editor.token,
+    body: {
+      prompt: '给当前页面增加一个用户说明区块',
+      targetScope: 'selection',
+      selectedComponentId: 1,
+      currentComponents: savedPage.schema.components,
+    },
+  });
+  assertEqual(agentRun.status, 'awaiting_confirmation', 'AI agent should return reviewable candidate');
+  assertEqual(agentRun.candidate.kind, 'patch', 'AI agent should return patch candidate');
+
+  const viewerAgentDenied = await request(`/pages/${page.id}/ai/agent-runs`, {
+    method: 'POST',
+    token: viewer.token,
+    body: {
+      prompt: 'viewer should not run agent',
+      targetScope: 'page',
+    },
+    expectedStatus: 403,
+  });
+  assertEqual(viewerAgentDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not run AI agent');
+
   const versions = await request(`/pages/${page.id}/versions`, { token: viewer.token });
   if (!Array.isArray(versions) || versions.length === 0) {
     throw new Error('saving page should create at least one version');
@@ -275,6 +330,8 @@ async function main() {
   const actions = auditLogs.map((log) => log.action);
   assertIncludes(actions, 'project.member.add', 'audit logs should include member add');
   assertIncludes(actions, 'page.update', 'audit logs should include page save');
+  assertIncludes(actions, 'ai.page.generate', 'audit logs should include AI page generation');
+  assertIncludes(actions, 'ai.agent.run', 'audit logs should include AI agent run');
   assertIncludes(actions, 'page.publish', 'audit logs should include publish');
   assertIncludes(actions, 'template.create', 'audit logs should include template create');
   assertIncludes(actions, 'asset.upload', 'audit logs should include asset upload');
