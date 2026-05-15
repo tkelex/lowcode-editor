@@ -182,7 +182,8 @@ async function main() {
   assertEqual(generatedPage.schema.metadata.dataSourceModelKey, dataSourceModelInput.key, 'generated CRUD page should save model metadata');
 
   const viewerPages = await request(`/projects/${project.id}/pages`, { token: viewer.token });
-  assertEqual(viewerPages[0].id, page.id, 'viewer should read pages');
+  assertIncludes(viewerPages.map((item) => item.id), page.id, 'viewer should read pages');
+  assertIncludes(viewerPages.map((item) => item.id), generatedPage.id, 'viewer should read generated CRUD pages');
 
   const viewerSaveDenied = await request(`/pages/${page.id}`, {
     method: 'PATCH',
