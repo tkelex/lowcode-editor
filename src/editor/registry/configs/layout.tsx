@@ -181,6 +181,8 @@ Page: {
                 subTitle: '',
                 showContent: true,
                 showHeader: true,
+                pullRefresh: false,
+                initApi: '',
                 seoTitle: '',
                 seoDescription: '',
                 favicon: '',
@@ -201,11 +203,13 @@ Page: {
                     placeholder: '{\n  "form": {},\n  "table": {}\n}',
                     rows: 4,
                 }),
-                jsonSetter('dataSources', '数据源 JSON', {
+                jsonSetter('dataSources', '组件静态数据', {
                     group: 'data',
                     placeholder: '{\n  "items": []\n}',
                     rows: 4,
                 }),
+                switchSetter('pullRefresh', '下拉刷新', { group: 'mobile', help: '用于标记移动端页面需要下拉刷新交互，具体运行能力可按项目接入。' }),
+                urlSetter('initApi', '初始化接口', { group: 'mobile', help: '用于记录页面初始化时需要请求的接口地址。' }),
                 inputSetter('seoTitle', 'SEO 标题', { group: 'advanced', help: '发布页面时用于浏览器和搜索引擎识别的标题。' }),
                 inputSetter('seoDescription', 'SEO 描述', { group: 'advanced', help: '发布页面的搜索摘要描述。' }),
                 urlSetter('favicon', 'Favicon 地址', { group: 'advanced', help: '浏览器标签页图标地址。' }),

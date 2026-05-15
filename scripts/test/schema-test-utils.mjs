@@ -10,6 +10,7 @@ export const {
   applyAiComponentPatch,
   createAiComponentTreeFingerprint,
   createAiRepairPromptFromIssues,
+  generateCrudPageSchema,
   createLowcodeEventData,
   evaluateSafeExpression,
   migratePageSchema,
@@ -20,6 +21,7 @@ export const {
   runLowcodeActions,
   validateAiComponentPatch,
   validateAiGeneratedComponents,
+  validateDataSourceModelConfig,
   validateComponentTree,
 } = require('../../server/dist/packages/lowcode-schema/src/index.js');
 

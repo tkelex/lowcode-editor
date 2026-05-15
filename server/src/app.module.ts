@@ -4,6 +4,7 @@ import { AdminModule } from './modules/admin/admin.module';
 import { AiModule } from './modules/ai/ai.module';
 import { AssetsModule } from './modules/assets/assets.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { DataSourceModelsModule } from './modules/data-source-models/data-source-models.module';
 import { HealthModule } from './modules/health/health.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { ProjectsModule } from './modules/projects/projects.module';
@@ -21,6 +22,7 @@ import { validateEnv } from './config/env.validation';
     AuthModule,
     ProjectsModule,
     PagesModule,
+    DataSourceModelsModule,
     TemplatesModule,
     AssetsModule,
     AdminModule,

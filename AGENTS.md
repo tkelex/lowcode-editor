@@ -76,6 +76,13 @@ Each material under `src/editor/materials/<Name>/` generally has:
 
 When adding a new material, update the registry and ensure both edit and preview rendering paths work.
 
+## Data Source Models and CRUD Generation
+
+- 数据源模型只保存外部 API 配置、字段映射和生成选项；平台不托管用户业务记录，不按模型生成业务数据库表。
+- CRUD 生成器必须输出普通 Page schema，并继续使用现有物料 registry、`props.onEvent[eventName].actions`、运行态数据源、页面保存、版本和发布链路。
+- 列表/详情读取优先复用 Page `dataSources` 和物料 `dataSourceId`；新增、编辑、删除等写入动作复用 `http` event action。
+- 项目级数据源模型 API 必须复用 `ProjectAccessService`，owner/editor 可写，viewer 只读，创建、更新和删除需要写入 AuditLog。
+
 ## Event Actions
 
 Event configuration is stored under `props.onEvent[eventName].actions`. The runtime remains compatible with older `props.onClick.actions` style schema and migrates edited events toward `onEvent`.

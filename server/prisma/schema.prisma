@@ -40,6 +40,7 @@ model Project {
   members     ProjectMember[]
   templates   PageTemplate[]
   assets      Asset[]
+  dataSourceModels ProjectDataSourceModel[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
 
@@ -158,6 +159,27 @@ model Asset {
   @@index([projectId, createdAt])
   @@index([uploadedById])
   @@index([category])
+}
+
+model ProjectDataSourceModel {
+  id           Int      @id @default(autoincrement())
+  projectId    Int
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name         String
+  key          String
+  description  String?
+  primaryField String
+  listApi      Json?
+  detailApi    Json?
+  createApi    Json?
+  updateApi    Json?
+  deleteApi    Json?
+  fields       Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([projectId, key])
+  @@index([projectId, updatedAt])
 }
 
 enum ProjectMemberRole {

@@ -2,6 +2,7 @@ export * from './auth';
 export * from './ai';
 export * from './admin';
 export * from './assets';
+export * from './data-source-models';
 export * from './http';
 export * from './pages';
 export * from './projects';

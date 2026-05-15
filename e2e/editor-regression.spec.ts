@@ -409,6 +409,42 @@ test('ai agent shows run details and applies candidate patch after confirmation'
   await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
 });
 
+test('project dashboard creates data source model and generated CRUD page', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await page.getByRole('button', { name: '数据源模型' }).click();
+  const drawer = page.getByRole('dialog', { name: /数据源模型/ });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText('暂无数据源模型')).toBeVisible();
+
+  await drawer.getByRole('button', { name: '新建模型' }).click();
+  const modelDialog = page.getByRole('dialog', { name: '新建数据源模型' });
+  await expect(modelDialog).toBeVisible();
+  await modelDialog.getByLabel('模型名称').fill('用户');
+  await modelDialog.getByLabel('模型标识').fill('user');
+  await modelDialog.getByLabel('主键字段').fill('id');
+  await modelDialog.locator('#listApi_url').fill('/external/users');
+  await modelDialog.locator('#listApi_responseDataPath').fill('data.items');
+  await modelDialog.getByRole('button', { name: '保存模型' }).click();
+
+  await expect(modelDialog).toHaveCount(0);
+  await expect(drawer.getByText('用户')).toBeVisible();
+  await expect(drawer.getByText('user / 主键：id')).toBeVisible();
+
+  await drawer.getByRole('button', { name: /生\s*成/ }).click();
+  const generateDialog = page.getByRole('dialog', { name: /生成 CRUD 页面/ });
+  await expect(generateDialog).toBeVisible();
+  await expect(generateDialog.getByLabel('页面类型')).toBeVisible();
+  await generateDialog.getByRole('button', { name: '生成页面' }).click();
+
+  await expect(generateDialog.getByText('已创建页面：用户列表（/user）')).toBeVisible();
+  await generateDialog.getByRole('button', { name: /关\s*闭/ }).click();
+  await drawer.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByText('用户列表')).toBeVisible();
+  await expect(page.getByText('路径：/user')).toBeVisible();
+});
+
 
 test('editor side panes can be hidden and restored from border toggles', async ({ page }) => {
   await mockEditorApi(page);
@@ -668,9 +704,9 @@ test('setting property panel groups searchable fields and edits extended props',
 
   await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^基本/ })).toBeVisible();
   await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^数据/ })).toBeVisible();
-  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^移动端/ })).toHaveCount(0);
+  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^移动端/ })).toBeVisible();
   await expect(settingPanel.getByLabel('页面标题')).toBeVisible();
-  await expect(settingPanel.getByRole('textbox', { name: /数据源 JSON/ })).toBeVisible();
+  await expect(settingPanel.getByRole('textbox', { name: /组件静态数据/ })).toBeVisible();
 
   const pageTitleInput = settingPanel.getByLabel('页面标题');
   await pageTitleInput.fill('属性面板标题');
@@ -681,8 +717,8 @@ test('setting property panel groups searchable fields and edits extended props',
   await expect(page.locator('.editor-page-config-subtitle')).toHaveText('来自属性页签');
 
   const search = settingPanel.getByPlaceholder('搜索属性配置');
-  await search.fill('数据源');
-  await expect(settingPanel.getByRole('textbox', { name: /数据源 JSON/ })).toBeVisible();
+  await search.fill('静态数据');
+  await expect(settingPanel.getByRole('textbox', { name: /组件静态数据/ })).toBeVisible();
   await expect(settingPanel.getByLabel('页面标题')).toHaveCount(0);
   await search.fill('');
 
@@ -854,6 +890,8 @@ test('styled form and feedback materials apply visual styles to real controls', 
 });
 
 async function mockEditorApi(page: Page, editorPage = pageRecord) {
+  const dataSourceModels: any[] = [];
+
   await page.addInitScript(() => {
     window.localStorage.removeItem('xxx');
     window.localStorage.setItem('lowcode_editor_token', 'mock-editor-token');
@@ -877,6 +915,37 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
 
     if (method === 'GET' && pathname === `/projects/${project.id}/pages`) {
       await json(route, [editorPage]);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/projects/${project.id}/pages`) {
+      const body = JSON.parse(request.postData() || '{}');
+      await json(route, {
+        ...editorPage,
+        id: 21,
+        name: body.name,
+        routePath: body.routePath,
+        schema: body.schema,
+      });
+      return;
+    }
+
+    if (method === 'GET' && pathname === `/projects/${project.id}/data-source-models`) {
+      await json(route, dataSourceModels);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/projects/${project.id}/data-source-models`) {
+      const body = JSON.parse(request.postData() || '{}');
+      const model = {
+        ...body,
+        id: String(dataSourceModels.length + 1),
+        projectId: project.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      dataSourceModels.push(model);
+      await json(route, model);
       return;
     }
 

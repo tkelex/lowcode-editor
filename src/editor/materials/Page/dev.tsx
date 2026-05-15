@@ -10,10 +10,16 @@ function Page({
     subTitle,
     showContent = true,
     showHeader = true,
+    pullRefresh,
+    initApi,
 }: CommonComponentProps) {
 
     const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop([...COMMON_CHILDREN, 'Modal'], id);
     const hasHeader = showHeader && (pageTitle || subTitle);
+    const badges = [
+        pullRefresh ? '下拉刷新' : '',
+        initApi ? '初始化接口' : '',
+    ].filter(Boolean);
 
     return (
         <div
@@ -28,6 +34,11 @@ function Page({
                         {pageTitle && <div className="editor-page-config-title">{pageTitle}</div>}
                         {subTitle && <div className="editor-page-config-subtitle">{subTitle}</div>}
                     </div>
+                    {badges.length > 0 && (
+                        <div className="editor-page-config-badges">
+                            {badges.map((badge) => <span key={badge}>{badge}</span>)}
+                        </div>
+                    )}
                 </div>
             )}
             {showContent
