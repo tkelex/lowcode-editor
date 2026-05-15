@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { PrismaClient, UserRole, UserStatus } = require('../../server/node_modules/@prisma/client');
+const { generateCrudPageSchema } = require('../../server/dist/packages/lowcode-schema/src/index.js');
 
 const apiBaseUrl = (process.env.API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 const runId = Date.now();
@@ -83,6 +84,82 @@ async function main() {
   });
   assertEqual(viewerCreateDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not create pages');
 
+  const dataSourceModelInput = {
+    name: 'Smoke User',
+    key: `smoke_user_${runId}`,
+    primaryField: 'id',
+    listApi: {
+      url: '/external/users',
+      method: 'GET',
+      responseDataPath: 'data.items',
+    },
+    detailApi: {
+      url: '/external/users/{{ variables.recordId }}',
+      method: 'GET',
+      responseDataPath: 'data',
+    },
+    createApi: {
+      url: '/external/users',
+      method: 'POST',
+    },
+    updateApi: {
+      url: '/external/users/{{ variables.recordId }}',
+      method: 'PATCH',
+    },
+    fields: [
+      {
+        key: 'id',
+        label: 'ID',
+        type: 'text',
+        listVisible: true,
+        formVisible: false,
+        detailVisible: true,
+      },
+      {
+        key: 'name',
+        label: '姓名',
+        type: 'text',
+        required: true,
+        listVisible: true,
+        formVisible: true,
+        detailVisible: true,
+      },
+    ],
+  };
+
+  const viewerModelDenied = await request(`/projects/${project.id}/data-source-models`, {
+    method: 'POST',
+    token: viewer.token,
+    body: dataSourceModelInput,
+    expectedStatus: 403,
+  });
+  assertEqual(viewerModelDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not create data source models');
+
+  const dataSourceModel = await request(`/projects/${project.id}/data-source-models`, {
+    method: 'POST',
+    token: editor.token,
+    body: dataSourceModelInput,
+  });
+  assertEqual(dataSourceModel.key, dataSourceModelInput.key, 'editor should create data source model config');
+
+  const viewerModels = await request(`/projects/${project.id}/data-source-models`, { token: viewer.token });
+  assertIncludes(viewerModels.map((item) => item.id), dataSourceModel.id, 'viewer should read data source models');
+
+  const updatedDataSourceModel = await request(`/data-source-models/${dataSourceModel.id}`, {
+    method: 'PATCH',
+    token: editor.token,
+    body: {
+      description: 'Updated by smoke test',
+    },
+  });
+  assertEqual(updatedDataSourceModel.description, 'Updated by smoke test', 'editor should update data source model');
+
+  const generatedSchema = generateCrudPageSchema(updatedDataSourceModel, {
+    pageType: 'list',
+    pageName: 'Smoke Generated CRUD',
+    routePath: `/smoke-crud-${runId}`,
+  }).schema;
+
   const page = await request(`/projects/${project.id}/pages`, {
     method: 'POST',
     token: editor.token,
@@ -92,6 +169,17 @@ async function main() {
     },
   });
   assertEqual(page.createdById, editor.user.id, 'editor should create page as actor');
+
+  const generatedPage = await request(`/projects/${project.id}/pages`, {
+    method: 'POST',
+    token: editor.token,
+    body: {
+      name: 'Smoke Generated CRUD',
+      routePath: `/smoke-crud-${runId}`,
+      schema: generatedSchema,
+    },
+  });
+  assertEqual(generatedPage.schema.metadata.dataSourceModelKey, dataSourceModelInput.key, 'generated CRUD page should save model metadata');
 
   const viewerPages = await request(`/projects/${project.id}/pages`, { token: viewer.token });
   assertEqual(viewerPages[0].id, page.id, 'viewer should read pages');
@@ -276,6 +364,8 @@ async function main() {
   assertIncludes(actions, 'project.member.add', 'audit logs should include member add');
   assertIncludes(actions, 'page.update', 'audit logs should include page save');
   assertIncludes(actions, 'page.publish', 'audit logs should include publish');
+  assertIncludes(actions, 'dataSourceModel.create', 'audit logs should include data source model create');
+  assertIncludes(actions, 'dataSourceModel.update', 'audit logs should include data source model update');
   assertIncludes(actions, 'template.create', 'audit logs should include template create');
   assertIncludes(actions, 'asset.upload', 'audit logs should include asset upload');
 
@@ -340,6 +430,8 @@ async function main() {
     viewerId: viewer.user.id,
     projectId: project.id,
     pageId: page.id,
+    dataSourceModelId: dataSourceModel.id,
+    generatedPageId: generatedPage.id,
     templateId: template.id,
     assetId: asset.id,
     publicId: publishedPage.publicId,

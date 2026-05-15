@@ -32,6 +32,7 @@ import { roleColor, roleText } from './model/display';
 import type { AddMemberFormValues, ProjectDashboardProps } from './model/types';
 import { ProjectMemberDrawer } from './components/ProjectMemberDrawer';
 import { PublishRecordDrawer } from './components/PublishRecordDrawer';
+import { DataSourceModelDrawer } from './components/DataSourceModelDrawer';
 import { createProjectTableColumns } from './tableColumns';
 
 export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: ProjectDashboardProps) {
@@ -48,6 +49,7 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
   const [publishRecordDrawerOpen, setPublishRecordDrawerOpen] = useState(false);
   const [memberDrawerOpen, setMemberDrawerOpen] = useState(false);
   const [auditDrawerOpen, setAuditDrawerOpen] = useState(false);
+  const [dataSourceModelDrawerOpen, setDataSourceModelDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingPages, setLoadingPages] = useState(false);
   const [loadingMembers, setLoadingMembers] = useState(false);
@@ -179,6 +181,11 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
 
     setAuditDrawerOpen(true);
     await loadAuditLogs(selectedProject.id);
+  }
+
+  function openDataSourceModelDrawer() {
+    if (!selectedProject) return;
+    setDataSourceModelDrawerOpen(true);
   }
 
   function openProjectSettings() {
@@ -371,6 +378,7 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
               <Button disabled={!selectedProject || !canManageProject} onClick={openProjectSettings}>项目设置</Button>
             </Tooltip>
             <Button disabled={!selectedProject} onClick={() => void openMemberDrawer()}>成员</Button>
+            <Button disabled={!selectedProject} onClick={openDataSourceModelDrawer}>数据源模型</Button>
             <Tooltip title={canManageProject ? '查看项目关键操作记录' : '只有项目拥有者可以查看审计日志'}>
               <Button disabled={!selectedProject || !canManageProject} onClick={() => void openAuditDrawer()}>审计日志</Button>
             </Tooltip>
@@ -485,6 +493,17 @@ export function ProjectDashboard({ user, onOpenPage, onLogout, onOpenAdmin }: Pr
       onClose={() => setMemberDrawerOpen(false)}
       onRefresh={loadMembers}
       onAddMember={handleAddMember}
+    />
+
+    <DataSourceModelDrawer
+      open={dataSourceModelDrawerOpen}
+      project={selectedProject}
+      pages={pages}
+      canEdit={canCreatePage}
+      currentRole={currentRole}
+      onClose={() => setDataSourceModelDrawerOpen(false)}
+      onPagesCreated={(page) => setPages((currentPages) => [page, ...currentPages])}
+      onOpenPage={onOpenPage}
     />
 
     <Drawer

@@ -7,6 +7,7 @@ export const {
   buildHttpActionRequestBody,
   buildHttpActionRequestHeaders,
   CURRENT_SCHEMA_VERSION,
+  generateCrudPageSchema,
   createLowcodeEventData,
   evaluateSafeExpression,
   migratePageSchema,
@@ -14,6 +15,7 @@ export const {
   normalizeHttpActionUrl,
   isHttpActionUrlAllowed,
   runLowcodeActions,
+  validateDataSourceModelConfig,
   validateComponentTree,
 } = require('../../server/dist/packages/lowcode-schema/src/index.js');
 

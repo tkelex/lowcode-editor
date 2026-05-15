@@ -38,7 +38,7 @@
 | --- | --- | --- |
 | `scripts/test/*.test.mjs`、`scripts/test/schema-test-utils.mjs` | Node 内置 test runner 用例，按 schema migration、校验、URL、事件数据、HTTP request 和 action runtime 分文件覆盖。 | 测试依赖后端构建产物 `server/dist/packages`，改构建路径要同步；运行时测试共享 harness 放在 `action-runtime-utils.mjs`。 |
 | `scripts/architecture/check-boundaries.mjs` | 架构边界检查，防止前端直接引用后端、共享包反向依赖应用、以及新代码绕回旧 `src/api`。 | 新增合法跨层依赖时先评估是否应该调整模块边界，而不是直接放宽规则。 |
-| `scripts/smoke/api-smoke.mjs` | API smoke 脚本，验证注册、项目成员权限、页面保存、版本、发布、公开读取和审计闭环。 | 需要后端和数据库运行；改 API 路由或权限规则时同步。 |
+| `scripts/smoke/api-smoke.mjs` | API smoke 脚本，验证注册、项目成员权限、数据源模型、页面保存、版本、发布、公开读取和审计闭环。 | 需要后端和数据库运行；改 API 路由或权限规则时同步。 |
 | `infra/docker/Dockerfile.web` | 前端生产镜像构建，Nginx 托管 Vite dist。 | 改 Vite 环境变量或构建命令时同步。 |
 | `infra/docker/Dockerfile.server` | 后端生产镜像构建，包含 Nest 构建产物和 Prisma 资源。 | 依赖 `server/dist/server/src/main.js` 输出路径。 |
 | `infra/nginx/web.conf` | 前端 SPA fallback 和 `/api` 反向代理。 | 改后端服务名或 API 前缀时同步。 |
@@ -53,6 +53,7 @@
 | `packages/lowcode-schema/src/migrate.ts` | 共享 schema 迁移器，补齐旧数据并把旧事件字段迁移到 `props.onEvent`。 | 高风险；打开页面、回滚、公开发布页、本地缓存恢复和后端入库都会调用。 |
 | `packages/lowcode-schema/src/registry.ts` | 内置物料 schema registry，记录组件是否可接收子组件。 | 必须和 `src/editor/registry/component-config.tsx` 的物料/父子关系保持一致。 |
 | `packages/lowcode-schema/src/validate.ts` | 前后端共享组件树校验器。 | 高风险；过严会拦截旧页面，过松会放过非法 schema。 |
+| `packages/lowcode-schema/src/data-model-crud-*` | 前端数据源模型类型、校验和 CRUD 页面 schema 生成器。 | 生成结果必须继续使用注册物料、`props.onEvent` 和现有保存/发布链路。 |
 
 ## 前端应用入口
 
@@ -69,8 +70,8 @@
 | `src/app/components/AppViewOutlet.tsx` | 根据 `AppView` 渲染 auth/dashboard/editor。 | 影响应用级页面切换。 |
 | `src/app/routes/publicRoutes.ts` | 识别 `/publish/:publicId` 公开访问路径。 | 影响公开发布页绕过登录。 |
 | `src/features/auth/AuthView.tsx` | 登录/注册页面。 | 表单字段要和 Auth API DTO 对齐。 |
-| `src/features/projects/ProjectDashboard.tsx` | 项目和页面入口面板，负责状态、接口调用和页面级装配。 | 影响创建项目、创建页面、进入编辑器流程；成员/发布记录 Drawer 与表格列已拆到子模块。 |
-| `src/features/projects/components/*`、`src/features/projects/tableColumns.tsx` | 项目面板成员抽屉、发布记录抽屉和表格列定义。 | 子组件只接收回调和数据，避免在展示模块里新增项目 API 请求。 |
+| `src/features/projects/ProjectDashboard.tsx` | 项目和页面入口面板，负责状态、接口调用和页面级装配。 | 影响创建项目、创建页面、进入编辑器流程；成员/发布记录/数据源模型 Drawer 与表格列已拆到子模块。 |
+| `src/features/projects/components/*`、`src/features/projects/tableColumns.tsx` | 项目面板成员抽屉、发布记录抽屉、数据源模型抽屉和表格列定义。 | 数据源模型抽屉可以编排对应 API 与生成向导；其他展示子组件只接收回调和数据。 |
 | `src/features/projects/model/*` | 项目面板的功能内类型和展示字典。 | 只放纯类型、文案映射和无副作用规则，不放 API 请求。 |
 | `src/features/admin/AdminDashboard.tsx` | 平台管理员后台，总览、用户、项目、发布页和全局审计管理。 | 高风险；操作会影响账号状态、项目状态和公开发布页。 |
 | `src/features/admin/model/*`、`src/features/admin/components/*` | 管理员后台展示字典、格式化工具、概览卡片、状态标签和表格工具栏。 | 子模块保持展示或纯工具职责，不直接新增管理员 API 调用。 |
@@ -85,6 +86,7 @@
 | `src/shared/api/auth.ts` | register/login/me/logout/token storage。 | 要和 `/api/auth/*` 保持一致。 |
 | `src/shared/api/projects.ts` | 项目 API 封装。 | 要和 ProjectsController 路由保持一致。 |
 | `src/shared/api/pages.ts` | 页面 API 封装、schema 保存、版本列表、回滚、版本删除、发布、取消发布和公开页读取。 | 影响保存、版本管理和发布访问闭环。 |
+| `src/shared/api/data-source-models.ts` | 数据源模型配置 API 封装。 | 要和 DataSourceModelsController 路由保持一致；只保存外部 API 配置，不保存业务记录。 |
 | `src/shared/api/admin.ts` | 平台管理员 API 封装。 | 要和 AdminController 路由保持一致。 |
 | `src/shared/api/types.ts` | 前端 API 类型，`PageSchema` 复用 `packages/lowcode-schema`。 | 后端响应结构或共享 schema 类型变化时同步。 |
 | `src/api/*` | 旧 API 路径兼容导出。 | 不要在这里新增主逻辑。 |
@@ -175,6 +177,7 @@
 | `server/src/modules/audit/audit-logs.service.ts` | 项目和页面关键操作审计写入与查询。 | 审计日志不应随 Project/Page 删除级联丢失。 |
 | `server/src/modules/projects/projects.controller.ts` | 项目 CRUD、成员管理和审计查询路由。 | 全部需要 JWT，成员管理和审计仅 owner 可操作。 |
 | `server/src/modules/projects/project-access.service.ts` | owner/editor/viewer 角色解析和项目权限校验。 | 高风险；影响所有项目和页面 API。 |
+| `server/src/modules/data-source-models/*` | 数据源模型配置 Controller/Service/DTO，复用项目权限并写审计。 | 不要在这里代理外部业务 API 或保存业务记录；只管理配置。 |
 | `server/src/modules/projects/projects.service.ts` | 项目 CRUD、成员管理、项目权限和审计查询。 | 高风险；不能跨项目越权。 |
 | `server/src/modules/pages/pages.controller.ts` | 页面列表、创建、读取、更新、删除、版本列表、回滚、版本删除、发布、取消发布和公开读取路由。 | 受保护业务路由需要 JWT；公开 `PublicPagesController` 不能误加 Guard。 |
 | `server/src/modules/pages/pages.service.ts` | 页面 CRUD、项目角色权限和 Pages 领域编排。 | 高风险；保存、版本管理、发布访问和审计闭环依赖这里。 |
@@ -187,7 +190,7 @@
 
 | 文件 | 作用 | 修改风险 |
 | --- | --- | --- |
-| `server/prisma/schema.prisma` | Prisma 数据模型：User/Project/ProjectMember/Page/PageVersion/AuditLog。 | 改模型后必须生成 migration 并运行 `prisma:generate`。 |
+| `server/prisma/schema.prisma` | Prisma 数据模型：User/Project/ProjectMember/Page/PageVersion/AuditLog/ProjectDataSourceModel。 | 改模型后必须生成 migration 并运行 `prisma:generate`。 |
 | `server/prisma/migrations/*/migration.sql` | 数据库变更 SQL。 | 不要手动乱改已应用 migration。 |
 | `server/prisma/migrations/migration_lock.toml` | Prisma migration provider 锁定。 | 应提交到 Git。 |
 

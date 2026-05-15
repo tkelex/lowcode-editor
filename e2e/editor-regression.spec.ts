@@ -263,6 +263,42 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await expect(settingPanel).toBeVisible();
 });
 
+test('project dashboard creates data source model and generated CRUD page', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await page.getByRole('button', { name: '数据源模型' }).click();
+  const drawer = page.getByRole('dialog', { name: /数据源模型/ });
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText('暂无数据源模型')).toBeVisible();
+
+  await drawer.getByRole('button', { name: '新建模型' }).click();
+  const modelDialog = page.getByRole('dialog', { name: '新建数据源模型' });
+  await expect(modelDialog).toBeVisible();
+  await modelDialog.getByLabel('模型名称').fill('用户');
+  await modelDialog.getByLabel('模型标识').fill('user');
+  await modelDialog.getByLabel('主键字段').fill('id');
+  await modelDialog.locator('#listApi_url').fill('/external/users');
+  await modelDialog.locator('#listApi_responseDataPath').fill('data.items');
+  await modelDialog.getByRole('button', { name: '保存模型' }).click();
+
+  await expect(modelDialog).toHaveCount(0);
+  await expect(drawer.getByText('用户')).toBeVisible();
+  await expect(drawer.getByText('user / 主键：id')).toBeVisible();
+
+  await drawer.getByRole('button', { name: /生\s*成/ }).click();
+  const generateDialog = page.getByRole('dialog', { name: /生成 CRUD 页面/ });
+  await expect(generateDialog).toBeVisible();
+  await expect(generateDialog.getByLabel('页面类型')).toBeVisible();
+  await generateDialog.getByRole('button', { name: '生成页面' }).click();
+
+  await expect(generateDialog.getByText('已创建页面：用户列表（/user）')).toBeVisible();
+  await generateDialog.getByRole('button', { name: /关\s*闭/ }).click();
+  await drawer.getByRole('button', { name: 'Close' }).click();
+  await expect(page.getByText('用户列表')).toBeVisible();
+  await expect(page.getByText('路径：/user')).toBeVisible();
+});
+
 test('editor side panes can be hidden and restored from border toggles', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -711,6 +747,9 @@ test('styled form and feedback materials apply visual styles to real controls', 
 });
 
 async function mockEditorApi(page: Page, editorPage = pageRecord) {
+  const pages = [structuredClone(editorPage)];
+  const dataSourceModels: any[] = [];
+
   await page.addInitScript(() => {
     window.localStorage.removeItem('xxx');
     window.localStorage.setItem('lowcode_editor_token', 'mock-editor-token');
@@ -733,12 +772,70 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
     }
 
     if (method === 'GET' && pathname === `/projects/${project.id}/pages`) {
-      await json(route, [editorPage]);
+      await json(route, pages);
       return;
     }
 
-    if (method === 'GET' && pathname === `/pages/${editorPage.id}`) {
-      await json(route, editorPage);
+    if (method === 'POST' && pathname === `/projects/${project.id}/pages`) {
+      const body = request.postDataJSON() as Record<string, any>;
+      const nextPage = {
+        ...pageRecord,
+        id: 40 + pages.length,
+        name: body.name,
+        routePath: body.routePath,
+        schema: body.schema || pageRecord.schema,
+      };
+      pages.unshift(nextPage);
+      await json(route, nextPage);
+      return;
+    }
+
+    if (method === 'GET' && pathname.startsWith('/pages/')) {
+      const pageId = Number(pathname.split('/')[2]);
+      const matchedPage = pages.find((item) => item.id === pageId);
+      if (matchedPage) {
+        await json(route, matchedPage);
+        return;
+      }
+    }
+
+    if (method === 'GET' && pathname === `/projects/${project.id}/data-source-models`) {
+      await json(route, dataSourceModels);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/projects/${project.id}/data-source-models`) {
+      const body = request.postDataJSON() as Record<string, any>;
+      const nextModel = {
+        ...body,
+        id: String(30 + dataSourceModels.length),
+        projectId: project.id,
+        createdAt: now,
+        updatedAt: now,
+      };
+      dataSourceModels.unshift(nextModel);
+      await json(route, nextModel);
+      return;
+    }
+
+    if (method === 'PATCH' && pathname.startsWith('/data-source-models/')) {
+      const id = pathname.split('/')[2];
+      const body = request.postDataJSON() as Record<string, any>;
+      const index = dataSourceModels.findIndex((item) => item.id === id);
+      if (index >= 0) {
+        dataSourceModels[index] = { ...dataSourceModels[index], ...body, updatedAt: now };
+        await json(route, dataSourceModels[index]);
+        return;
+      }
+    }
+
+    if (method === 'DELETE' && pathname.startsWith('/data-source-models/')) {
+      const id = pathname.split('/')[2];
+      const index = dataSourceModels.findIndex((item) => item.id === id);
+      if (index >= 0) {
+        dataSourceModels.splice(index, 1);
+      }
+      await json(route, { success: true });
       return;
     }
 
