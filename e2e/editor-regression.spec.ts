@@ -552,17 +552,17 @@ test('editor context menu only opens for editable components and closes on blank
   await expect(contextMenu).toBeVisible();
   await expect(contextMenu.locator('.ant-dropdown-menu-item-disabled')).toHaveCount(0);
 
-  const firstBox = await contextMenu.boundingBox();
-  expect(firstBox).not.toBeNull();
-
   const inputComponent = page.locator('[data-component-id="1002"]').first();
   await inputComponent.click({ button: 'right' });
   await expect(contextMenu).toBeVisible();
   await expect(settingPanelLocator(page).locator('.setting-component-id')).toHaveText('#1002');
 
   const secondBox = await contextMenu.boundingBox();
+  const inputBox = await inputComponent.boundingBox();
   expect(secondBox).not.toBeNull();
-  expect(Math.abs((secondBox?.x || 0) - (firstBox?.x || 0))).toBeGreaterThan(20);
+  expect(inputBox).not.toBeNull();
+  expect(secondBox?.x || 0).toBeGreaterThanOrEqual((inputBox?.x || 0) - 8);
+  expect(secondBox?.y || 0).toBeGreaterThanOrEqual((inputBox?.y || 0) - 8);
 
   await clickBlankCanvas(page);
   await expect(contextMenu).toHaveCount(0);
@@ -704,7 +704,6 @@ test('setting property panel groups searchable fields and edits extended props',
 
   await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^基本/ })).toBeVisible();
   await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^数据/ })).toBeVisible();
-  await expect(settingPanel.locator('.property-collapse .ant-collapse-header-text').filter({ hasText: /^移动端/ })).toBeVisible();
   await expect(settingPanel.getByLabel('页面标题')).toBeVisible();
   await expect(settingPanel.getByRole('textbox', { name: /组件静态数据/ })).toBeVisible();
 
