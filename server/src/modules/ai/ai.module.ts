@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditLogsModule } from '../audit/audit-logs.module';
+import { DataSourceModelsModule } from '../data-source-models/data-source-models.module';
 import { ProjectsModule } from '../projects/projects.module';
 import { AiController } from './ai.controller';
 import { AiAgentContextService } from './ai-agent-context.service';
@@ -10,7 +11,7 @@ import { AiPageGeneratorService } from './ai-page-generator.service';
 import { AiService } from './ai.service';
 
 @Module({
-  imports: [AuditLogsModule, ProjectsModule],
+  imports: [AuditLogsModule, DataSourceModelsModule, ProjectsModule],
   controllers: [AiController],
   providers: [
     AiAgentContextService,

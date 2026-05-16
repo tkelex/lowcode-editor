@@ -3,9 +3,7 @@
 ## Purpose
 
 定义 AI agent 的上下文读取、会话状态、工具调用、计划执行、校验修复、多轮页面修改、权限和审计边界。
-
 ## Requirements
-
 ### Requirement: AI agent sessions keep scoped editing context
 系统 SHALL 为 AI agent 创建受项目权限保护的会话或 run，并基于用户选择的项目、页面、选中组件和目标范围构建受限上下文包。上下文包 MUST 只包含当前用户有权访问且与本次页面修改相关的信息。
 
@@ -112,11 +110,65 @@ agent 修改当前页面时 SHALL 产出可检查的候选 patch 或候选组件
 当用户请求 CRUD、数据源或其它确定性结构生成时，agent SHALL 优先补全意图、字段映射和生成选项，并调用确定性生成器产出 schema，而不是让模型自由拼接复杂 CRUD 结构。
 
 #### Scenario: Use CRUD generator through tool
-- **WHEN** 用户要求根据接口生成列表和表单
-- **THEN** agent MUST 先整理数据源模型、字段映射和页面类型
+- **WHEN** 用户在 AI 面板输入“基于 /api/users 生成一个用户管理页，包含列表、新增、编辑、详情”
+- **THEN** agent MUST 识别这是 CRUD/数据源类请求
+- **AND** agent MUST 先整理数据源模型、字段映射、页面类型和路由
 - **AND** 系统 MUST 通过 CRUD 生成工具或等效确定性流程产出候选 schema
+- **AND** 候选结果 MUST 包含 summary、warnings、assumptions、预览组件树和 CRUD 元信息
+- **AND** 候选结果 MUST 在用户确认前不得写入编辑器 store
+
+#### Scenario: Prefer existing data source model
+- **WHEN** agent 上下文中存在与用户请求匹配的数据源模型
+- **THEN** CRUD 生成工具 MUST 优先使用已有模型
+- **AND** 候选结果 MUST 标明来源为已有数据源模型
+
+#### Scenario: Create temporary data source model draft
+- **WHEN** 用户请求包含接口 URL、字段描述或响应示例，但没有匹配的已有数据源模型
+- **THEN** CRUD 生成工具 MAY 创建临时数据源模型草稿
+- **AND** 临时草稿 MUST 通过数据源模型校验后才能用于生成候选页面
+- **AND** 候选结果 MUST 通过 warning 或 assumption 告知用户该模型尚未保存为项目配置
+
+#### Scenario: Reject invalid model
+- **WHEN** 匹配到或推导出的数据源模型缺少必需字段或接口配置不合法
+- **THEN** CRUD 生成工具 MUST 拒绝生成候选页面
+- **AND** agent MUST 返回可读错误或降级 warning
+- **AND** 系统 MUST NOT 写入非法 schema
 
 #### Scenario: Generator unavailable
 - **WHEN** 确定性生成器不可用或无法处理输入
 - **THEN** agent MUST 返回 warning
 - **AND** agent MAY 降级生成静态可编辑草稿，但 MUST 标注数据写入能力未完成
+
+### Requirement: AI agent runs expose route decisions
+
+AI agent run SHALL expose the route decision used to choose its plan and tools. The route decision MUST be available even when the run fails before producing a candidate.
+
+#### Scenario: Return route decision for CRUD run
+- **WHEN** 用户提交 CRUD/数据源类自然语言请求
+- **THEN** agent run MUST 返回 `intent=crud-page` 的 route decision
+- **AND** run plan MUST include 调用 CRUD 生成器或等效确定性工具
+- **AND** candidate metadata MUST continue to include CRUD model, page type, route path and generation source
+
+#### Scenario: Return route decision for non-CRUD run
+- **WHEN** 用户提交局部修改、样式优化或普通页面生成请求
+- **THEN** agent run MUST 返回对应非 CRUD intent
+- **AND** run MUST follow the patch or schema draft flow selected by the route decision
+
+#### Scenario: Failed run keeps route explanation
+- **WHEN** agent run 因权限、工具、模型或校验失败
+- **THEN** run response MUST retain route decision when it was computed
+- **AND** failure audit MUST include intent or fallback summary
+
+### Requirement: AI agent route decisions drive deterministic tool selection
+
+Agent orchestration SHALL use route decision as the single source for choosing between deterministic generators and generic patch/schema generation flows.
+
+#### Scenario: CRUD intent uses CRUD generator
+- **WHEN** route decision intent is `crud-page`
+- **THEN** orchestration MUST call `generateCrudPage` or an equivalent deterministic CRUD tool
+- **AND** orchestration MUST validate generated components before returning a candidate
+
+#### Scenario: Non-CRUD intent uses generic patch flow
+- **WHEN** route decision intent is `edit-selected`, `style-polish`, `free-page`, `bind-data-source`, `add-event-action` or `fix-page-issue`
+- **THEN** orchestration MUST use an allowed generic schema draft, patch, diagnostic or specialized tool flow
+- **AND** orchestration MUST NOT call the CRUD generator unless the route decision is updated with an explicit CRUD fallback reason

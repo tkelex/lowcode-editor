@@ -1,4 +1,4 @@
-﻿# editor-interaction-styling Specification
+# editor-interaction-styling Specification
 
 ## Purpose
 TBD - created by archiving change fix-editor-interaction-styling. Update Purpose after archive.
@@ -243,6 +243,13 @@ Page 灞炴€ч潰鏉?SHALL 閬垮厤灞曠ず娌℃湁杩愯鎬佽涓虹
 - **THEN** 闈㈡澘 MUST 灞曠ず褰卞搷鑼冨洿銆佹憳瑕併€亀arnings 鍜?assumptions
 - **AND** 鐢ㄦ埛纭鍓?MUST NOT 淇敼褰撳墠缁勪欢鏍?
 
+#### Scenario: Show CRUD candidate metadata
+- **WHEN** agent 返回由 CRUD 生成器产出的候选页面
+- **THEN** AI 面板 MUST 展示候选类型为 CRUD 页面
+- **AND** AI 面板 MUST 展示数据源模型、页面类型、路由和生成来源
+- **AND** AI 面板 MUST 展示 CRUD 生成 warnings
+- **AND** 确认按钮 MUST 继续使用现有“确认后应用”流程
+
 #### Scenario: Show validation repair feedback
 - **WHEN** agent 鍊欓€夌粨鏋滅粡鍘嗘牎楠屽け璐ュ拰淇
 - **THEN** 闈㈡澘 MUST 灞曠ず淇鎽樿鎴栨渶缁堝け璐ュ師鍥?
@@ -260,6 +267,7 @@ AI agent 闈㈡澘 SHALL 涓庣幇鏈夌紪杈戝櫒甯冨眬鍗忓悓锛岄伩�
 - **WHEN** agent run 鍖呭惈澶氭璁″垝銆佸涓伐鍏疯皟鐢ㄦ垨杈冮暱 warning 鍒楄〃
 - **THEN** 闈㈡澘 MUST 浠ュ彲鎵弿銆佸彲鎶樺彔鎴栧彲婊氬姩鏂瑰紡灞曠ず
 - **AND** 鏂囨湰 MUST 涓嶄笌鎸夐挳銆侀瑙堟垨閿欒鎻愮ず閲嶅彔
+
 ### Requirement: Data model management follows project dashboard interaction standards
 鏁版嵁妯″瀷绠＄悊椤甸潰 SHALL 浣跨敤鐜版湁椤圭洰鍚庡彴鐨勫伐浣滃彴寮忓竷灞€锛屼繚鎸佽〃鏍笺€佽〃鍗曘€佹娊灞夋垨寮圭獥鐨勫彲璇绘€у拰涓€鑷翠氦浜掋€?
 
@@ -298,3 +306,31 @@ CRUD 鐢熸垚鍚戝 SHALL 寮曞鐢ㄦ埛閫夋嫨妯″瀷銆侀〉闈�
 - **WHEN** 鐢熸垚鍣ㄥ垱寤鸿〃鍗曢〉
 - **THEN** 琛ㄥ崟椤?MUST 浣跨敤 Form 鍜?FormItem 鐢熸垚鐪熷疄瀛楁
 - **AND** 棰勮鎬?MUST 涓嶄緷璧栫紪杈戞€佹嫋鎷藉崰浣嶆枃妗堟潵琛ㄨ揪涓氬姟鍐呭
+
+### Requirement: Natural language agent panel remains readable and controllable
+
+编辑器 SHALL present the natural language AI agent panel as a compact, readable work surface that fits the existing low-code editor layout. The panel MUST avoid obscuring canvas work and MUST remain scrollable when route details, execution events, warnings or previews are long.
+
+#### Scenario: Display assistant state in AI panel
+- **WHEN** agent is idle, running, awaiting confirmation, failed or applied
+- **THEN** 面板 MUST show a clear state label or equivalent visual state
+- **AND** actions MUST be disabled or enabled according to the current state
+
+#### Scenario: Show route and tool details compactly
+- **WHEN** agent run returns route decision and tool metadata
+- **THEN** 面板 MUST show those details in a compact section near the candidate summary
+- **AND** long reasons or warnings MUST wrap or scroll without overlapping controls
+
+#### Scenario: Keep core editing accessible
+- **WHEN** AI 面板 contains prompt input, advanced options, execution trace, preview and action buttons
+- **THEN** 面板 MUST remain vertically scrollable
+- **AND** preview and action controls MUST not cover the canvas or settings panel
+
+### Requirement: Natural language examples guide users without replacing the main input
+
+编辑器 MAY provide short natural language examples to help users start, but examples MUST not replace the primary prompt input or force users into a rigid wizard.
+
+#### Scenario: Show examples for common tasks
+- **WHEN** AI 面板 is empty
+- **THEN** 系统 MAY show examples for CRUD page generation, selected component editing, event binding and style polish
+- **AND** selecting an example MUST fill or submit the natural language prompt without bypassing agent confirmation

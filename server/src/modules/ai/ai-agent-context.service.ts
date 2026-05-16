@@ -7,6 +7,7 @@ import {
   type AiAgentMaterialSummary,
   type AiAgentRunRequest,
   type LowcodeComponentSchema,
+  type ProjectDataSourceModelConfig,
 } from '../../../../packages/lowcode-schema/src';
 
 @Injectable()
@@ -30,10 +31,18 @@ export class AiAgentContextService {
       componentSummaries,
       selectedComponentPath,
       materials: summarizeMaterials(),
-      dataSourceModels: input.dataSourceModel ? [input.dataSourceModel] : [],
+      dataSourceModels: input.dataSourceModels || readDataSourceModelFallback(input.dataSourceModel),
       history: input.history,
     };
   }
+}
+
+function readDataSourceModelFallback(value: unknown): ProjectDataSourceModelConfig[] {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [];
+  }
+
+  return [value as ProjectDataSourceModelConfig];
 }
 
 function summarizeComponents(

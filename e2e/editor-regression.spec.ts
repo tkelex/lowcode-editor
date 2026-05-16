@@ -333,6 +333,96 @@ const aiAgentRunResult = {
   },
 };
 
+const aiAgentCrudRunResult = {
+  runId: 'agent-crud-e2e',
+  status: 'awaiting_confirmation',
+  context: {
+    projectId: project.id,
+    pageId: pageRecord.id,
+    targetScope: 'page',
+    userPrompt: '基于 /api/users 生成一个用户管理页，包含列表、新增、编辑、详情',
+    componentSummaries: [],
+    materials: [],
+  },
+  plan: ['读取当前页面上下文', '读取可用物料和数据源模型', '调用 CRUD 生成器产出候选页面'],
+  events: [
+    {
+      id: 'crud-event-1',
+      type: 'tool_call',
+      title: '已调用 CRUD 生成器',
+      detail: '已基于项目数据源模型「用户」生成 CRUD list 页面候选。',
+      createdAt: now,
+    },
+    {
+      id: 'crud-event-2',
+      type: 'candidate',
+      title: 'CRUD 候选页面已准备好',
+      detail: '已基于项目数据源模型「用户」生成 CRUD list 页面候选。',
+      createdAt: now,
+    },
+  ],
+  toolCalls: [],
+  candidate: {
+    id: 'candidate-crud-e2e',
+    kind: 'components',
+    summary: '已基于项目数据源模型「用户」生成 CRUD list 页面候选。',
+    impactScope: 'page',
+    warnings: ['这是 e2e mock 返回的 CRUD 候选 warning'],
+    assumptions: ['用户确认前不会写入当前页面'],
+    validationErrors: [],
+    validationWarnings: [],
+    metadata: {
+      crud: {
+        source: 'existingModel',
+        modelId: '1',
+        modelKey: 'user',
+        modelName: '用户',
+        pageType: 'list',
+        routePath: '/user',
+        generatedBy: 'data-model-crud-generation',
+      },
+    },
+    components: [
+      {
+        id: 1,
+        name: 'Page',
+        props: {},
+        desc: '页面',
+        children: [
+          {
+            id: 5001,
+            name: 'Card',
+            desc: '列表卡片',
+            parentId: 1,
+            props: { title: '用户列表' },
+            children: [
+              {
+                id: 5002,
+                name: 'Table',
+                desc: '数据表格',
+                parentId: 5001,
+                props: {
+                  rowKey: 'id',
+                  emptyText: '暂无数据',
+                },
+                children: [
+                  {
+                    id: 5003,
+                    name: 'TableColumn',
+                    desc: '名称列',
+                    parentId: 5002,
+                    props: { title: '名称', dataIndex: 'name' },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
+};
+
 test('editor setting panel stays readable and preview remains recoverable', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -407,6 +497,22 @@ test('ai agent shows run details and applies candidate patch after confirmation'
 
   await page.getByRole('button', { name: '应用 Agent 修改' }).click();
   await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
+});
+
+test('ai agent shows CRUD generator candidate metadata with stable selectors', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+  await page.getByText('AI', { exact: true }).click();
+  await page.locator('.ant-form textarea').first().fill('基于 /api/users 生成一个用户管理页，包含列表、新增、编辑、详情');
+
+  await page.getByRole('button').filter({ hasText: 'Agent' }).click();
+  await expect(page.getByText('已调用 CRUD 生成器')).toBeVisible();
+  await expect(page.getByText('CRUD 页面候选')).toBeVisible();
+  await expect(page.getByText(/模型：用户（user）/)).toBeVisible();
+  await expect(page.getByText(/路由：\/user/)).toBeVisible();
+  await expect(page.getByText('用户列表', { exact: true })).toBeVisible();
 });
 
 test('project dashboard creates data source model and generated CRUD page', async ({ page }) => {
@@ -959,7 +1065,8 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
     }
 
     if (method === 'POST' && pathname === `/pages/${editorPage.id}/ai/agent-runs`) {
-      await json(route, aiAgentRunResult);
+      const body = JSON.parse(request.postData() || '{}');
+      await json(route, String(body.prompt || '').includes('/api/users') ? aiAgentCrudRunResult : aiAgentRunResult);
       return;
     }
 
