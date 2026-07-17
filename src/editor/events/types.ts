@@ -11,6 +11,7 @@ export type {
   HttpAuthType,
   LowcodeAction,
   LowcodeEventConfig,
+  LowcodeEventRuntimeContext,
   LowcodeEvents,
   SetVariableAction,
   SetComponentPropsAction,
@@ -19,21 +20,4 @@ export type {
   ToastType,
   EventCategory,
   UrlAction,
-} from '@lowcode/schema';
-
-import type { Component } from '../stores/components';
-
-export interface LowcodeEventRuntimeContext {
-  component: Component;
-  eventName: string;
-  eventData: Record<string, any>;
-  args: any[];
-  components: Component[];
-  componentRefs: Record<string, any>;
-  allowCustomJS: boolean;
-  variables?: Record<string, any>;
-  setVariable?: (path: string, value: unknown) => void;
-  updateComponentProps?: (componentId: number, props: Record<string, any>) => void;
-  updateComponentStyles?: (componentId: number, styles: Record<string, any>) => void;
-  getAuthToken?: () => string | undefined;
-}
+} from '@lowcode/runtime';

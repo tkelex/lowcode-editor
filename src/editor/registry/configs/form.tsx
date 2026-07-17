@@ -1,27 +1,29 @@
 import type { ComponentConfig } from '../types';
+import {
+  CheckboxProd,
+  DatePickerProd,
+  Form as FormProd,
+  FormItem as FormItemProd,
+  Input as InputProd,
+  RadioProd,
+  RateProd,
+  Select as SelectProd,
+  Switch as SwitchProd,
+  TextareaProd,
+  UploadProd,
+} from '@lowcode/runtime';
 import FormDev from '../../materials/Form/dev';
 import FormItemDev from '../../materials/FormItem/dev';
-import FormItemProd from '../../materials/FormItem/prod';
-import FormProd from '../../materials/Form/prod';
 import InputDev from '../../materials/Input/dev';
-import InputProd from '../../materials/Input/prod';
 import SelectDev from '../../materials/Select/dev';
-import SelectProd from '../../materials/Select/prod';
 import SwitchDev from '../../materials/Switch/dev';
-import SwitchProd from '../../materials/Switch/prod';
 import {
   CheckboxDev,
-  CheckboxProd,
   DatePickerDev,
-  DatePickerProd,
   RadioDev,
-  RadioProd,
   RateDev,
-  RateProd,
   TextareaDev,
-  TextareaProd,
   UploadDev,
-  UploadProd,
 } from '../../materials/p3';
 import {
   commonStyleSetters,

@@ -1,1 +1,1 @@
-export { createLowcodeEventData as createEventData } from '@lowcode/schema';
+export { createEventData } from '@lowcode/runtime';

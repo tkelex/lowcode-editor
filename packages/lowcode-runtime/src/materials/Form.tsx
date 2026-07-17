@@ -1,7 +1,7 @@
 import { Button, Checkbox, DatePicker, Form as AntdForm, Input, Radio, Rate, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import React, { ForwardRefRenderFunction, forwardRef, useImperativeHandle, useMemo } from 'react';
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 type FormProps = Omit<CommonComponentProps, 'ref'>;
 

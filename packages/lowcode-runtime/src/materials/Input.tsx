@@ -1,6 +1,6 @@
 import { Input as AntdInput } from 'antd';
-import { CommonComponentProps } from '../../interface';
-import { splitControlStyles } from '../styleSplit';
+import type { CommonComponentProps } from '../types';
+import { splitControlStyles } from './style';
 
 const Input = ({ id: _id, name: _name, children: _children, placeholder, defaultValue, disabled, allowClear, maxLength, styles, ...restProps }: CommonComponentProps) => {
     const { shellStyles, controlStyles } = splitControlStyles(styles);

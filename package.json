@@ -9,20 +9,21 @@
     "server"
   ],
   "scripts": {
-    "predev": "npm run build:schema",
+    "predev": "npm run build:schema && npm run build:runtime",
     "dev": "vite",
     "dev:server": "npm run dev --workspace lowcode-editor-server",
-    "predev:publisher": "npm run build:schema",
+    "predev:publisher": "npm run build:schema && npm run build:runtime",
     "dev:publisher": "npm run dev --workspace lowcode-publisher-next",
     "build:schema": "npm run build --workspace @lowcode/schema",
+    "build:runtime": "npm run build --workspace @lowcode/runtime",
     "build:server": "npm run build --workspace lowcode-editor-server",
     "lint:server": "npm run lint --workspace lowcode-editor-server",
     "prisma:generate": "npm run prisma:generate --workspace lowcode-editor-server",
     "prisma:migrate": "npm run prisma:migrate --workspace lowcode-editor-server --",
     "prisma:deploy": "npm run prisma:deploy --workspace lowcode-editor-server",
     "admin:grant": "npm run admin:grant --workspace lowcode-editor-server --",
-    "build": "npm run build:schema && tsc -b && vite build",
-    "prebuild:publisher": "npm run build:schema",
+    "build": "npm run build:schema && npm run build:runtime && tsc -b && vite build",
+    "prebuild:publisher": "npm run build:schema && npm run build:runtime",
     "build:publisher": "npm run build --workspace lowcode-publisher-next",
     "lint": "eslint . --max-warnings 0",
     "lint:publisher": "npm run lint --workspace lowcode-publisher-next",
@@ -40,6 +41,7 @@
     "preflight": "npm run check && npm run test:e2e"
   },
   "dependencies": {
+    "@lowcode/runtime": "0.1.0",
     "@lowcode/schema": "0.1.0",
     "@monaco-editor/react": "^4.6.0",
     "allotment": "^1.20.2",

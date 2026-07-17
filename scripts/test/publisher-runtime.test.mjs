@@ -74,7 +74,7 @@ describe('Next.js publisher runtime helpers', () => {
     const {
       preparePublishedPageSnapshot,
       PublishedPageSchemaError,
-    } = await loadModule('src/editor/runtime/public/index.ts');
+    } = await loadModule('packages/lowcode-runtime/src/index.ts');
 
     const prepared = preparePublishedPageSnapshot({
       publicId: 'pub-1',
@@ -145,7 +145,7 @@ describe('Next.js publisher runtime helpers', () => {
   it('keeps the Next publisher adapter on the public runtime interface', async () => {
     const source = await readFile('apps/publisher-next/app/publish/[publicId]/page.tsx', 'utf8');
 
-    assert.match(source, /src\/editor\/runtime\/public['"]/);
+    assert.match(source, /@lowcode\/runtime\/client['"]/);
     assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);
     assert.doesNotMatch(source, /src\/editor\/stores/);
   });

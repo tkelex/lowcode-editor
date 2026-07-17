@@ -1,6 +1,6 @@
 import { Button as AntdButton } from 'antd';
-import { CommonComponentProps } from '../../interface';
-import { splitControlStyles } from '../styleSplit';
+import type { CommonComponentProps } from '../types';
+import { splitControlStyles } from './style';
 
 const Button = ({id: _id, name: _name, type, text, size, disabled, block, loading, danger, styles, ...props}: CommonComponentProps) => {
   const { shellStyles, controlStyles } = splitControlStyles(styles);

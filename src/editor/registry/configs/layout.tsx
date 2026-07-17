@@ -1,17 +1,19 @@
 import type { ComponentConfig } from '../types';
+import {
+  Card as CardProd,
+  Container as ContainerProd,
+  FlexProd,
+  GridProd,
+  Page as PageProd,
+  SpaceProd,
+} from '@lowcode/runtime';
 import CardDev from '../../materials/Card/dev';
-import CardProd from '../../materials/Card/prod';
 import ContainerDev from '../../materials/Container/dev';
-import ContainerProd from '../../materials/Container/prod';
 import PageDev from '../../materials/Page/dev';
-import PageProd from '../../materials/Page/prod';
 import {
   FlexDev,
-  FlexProd,
   GridDev,
-  GridProd,
   SpaceDev,
-  SpaceProd,
 } from '../../materials/p3';
 import { COMMON_CHILDREN } from '../../materials/commonChildren';
 import {

@@ -1,19 +1,21 @@
 import type { ComponentConfig } from '../types';
+import {
+  ChartProd,
+  DescriptionsProd,
+  ListProd,
+  PaginationProd,
+  StatisticProd,
+  Table as TableProd,
+  TableColumn as TableColumnProd,
+} from '@lowcode/runtime';
 import TableColumnDev from '../../materials/TableColumn/dev';
-import TableColumnProd from '../../materials/TableColumn/prod';
 import TableDev from '../../materials/Table/dev';
-import TableProd from '../../materials/Table/prod';
 import {
   ChartDev,
-  ChartProd,
   DescriptionsDev,
-  DescriptionsProd,
   ListDev,
-  ListProd,
   PaginationDev,
-  PaginationProd,
   StatisticDev,
-  StatisticProd,
 } from '../../materials/p3';
 import {
   clickEvents,

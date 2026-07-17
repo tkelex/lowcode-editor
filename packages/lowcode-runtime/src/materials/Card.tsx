@@ -1,5 +1,5 @@
 import { Card as AntdCard } from 'antd';
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 const Card = ({ id: _id, name: _name, title, bordered, hoverable, children, styles, ...restProps }: CommonComponentProps) => {
     return <div {...restProps} style={styles}>

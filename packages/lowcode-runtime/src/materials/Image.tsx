@@ -1,5 +1,5 @@
 import { Image as AntdImage } from 'antd';
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 const Image = ({ id: _id, name: _name, src, alt, width, height, preview, fallback, styles, ...restProps }: CommonComponentProps) => {
     return <AntdImage

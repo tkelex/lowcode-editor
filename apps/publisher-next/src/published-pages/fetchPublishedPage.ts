@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { preparePublishedPageSnapshot } from '@root/src/editor/runtime/public';
+import { preparePublishedPageSnapshot } from '@lowcode/runtime/snapshot';
 import { createPublishedPageTag, getPublisherRuntimeConfig } from './config';
 import type { PreparedPublishedPage, PublishedPage } from './types';
 

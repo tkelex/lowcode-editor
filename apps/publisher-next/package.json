@@ -10,6 +10,7 @@
     "lint": "eslint \"**/*.{ts,tsx}\" --max-warnings 0"
   },
   "dependencies": {
+    "@lowcode/runtime": "0.1.0",
     "@lowcode/schema": "0.1.0",
     "next": "^15.3.4",
     "react": "^18.3.1",

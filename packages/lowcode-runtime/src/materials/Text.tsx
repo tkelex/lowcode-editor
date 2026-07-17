@@ -1,5 +1,5 @@
 import { Typography } from 'antd';
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 const Text = ({ id: _id, name: _name, text, level, copyable, ellipsis, styles, ...restProps }: CommonComponentProps) => {
     return <Typography.Text

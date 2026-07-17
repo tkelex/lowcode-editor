@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { fetchPublishedPage } from '@publisher/published-pages/fetchPublishedPage';
 import { getPublisherRuntimeConfig } from '@publisher/published-pages/config';
 import { createPublishedPageMetadata } from '@publisher/published-pages/metadata';
-import { PublishedPageRuntime } from '@root/src/editor/runtime/public';
+import { PublishedPageRuntime } from '@lowcode/runtime/client';
 
 interface PublishedPageRouteProps {
   params: Promise<{

@@ -1,6 +1,6 @@
 import { Alert as AntdAlert } from 'antd';
-import { CommonComponentProps } from '../../interface';
-import { splitControlStyles } from '../styleSplit';
+import type { CommonComponentProps } from '../types';
+import { splitControlStyles } from './style';
 
 const Alert = ({ id: _id, name: _name, type, message, description, showIcon, closable, styles, ...restProps }: CommonComponentProps) => {
     const { shellStyles, controlStyles } = splitControlStyles(styles);

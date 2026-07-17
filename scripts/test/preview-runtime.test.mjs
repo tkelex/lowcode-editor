@@ -9,9 +9,9 @@ import { build } from 'esbuild';
 
 const require = createRequire(import.meta.url);
 
-describe('preview runtime rendering', () => {
+describe('page runtime rendering', () => {
   it('renders key built-in materials without crashing or dropping child config', async () => {
-    const { Preview } = await loadRuntimeModule('src/editor/runtime/Preview/index.tsx');
+    const { PageRuntime } = await loadRuntimeModule('packages/lowcode-runtime/src/PageRuntime.tsx');
     const warnings = [];
     const originalError = console.error;
 
@@ -20,8 +20,8 @@ describe('preview runtime rendering', () => {
     };
 
     try {
-      const html = renderToString(React.createElement(Preview, {
-        allowCustomJS: false,
+      const html = renderToString(React.createElement(PageRuntime, {
+        policy: { allowCustomJS: false },
         components: createPreviewRegressionComponents(),
       }));
 
@@ -35,8 +35,8 @@ describe('preview runtime rendering', () => {
       assert.match(html, /详情信息/);
       assert.match(html, /新增用户/);
       assert.match(html, /月度趋势/);
-      assert.equal(warnings.some((warning) => warning.includes('Each child in a list should have a unique "key" prop')), false);
-      assert.equal(warnings.some((warning) => warning.includes('destroyOnClose')), false);
+      assert.equal(warnings.some((warning) => warning.includes('Each child in a list should have a unique "key" prop')), false, warnings.join('\n'));
+      assert.equal(warnings.some((warning) => warning.includes('destroyOnClose')), false, warnings.join('\n'));
     } finally {
       console.error = originalError;
     }
@@ -44,7 +44,7 @@ describe('preview runtime rendering', () => {
 
   it('renders a published snapshot through the anonymous public runtime interface', async () => {
     const { PublishedPageRuntime } = await loadRuntimeModule(
-      'src/editor/runtime/public/PublishedPageRuntime.tsx',
+      'packages/lowcode-runtime/src/public/PublishedPageRuntime.tsx',
     );
 
     const html = renderToString(React.createElement(PublishedPageRuntime, {

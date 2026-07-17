@@ -112,23 +112,19 @@ for (const filePath of files) {
     }
 
     if (relativeFile.startsWith('apps/publisher-next/') && resolved) {
-      const importsFrontend = isUnder(resolved, 'src');
-      const usesPublicRuntime = isUnder(resolved, 'src/editor/runtime/public');
-      const usesSharedPublish = isUnder(resolved, 'src/shared/publish');
-
-      if (importsFrontend && !usesPublicRuntime && !usesSharedPublish) {
+      if (isUnder(resolved, 'src') || isUnder(resolved, 'server')) {
         violations.push(
-          `${describeImport(filePath, specifier)}\n  Publisher code must use the public runtime seam at src/editor/runtime/public.`,
+          `${describeImport(filePath, specifier)}\n  Publisher code must use workspace package exports instead of editor or backend source.`,
         );
-      }
-
-      if (isUnder(resolved, 'server')) {
-        violations.push(`${describeImport(filePath, specifier)}\n  Publisher code must call backend behavior through HTTP.`);
       }
     }
 
     if (relativeFile.startsWith('packages/lowcode-schema/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'server'))) {
       violations.push(`${describeImport(filePath, specifier)}\n  Shared schema package must stay independent from frontend and backend apps.`);
+    }
+
+    if (relativeFile.startsWith('packages/lowcode-runtime/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'server') || isUnder(resolved, 'apps'))) {
+      violations.push(`${describeImport(filePath, specifier)}\n  Shared runtime package must not import application source.`);
     }
 
     if (relativeFile.startsWith('src/') && resolved && isUnder(resolved, 'server/prisma')) {

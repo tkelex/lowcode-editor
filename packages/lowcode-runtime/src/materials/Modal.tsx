@@ -1,6 +1,6 @@
 import { Modal as AntdModal } from 'antd';
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 type ModalProps = Omit<CommonComponentProps, 'ref'>;
 

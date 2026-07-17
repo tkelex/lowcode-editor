@@ -2,7 +2,7 @@ import { Button, Empty, Table as AntdTable } from 'antd';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import React, { useEffect, useMemo, useState } from 'react';
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 const Table = ({
   url,

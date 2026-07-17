@@ -1,21 +1,23 @@
 import type { ComponentConfig } from '../types';
+import {
+  Button as ButtonProd,
+  Divider as DividerProd,
+  IconProd,
+  Image as ImageProd,
+  LinkProd,
+  StepsProd,
+  TabsProd,
+  Text as TextProd,
+} from '@lowcode/runtime';
 import ButtonDev from '../../materials/Button/dev';
-import ButtonProd from '../../materials/Button/prod';
 import DividerDev from '../../materials/Divider/dev';
-import DividerProd from '../../materials/Divider/prod';
 import ImageDev from '../../materials/Image/dev';
-import ImageProd from '../../materials/Image/prod';
 import TextDev from '../../materials/Text/dev';
-import TextProd from '../../materials/Text/prod';
 import {
   IconDev,
-  IconProd,
   LinkDev,
-  LinkProd,
   StepsDev,
-  StepsProd,
   TabsDev,
-  TabsProd,
 } from '../../materials/p3';
 import {
   clickEvents,

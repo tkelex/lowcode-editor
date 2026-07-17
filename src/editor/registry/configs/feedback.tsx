@@ -1,21 +1,23 @@
 import type { ComponentConfig } from '../types';
+import {
+  Alert as AlertProd,
+  DrawerProd,
+  EmptyProd,
+  Modal as ModalProd,
+  NotificationProd,
+  PopoverProd,
+  ResultProd,
+  TooltipProd,
+} from '@lowcode/runtime';
 import AlertDev from '../../materials/Alert/dev';
-import AlertProd from '../../materials/Alert/prod';
 import ModalDev from '../../materials/Modal/dev';
-import ModalProd from '../../materials/Modal/prod';
 import {
   DrawerDev,
-  DrawerProd,
   EmptyDev,
-  EmptyProd,
   NotificationDev,
-  NotificationProd,
   PopoverDev,
-  PopoverProd,
   ResultDev,
-  ResultProd,
   TooltipDev,
-  TooltipProd,
 } from '../../materials/p3';
 import { COMMON_CHILDREN } from '../../materials/commonChildren';
 import {

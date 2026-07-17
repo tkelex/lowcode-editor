@@ -1,4 +1,4 @@
-import { CommonComponentProps } from "../../interface";
+import type { CommonComponentProps } from '../types';
 
 function Page({ children, styles, pageTitle, subTitle, showContent = true, showHeader = true }: CommonComponentProps) {
     return (

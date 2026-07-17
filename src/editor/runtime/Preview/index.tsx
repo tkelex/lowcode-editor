@@ -1,363 +1,64 @@
-import React, { useEffect, useRef, useState } from "react";
-import { message } from "antd";
-import { createEventData } from "../../events/createEventData";
-import { getLowcodeEventName, getReactEventProp } from "../../events/eventNames";
-import { getComponentEventConfig } from "../../events/normalize";
-import { runLowcodeActions } from "../../events/runtime";
-import { useComponentConfigStore } from "../../registry/component-config";
-import { Component, useComponetsStore } from "../../stores/components"
 import {
-    parseRuntimeDataSources,
-    parseRuntimeJsonObject,
-    requestRuntimeDataSource,
-    resolveRuntimeProps,
-    RuntimeDataSourceState,
-    setPathValue,
-} from "../runtimeData";
+  PageRuntime,
+  type ActionType,
+  type RuntimeComponent,
+  type RuntimeErrorContext,
+} from '@lowcode/runtime';
+import { useComponetsStore } from '../../stores/components';
 import {
-    formatRuntimeErrorMessage,
-    formatRuntimeErrorStack,
-    useRuntimeLogsStore,
-} from "../../stores/runtime-logs";
+  formatRuntimeErrorMessage,
+  formatRuntimeErrorStack,
+  useRuntimeLogsStore,
+} from '../../stores/runtime-logs';
+import type { Component } from '../../stores/components';
 
 interface PreviewProps {
-    components?: Component[];
-    allowCustomJS?: boolean;
-    runtimeConfig?: PreviewRuntimeConfig;
+  components?: Component[];
+  allowCustomJS?: boolean;
+  runtimeConfig?: PreviewRuntimeConfig;
 }
 
 export interface PreviewRuntimeConfig {
-    apiBaseUrl?: string;
-    allowedOrigins?: string[];
-    getAuthToken?: () => string | undefined;
+  apiBaseUrl?: string;
+  allowedOrigins?: string[];
+  getAuthToken?: () => string | undefined;
 }
 
-interface PreviewComponentBoundaryProps {
-    component: Component;
-    children: React.ReactNode;
-    [metadataProp: string]: unknown;
+export function Preview({ components, allowCustomJS = true, runtimeConfig }: PreviewProps) {
+  const storeComponents = useComponetsStore((state) => state.components);
+  const sourceComponents = components ?? storeComponents;
+
+  return <PageRuntime
+    components={sourceComponents as RuntimeComponent[]}
+    policy={{
+      apiBaseUrl: runtimeConfig?.apiBaseUrl ?? import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
+      allowedOrigins: runtimeConfig?.allowedOrigins ?? parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS),
+      getAuthToken: runtimeConfig?.getAuthToken ?? getDefaultAuthToken,
+      allowCustomJS,
+      onError: addRuntimeErrorLog,
+    }}
+  />;
 }
 
-interface PreviewComponentBoundaryState {
-    error?: Error;
-}
-
-class PreviewComponentBoundary extends React.Component<PreviewComponentBoundaryProps, PreviewComponentBoundaryState> {
-    state: PreviewComponentBoundaryState = {};
-
-    static getDerivedStateFromError(error: Error) {
-        return { error };
-    }
-
-    componentDidCatch(error: Error) {
-        useRuntimeLogsStore.getState().addLog({
-            level: 'error',
-            source: 'render',
-            title: '组件渲染失败',
-            message: formatRuntimeErrorMessage(error),
-            stack: formatRuntimeErrorStack(error),
-            componentId: this.props.component.id,
-            componentName: this.props.component.name,
-            componentDesc: this.props.component.desc,
-        });
-    }
-
-    render() {
-        if (this.state.error) {
-            return <div className="m-2 rounded-[6px] border border-red-300 bg-red-50 p-3 text-[13px] text-red-600">
-                {this.props.component.desc || this.props.component.name} 渲染失败：{this.state.error.message}
-            </div>;
-        }
-
-        return this.props.children;
-    }
-}
-
-export function Preview({ components: propsComponents, allowCustomJS = true, runtimeConfig }: PreviewProps) {
-    if (propsComponents) {
-        return <PreviewRuntime
-            sourceComponents={propsComponents}
-            allowCustomJS={allowCustomJS}
-            runtimeConfig={runtimeConfig}
-        />;
-    }
-
-    return <StorePreviewRuntime allowCustomJS={allowCustomJS} runtimeConfig={runtimeConfig} />;
-}
-
-function StorePreviewRuntime({
-    allowCustomJS,
-    runtimeConfig,
-}: {
-    allowCustomJS: boolean;
-    runtimeConfig?: PreviewRuntimeConfig;
-}) {
-    const storeComponents = useComponetsStore((state) => state.components);
-
-    return <PreviewRuntime
-        sourceComponents={storeComponents}
-        allowCustomJS={allowCustomJS}
-        runtimeConfig={runtimeConfig}
-    />;
-}
-
-function PreviewRuntime({
-    sourceComponents,
-    allowCustomJS,
-    runtimeConfig,
-}: {
-    sourceComponents: Component[];
-    allowCustomJS: boolean;
-    runtimeConfig?: PreviewRuntimeConfig;
-}) {
-    const [runtimeComponents, setRuntimeComponents] = useState<Component[]>(() => cloneComponents(sourceComponents));
-    const [variables, setVariables] = useState<Record<string, any>>({});
-    const [dataSourceState, setDataSourceState] = useState<RuntimeDataSourceState>({});
-    const components = runtimeComponents;
-    const { componentConfig } = useComponentConfigStore();
-
-    const componentRefs = useRef<Record<string, any>>({});
-
-    useEffect(() => {
-        setRuntimeComponents(cloneComponents(sourceComponents));
-    }, [sourceComponents]);
-
-    const pageProps = components[0]?.name === 'Page' ? components[0].props || {} : {};
-    const dataSources = parseRuntimeDataSources(pageProps.dataSources);
-
-    useEffect(() => {
-        setVariables(parseRuntimeJsonObject(pageProps.variables));
-    }, [pageProps.variables]);
-
-    useEffect(() => {
-        if (dataSources.length === 0) {
-            setDataSourceState({});
-            return;
-        }
-
-        let disposed = false;
-        dataSources.forEach((dataSource) => {
-            setDataSourceState((current) => ({
-                ...current,
-                [dataSource.id]: {
-                    loading: true,
-                    data: current[dataSource.id]?.data,
-                },
-            }));
-
-            requestRuntimeDataSource(dataSource, {
-                apiBaseUrl: runtimeConfig?.apiBaseUrl ?? readViteEnv('VITE_API_BASE_URL') ?? 'http://localhost:3000/api',
-                allowedOrigins: runtimeConfig?.allowedOrigins ?? parseAllowedOrigins(readViteEnv('VITE_LOWCODE_HTTP_ALLOWED_ORIGINS')),
-                variables,
-                dataSources: dataSourceState,
-                getAuthToken: runtimeConfig?.getAuthToken ?? getDefaultAuthToken,
-            })
-                .then((data) => {
-                    if (disposed) return;
-                    setDataSourceState((current) => ({
-                        ...current,
-                        [dataSource.id]: {
-                            loading: false,
-                            data,
-                        },
-                    }));
-                })
-                .catch((error) => {
-                    if (disposed) return;
-                    setDataSourceState((current) => ({
-                        ...current,
-                        [dataSource.id]: {
-                            loading: false,
-                            data: current[dataSource.id]?.data,
-                            error: error instanceof Error ? error.message : '数据源请求失败',
-                        },
-                    }));
-                });
-        });
-
-        return () => {
-            disposed = true;
-        };
-    }, [pageProps.dataSources, variables]);
-
-    function updateRuntimeComponentProps(componentId: number, props: Record<string, any>) {
-        setRuntimeComponents((currentComponents) => updateComponents(currentComponents, componentId, (component) => {
-            component.props = { ...(component.props || {}), ...props };
-            Object.keys(props).forEach((key) => {
-                if (props[key] === undefined) {
-                    delete component.props[key];
-                }
-            });
-        }));
-    }
-
-    function updateRuntimeComponentStyles(componentId: number, styles: Record<string, any>) {
-        setRuntimeComponents((currentComponents) => updateComponents(currentComponents, componentId, (component) => {
-            component.styles = { ...component.styles, ...styles };
-        }));
-    }
-
-    function setRuntimeVariable(path: string, value: unknown) {
-        setVariables((currentVariables) => setPathValue(currentVariables, path, value));
-    }
-
-    function handleEvent(component: Component) {
-        const props: Record<string, any> = {};
-        const config = componentConfig[component.name];
-
-        if (!config) {
-            return props;
-        }
-
-        config.events?.forEach((event) => {
-            const eventConfig = getComponentEventConfig(component, event.name);
-            const actions = eventConfig?.actions || [];
-
-            if (actions.length > 0) {
-                props[getReactEventProp(event)] = (...args: any[]) => {
-                    void runLowcodeActions(actions, {
-                        component,
-                        eventName: getLowcodeEventName(event.name),
-                        eventData: createEventData(args, getLowcodeEventName(event.name)),
-                        args,
-                        components,
-                        componentRefs: componentRefs.current,
-                        allowCustomJS,
-                        variables,
-                        setVariable: setRuntimeVariable,
-                        updateComponentProps: updateRuntimeComponentProps,
-                        updateComponentStyles: updateRuntimeComponentStyles,
-                        getAuthToken: runtimeConfig?.getAuthToken ?? getDefaultAuthToken,
-                    }, {
-                        apiBaseUrl: runtimeConfig?.apiBaseUrl,
-                        allowedOrigins: runtimeConfig?.allowedOrigins,
-                    }).catch(() => {
-                        message.error('事件动作执行失败');
-                    });
-                };
-            }
-        })
-        return props;
-    }
-
-    function renderComponents(components: Component[]): React.ReactNode {
-        return components.map((component: Component) => {
-            const config = componentConfig?.[component.name]
-
-            if (component.id !== 1 && component.props?.hidden) {
-                return null;
-            }
-
-            if (!config?.prod) {
-                return <div key={component.id} className="m-2 border border-red-300 bg-red-50 p-2 text-red-600">
-                    未找到 {component.name} 的预览组件
-                </div>;
-            }
-            const declaredEventProps = new Set(config.events?.map(getReactEventProp) || []);
-            const componentProps = Object.fromEntries(
-                Object.entries(component.props || {}).filter(([key]) => {
-                    return key !== 'onEvent' && !declaredEventProps.has(key);
-                })
-            );
-            const resolvedComponentProps = resolveRuntimeProps(componentProps, {
-                variables,
-                dataSources: dataSourceState,
-                component,
-            });
-
-            const canRenderChildren = Boolean(config.acceptsChildren);
-            const children = canRenderChildren ? renderComponents(component.children || []) : null;
-            const props: Record<string, any> = {
-                key: component.id,
-                id: component.id,
-                name: component.name,
-                styles: component.styles,
-                ref: (ref: Record<string, any>) => { componentRefs.current[component.id] = ref; },
-                ...config.defaultProps,
-                ...resolvedComponentProps,
-                ...getInternalRuntimeProps(component.name),
-                ...handleEvent(component)
-            };
-
-            const element = canRenderChildren && component.children?.length
-                ? React.createElement(config.prod, props, children)
-                : React.createElement(config.prod, props);
-            const { ref: _componentRef, key: _key, ...boundaryMetadataProps } = props;
-
-            return <PreviewComponentBoundary key={component.id} component={component} {...boundaryMetadataProps}>
-                {element}
-            </PreviewComponentBoundary>;
-        })
-    }
-
-    return <div className="h-full bg-slate-50">
-        {renderComponents(components)}
-    </div>
-
-    function getInternalRuntimeProps(componentName: string) {
-        if (['Table', 'List', 'Chart', 'Descriptions', 'Select'].includes(componentName)) {
-            return {
-                runtimeVariables: variables,
-                runtimeDataSources: dataSourceState,
-            };
-        }
-
-        return {};
-    }
+function addRuntimeErrorLog(error: unknown, context: RuntimeErrorContext) {
+  useRuntimeLogsStore.getState().addLog({
+    level: 'error',
+    source: context.source === 'data-source' ? 'event' : context.source,
+    title: context.source === 'render' ? '组件渲染失败' : '事件动作执行失败',
+    message: formatRuntimeErrorMessage(error),
+    stack: formatRuntimeErrorStack(error),
+    componentId: context.component?.id,
+    componentName: context.component?.name,
+    componentDesc: context.component?.desc,
+    eventName: context.eventName,
+    actionType: context.actionType as ActionType | undefined,
+  });
 }
 
 function parseAllowedOrigins(value: string | undefined) {
-    return (value || '')
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean);
-}
-
-function readViteEnv(name: string) {
-    try {
-        return import.meta.env?.[name];
-    } catch {
-        return undefined;
-    }
+  return (value || '').split(',').map((origin) => origin.trim()).filter(Boolean);
 }
 
 function getDefaultAuthToken() {
-    if (typeof window === 'undefined') {
-        return undefined;
-    }
-
-    return window.localStorage.getItem('lowcode_token') || undefined;
-}
-
-function cloneComponents(components: Component[]) {
-    return JSON.parse(JSON.stringify(components)) as Component[];
-}
-
-function updateComponents(components: Component[], componentId: number, update: (component: Component) => void) {
-    const nextComponents = cloneComponents(components);
-    const component = getRuntimeComponentById(componentId, nextComponents);
-
-    if (!component) {
-        return components;
-    }
-
-    update(component);
-    return nextComponents;
-}
-
-function getRuntimeComponentById(componentId: number, components: Component[]): Component | null {
-    for (const component of components) {
-        if (component.id === componentId) {
-            return component;
-        }
-
-        if (component.children) {
-            const result = getRuntimeComponentById(componentId, component.children);
-            if (result) {
-                return result;
-            }
-        }
-    }
-
-    return null;
+  return window.localStorage.getItem('lowcode_token') || undefined;
 }

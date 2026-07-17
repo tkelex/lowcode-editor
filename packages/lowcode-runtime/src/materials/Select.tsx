@@ -1,7 +1,7 @@
 import { Select as AntdSelect } from 'antd';
 import { useMemo } from 'react';
-import { CommonComponentProps } from '../../interface';
-import { splitControlStyles } from '../styleSplit';
+import type { CommonComponentProps } from '../types';
+import { splitControlStyles } from './style';
 
 function toOptions(optionsText?: string) {
     return (optionsText || '')

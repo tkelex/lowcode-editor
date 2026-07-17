@@ -5,7 +5,7 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 
 describe('repository architecture policy', () => {
-  it('rejects publisher imports from editor internals and allows the public runtime seam', async () => {
+  it('rejects publisher imports from editor internals and allows the runtime package', async () => {
     const fixtureRoot = await mkdtemp(path.resolve('node_modules/.tmp/architecture-policy-'));
     const publisherFile = path.join(fixtureRoot, 'apps/publisher-next/src/example.ts');
 
@@ -19,11 +19,11 @@ describe('repository architecture policy', () => {
 
       const rejected = runArchitectureCheck(fixtureRoot);
       assert.equal(rejected.status, 1);
-      assert.match(`${rejected.stdout}\n${rejected.stderr}`, /publisher.*public runtime/i);
+      assert.match(`${rejected.stdout}\n${rejected.stderr}`, /publisher.*workspace package exports/i);
 
       await writeFile(
         publisherFile,
-        "import '@root/src/editor/runtime/public';\n",
+        "import '@lowcode/runtime/client';\n",
         'utf8',
       );
 

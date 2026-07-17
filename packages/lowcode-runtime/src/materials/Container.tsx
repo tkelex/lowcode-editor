@@ -1,4 +1,4 @@
-import { CommonComponentProps } from '../../interface';
+import type { CommonComponentProps } from '../types';
 
 const Container = ({ id: _id, name: _name, children, styles, title, visible = true, direction = 'vertical', ...restProps }: CommonComponentProps) => {
     if (!visible) {
