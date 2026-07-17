@@ -7,7 +7,7 @@ import { describe, it } from 'node:test';
 describe('repository architecture policy', () => {
   it('rejects publisher imports from editor internals and allows the runtime package', async () => {
     const fixtureRoot = await mkdtemp(path.resolve('node_modules/.tmp/architecture-policy-'));
-    const publisherFile = path.join(fixtureRoot, 'apps/publisher-next/src/example.ts');
+    const publisherFile = path.join(fixtureRoot, 'apps/publisher-web/src/example.ts');
 
     try {
       await mkdir(path.dirname(publisherFile), { recursive: true });

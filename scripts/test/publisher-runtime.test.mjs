@@ -25,7 +25,7 @@ describe('Next.js publisher runtime helpers', () => {
       createPublishedPageMetadata,
       normalizeSafeUrl,
       normalizeText,
-    } = await loadModule('apps/publisher-next/src/published-pages/metadata.ts');
+    } = await loadModule('apps/publisher-web/src/published-pages/metadata.ts');
 
     process.env.PUBLISHER_SITE_URL = 'https://pages.example.com';
 
@@ -64,7 +64,7 @@ describe('Next.js publisher runtime helpers', () => {
   });
 
   it('creates stable cache tags for public ids', async () => {
-    const { createPublishedPageTag, parseCsv } = await loadModule('apps/publisher-next/src/published-pages/config.ts');
+    const { createPublishedPageTag, parseCsv } = await loadModule('apps/publisher-web/src/published-pages/config.ts');
 
     assert.equal(createPublishedPageTag('abc'), 'published-page:abc');
     assert.deepEqual(parseCsv(' https://a.com, ,https://b.com '), ['https://a.com', 'https://b.com']);
@@ -143,7 +143,7 @@ describe('Next.js publisher runtime helpers', () => {
   });
 
   it('keeps the Next publisher adapter on the public runtime interface', async () => {
-    const source = await readFile('apps/publisher-next/app/publish/[publicId]/page.tsx', 'utf8');
+    const source = await readFile('apps/publisher-web/src/app/publish/[publicId]/page.tsx', 'utf8');
 
     assert.match(source, /@lowcode\/runtime\/client['"]/);
     assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);

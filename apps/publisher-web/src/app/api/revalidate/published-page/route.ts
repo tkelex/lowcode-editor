@@ -1,6 +1,6 @@
 import { revalidateTag } from 'next/cache';
 import { NextResponse } from 'next/server';
-import { createPublishedPageTag, getPublisherRuntimeConfig } from '@publisher/published-pages/config';
+import { createPublishedPageTag, getPublisherRuntimeConfig } from '@/published-pages/config';
 
 export async function POST(request: Request) {
   const config = getPublisherRuntimeConfig();

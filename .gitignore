@@ -6,7 +6,7 @@ apps/api-server/node_modules/
 dist/
 dist-ssr/
 apps/api-server/dist/
-apps/publisher-next/.next/
+apps/publisher-web/.next/
 build/
 coverage/
 apps/api-server/uploads/

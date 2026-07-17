@@ -57,8 +57,8 @@ function resolveImport(filePath, specifier) {
     absolutePath = path.resolve(path.dirname(filePath), specifier);
   } else if (specifier.startsWith('@root/')) {
     absolutePath = path.resolve(root, specifier.slice('@root/'.length));
-  } else if (specifier.startsWith('@publisher/')) {
-    absolutePath = path.resolve(root, 'apps/publisher-next/src', specifier.slice('@publisher/'.length));
+  } else if (specifier.startsWith('@/') && toPosix(path.relative(root, filePath)).startsWith('apps/publisher-web/')) {
+    absolutePath = path.resolve(root, 'apps/publisher-web/src', specifier.slice('@/'.length));
   } else {
     return null;
   }
@@ -111,7 +111,7 @@ for (const filePath of files) {
       violations.push(`${describeImport(filePath, specifier)}\n  Backend code must not import frontend implementation files.`);
     }
 
-    if (relativeFile.startsWith('apps/publisher-next/') && resolved) {
+    if (relativeFile.startsWith('apps/publisher-web/') && resolved) {
       if (isUnder(resolved, 'src') || isUnder(resolved, 'apps/api-server')) {
         violations.push(
           `${describeImport(filePath, specifier)}\n  Publisher code must use workspace package exports instead of editor or backend source.`,

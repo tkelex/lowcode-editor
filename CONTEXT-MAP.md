@@ -3,7 +3,7 @@
 ## Contexts
 
 - [前端编辑器](./src/CONTEXT.md) — 编辑页面草稿并提供编辑器预览
-- [公开发布运行时](./apps/publisher-next/CONTEXT.md) — 面向访客呈现公开页面
+- [公开发布运行时](./apps/publisher-web/CONTEXT.md) — 面向访客呈现公开页面
 - [平台后端](./apps/api-server/CONTEXT.md) — 管理页面草稿、发布快照和访问规则
 - [Schema 契约](./packages/lowcode-schema/CONTEXT.md) — 定义跨运行时共享的页面表达
 - [页面运行时](./packages/lowcode-runtime/CONTEXT.md) — 无状态地渲染页面并执行受策略约束的交互
