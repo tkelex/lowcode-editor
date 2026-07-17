@@ -7,7 +7,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin'
 
 export default [
   {
-    ignores: ['dist/**', 'server/**'],
+    ignores: ['dist/**', 'server/**', 'apps/publisher-next/.next/**'],
   },
   js.configs.recommended,
   {
@@ -22,11 +22,14 @@ export default [
     },
   },
   {
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'apps/publisher-next/{app,src}/**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
-      globals: globals.browser,
+      globals: {
+        ...globals.browser,
+        ...globals.node,
+      },
       parser: tsParser,
     },
     plugins: {
@@ -44,6 +47,18 @@ export default [
       'no-empty': 'off',
       'no-redeclare': 'off',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+    },
+  },
+  {
+    files: ['apps/publisher-next/{app,src}/**/*.{ts,tsx}'],
+    languageOptions: {
+      globals: {
+        React: 'readonly',
+        RequestInit: 'readonly',
+      },
+    },
+    rules: {
+      'react-refresh/only-export-components': 'off',
     },
   },
 ]

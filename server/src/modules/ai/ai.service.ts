@@ -5,6 +5,7 @@ import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogsService } from '../audit/audit-logs.service';
+import { DataSourceModelsService } from '../data-source-models/data-source-models.service';
 import {
   EDITABLE_PROJECT_ROLES,
   READABLE_PROJECT_ROLES,
@@ -21,6 +22,7 @@ export class AiService {
     private readonly prisma: PrismaService,
     private readonly projectAccessService: ProjectAccessService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly dataSourceModelsService: DataSourceModelsService,
     private readonly pageGenerator: AiPageGeneratorService,
     private readonly agentOrchestration: AiAgentOrchestrationService,
   ) {}
@@ -68,6 +70,7 @@ export class AiService {
       projectId,
       currentComponents: dto.currentComponents,
       targetScope: dto.targetScope || 'page',
+      dataSourceModels: await this.dataSourceModelsService.list(projectId, userId),
     }, userId);
     await this.recordAgentAudit(result, userId, projectId);
     return result;
@@ -94,6 +97,7 @@ export class AiService {
       currentComponents: dto.currentComponents || readCurrentComponents(page.schema),
       selectedComponentId: dto.selectedComponentId || readSelectedComponentId(dto.context),
       targetScope: dto.targetScope || (dto.selectedComponentId ? 'selection' : 'page'),
+      dataSourceModels: await this.dataSourceModelsService.list(page.projectId, userId),
     }, userId);
     await this.recordAgentAudit(result, userId, page.projectId, page.id);
     return result;
@@ -200,6 +204,10 @@ export class AiService {
         toolCallCount: result.toolCalls.length,
         warningCount: result.candidate?.warnings.length || 0,
         candidateKind: result.candidate?.kind,
+        routeIntent: result.routeDecision?.intent,
+        routeConfidence: result.routeDecision?.confidence,
+        routePreferredTool: result.routeDecision?.preferredTool,
+        routeFallback: result.routeDecision?.fallback,
         error: result.error,
       }),
     });

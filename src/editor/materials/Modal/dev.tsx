@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useMaterialDrop } from '../../hooks/useMaterialDrop';
 import { CommonComponentProps } from '../../interface';
 import { COMMON_CHILDREN } from '../commonChildren';
@@ -5,10 +6,15 @@ import { COMMON_CHILDREN } from '../commonChildren';
 function Modal({ id, children, title, width, centered, maskClosable, styles }: CommonComponentProps) {
 
     const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop(COMMON_CHILDREN, id);
+    const divRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        drop(divRef);
+    }, [drop]);
 
     return (
         <div 
-            ref={drop}
+            ref={divRef}
             style={styles}
             data-component-id={id}  
             className={`editor-component editor-panel editor-drop-zone min-h-[140px] ${canDrop ? 'can-drop' : ''} ${canDropCurrent ? 'is-drop-target' : ''} ${isOverCurrent && !canDropCurrent ? 'is-drop-disabled' : ''}`}

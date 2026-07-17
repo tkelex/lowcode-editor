@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { CommonComponentProps } from "../../interface";
 import { useMaterialDrop } from "../../hooks/useMaterialDrop";
 import { COMMON_CHILDREN } from "../commonChildren";
@@ -15,16 +16,21 @@ function Page({
 }: CommonComponentProps) {
 
     const {canDrop, canDropCurrent, isOverCurrent, drop } = useMaterialDrop([...COMMON_CHILDREN, 'Modal'], id);
+    const pageRef = useRef<HTMLDivElement>(null);
     const hasHeader = showHeader && (pageTitle || subTitle);
     const badges = [
         pullRefresh ? '下拉刷新' : '',
         initApi ? '初始化接口' : '',
     ].filter(Boolean);
 
+    useEffect(() => {
+        drop(pageRef);
+    }, [drop]);
+
     return (
         <div
             data-component-id={id}
-            ref={drop}
+            ref={pageRef}
             className={`editor-page editor-page-drop-zone box-border min-h-[calc(100vh-120px)] p-[28px] ${canDrop ? 'can-drop' : ''} ${canDropCurrent ? 'is-drop-target' : ''} ${isOverCurrent && !canDropCurrent ? 'is-drop-disabled' : ''}`}
             style={styles}
         >

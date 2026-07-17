@@ -1,7 +1,11 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   applyAiComponentPatch,
+  createAgentDataSourceBindingPatch,
+  createAgentEventActionPatch,
   createAiRepairPromptFromIssues,
+  generateAiCrudPageCandidate,
+  validateAiGeneratedComponents,
   type AiAgentContextPackage,
   type AiAgentToolCall,
   type AiAgentToolDefinition,
@@ -40,6 +44,13 @@ export class AiAgentToolRegistryService {
       timeoutMs: 1000,
     },
     {
+      name: 'readDataSourceModels',
+      description: '读取当前项目可用的数据源模型摘要',
+      kind: 'read',
+      readOnly: true,
+      timeoutMs: 1000,
+    },
+    {
       name: 'generateSchemaDraft',
       description: '基于用户意图生成低代码 schema 草稿',
       kind: 'generate',
@@ -47,8 +58,29 @@ export class AiAgentToolRegistryService {
       timeoutMs: 30000,
     },
     {
+      name: 'generateCrudPage',
+      description: '基于已有或临时数据源模型调用 CRUD 生成器产出候选页面',
+      kind: 'generate',
+      readOnly: false,
+      timeoutMs: 3000,
+    },
+    {
       name: 'proposeSchemaPatch',
       description: '把生成草稿转换为候选 schema patch',
+      kind: 'patch',
+      readOnly: false,
+      timeoutMs: 1000,
+    },
+    {
+      name: 'generateEventActionPatch',
+      description: '根据自然语言为目标组件生成低代码事件动作 patch',
+      kind: 'patch',
+      readOnly: false,
+      timeoutMs: 1000,
+    },
+    {
+      name: 'bindDataSource',
+      description: '根据自然语言为 Page dataSources 和目标组件 dataSourceId 生成 patch',
       kind: 'patch',
       readOnly: false,
       timeoutMs: 1000,
@@ -112,6 +144,7 @@ export class AiAgentToolRegistryService {
         selectedComponentPath: input.context.selectedComponentPath,
         componentCount: input.context.componentSummaries.length,
         pageFingerprint: input.context.pageFingerprint,
+        dataSourceModelCount: input.context.dataSourceModels?.length || 0,
       };
     }
 
@@ -119,6 +152,23 @@ export class AiAgentToolRegistryService {
       return {
         materials: input.context.materials,
         toolPolicy: '工具只返回候选 schema 或 patch，不直接持久化页面。',
+      };
+    }
+
+    if (toolName === 'readDataSourceModels') {
+      return {
+        models: (input.context.dataSourceModels || []).map((model) => ({
+          id: model.id,
+          key: model.key,
+          name: model.name,
+          primaryField: model.primaryField,
+          fieldCount: model.fields.length,
+          hasListApi: Boolean(model.listApi),
+          hasCreateApi: Boolean(model.createApi),
+          hasUpdateApi: Boolean(model.updateApi),
+          hasDetailApi: Boolean(model.detailApi),
+          hasDeleteApi: Boolean(model.deleteApi),
+        })),
       };
     }
 
@@ -136,6 +186,33 @@ export class AiAgentToolRegistryService {
       } satisfies AiPageGenerationRequest);
     }
 
+    if (toolName === 'generateCrudPage') {
+      const result = generateAiCrudPageCandidate({
+        prompt: input.prompt,
+        apiDescription: input.apiDescription,
+        responseSample: input.responseSample,
+        dataSourceModel: input.dataSourceModel,
+        dataSourceModels: input.context.dataSourceModels,
+        idStart: 1,
+      });
+
+      return {
+        components: result.crudResult.schema.components,
+        summary: `已基于${result.source === 'existingModel' ? '项目数据源模型' : '临时数据源模型'}「${result.model.name}」生成 CRUD ${result.crudResult.pageType} 页面候选。`,
+        warnings: result.warnings,
+        assumptions: result.assumptions,
+        crud: {
+          source: result.source,
+          modelId: result.model.id,
+          modelKey: result.model.key,
+          modelName: result.model.name,
+          pageType: result.crudResult.pageType,
+          routePath: result.crudResult.routePath,
+          generatedBy: 'data-model-crud-generation' as const,
+        },
+      };
+    }
+
     if (toolName === 'proposeSchemaPatch') {
       const generatedComponents = readComponents(args.generatedComponents);
       const patch = createPatchFromGenerated(input.context, generatedComponents);
@@ -145,18 +222,60 @@ export class AiAgentToolRegistryService {
       };
     }
 
+    if (toolName === 'generateEventActionPatch') {
+      const result = createAgentEventActionPatch({
+        components: input.components,
+        prompt: input.prompt,
+        selectedComponentId: input.context.selectedComponentId,
+        pageFingerprint: input.context.pageFingerprint,
+        apiDescription: input.apiDescription,
+      });
+
+      return {
+        ...result,
+        candidateKind: 'patch',
+      };
+    }
+
+    if (toolName === 'bindDataSource') {
+      const result = createAgentDataSourceBindingPatch({
+        components: input.components,
+        prompt: input.prompt,
+        selectedComponentId: input.context.selectedComponentId,
+        pageFingerprint: input.context.pageFingerprint,
+        apiDescription: input.apiDescription,
+      });
+
+      return {
+        ...result,
+        candidateKind: 'patch',
+      };
+    }
+
     if (toolName === 'validateCandidate') {
+      const components = args.components;
+      if (Array.isArray(components)) {
+        const validation = validateAiGeneratedComponents(components);
+        return {
+          ...validation,
+          repairPrompt: createAiRepairPromptFromIssues(validation.errors),
+        };
+      }
+
       const patch = args.patch as AiComponentPatch | undefined;
       if (!patch?.operations) {
         throw new BusinessException(
           AppErrorCode.AI_AGENT_TOOL_ARGUMENT_INVALID,
-          'validateCandidate requires patch.operations',
+          'validateCandidate requires patch.operations or components',
           HttpStatus.BAD_REQUEST,
         );
       }
+
       const validation = applyAiComponentPatch(input.components, patch, {
         expectedBaselineFingerprint: input.context.pageFingerprint,
-        scopeRootId: input.context.targetScope === 'page' ? undefined : input.context.selectedComponentId,
+        scopeRootId: Object.prototype.hasOwnProperty.call(args, 'scopeRootId')
+          ? readScopeRootId(args.scopeRootId)
+          : input.context.targetScope === 'page' ? undefined : input.context.selectedComponentId,
       });
       return {
         ...validation,
@@ -216,9 +335,16 @@ function readComponents(value: unknown): LowcodeComponentSchema[] {
   );
 }
 
+function readScopeRootId(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
 function summarizeResult(toolName: string, result: unknown) {
   if (toolName === 'generateSchemaDraft' && result && typeof result === 'object') {
     return (result as { summary?: string }).summary || '已生成 schema 草稿';
+  }
+  if (toolName === 'generateCrudPage' && result && typeof result === 'object') {
+    return (result as { summary?: string }).summary || '已生成 CRUD 页面候选';
   }
   if (toolName === 'validateCandidate' && result && typeof result === 'object') {
     return (result as { valid?: boolean }).valid ? '候选修改校验通过' : '候选修改未通过校验';

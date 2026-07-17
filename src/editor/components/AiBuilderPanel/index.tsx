@@ -287,12 +287,14 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
   const agentPreviewComponents = agentRun?.candidate?.kind === 'patch'
     ? agentRun.candidate.previewComponents
     : agentRun?.candidate?.components;
+  const agentCrudMetadata = agentRun?.candidate?.metadata?.crud;
+  const agentRouteDecision = agentRun?.routeDecision;
 
   return <div className="flex h-full flex-col overflow-hidden px-[12px] pb-[16px]">
     <div className="min-h-0 flex-1 overflow-auto pr-[2px]">
-      <Typography.Title level={5} className="!mb-[4px]">AI 搭建</Typography.Title>
+      <Typography.Title level={5} className="!mb-[4px]">自然语言开发助手</Typography.Title>
       <Typography.Text type="secondary" className="text-[12px]">
-        生成结果会先预览，确认后才写入当前页面。
+        描述你想生成或修改的页面，Agent 会先理解意图、选择工具并生成可预览候选。
       </Typography.Text>
 
       {!canWritePage && <Alert className="mt-[12px]" type="warning" showIcon message="当前角色只有查看权限，不能生成并写入页面" />}
@@ -306,16 +308,21 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
       >
         <Form.Item
           name="prompt"
-          label="页面描述"
-          rules={[{ required: true, message: '请输入你想生成的页面' }]}
+          label="告诉 Agent 你想做什么"
+          rules={[{ required: true, message: '请输入你想让 Agent 完成的任务' }]}
         >
           <Input.TextArea
             rows={4}
             maxLength={4000}
             showCount
-            placeholder="例如：生成一个用户管理页面，包含统计卡片、用户列表、新增/编辑表单"
+            placeholder="例如：基于 /api/users 生成用户管理页；把当前卡片改成后台数据看板；给提交按钮接 POST /api/orders"
           />
         </Form.Item>
+
+        <div className="mb-[10px] rounded-[6px] border border-[#e2e8f0] bg-[#f8fafc] px-[10px] py-[8px]">
+          <div className="text-[12px] font-medium text-[#475569]">高级上下文</div>
+          <div className="mt-[2px] text-[12px] leading-[18px] text-[#64748b]">可选填写，Agent 会结合这些信息判断意图、接口和影响范围。</div>
+        </div>
 
         <Form.Item name="target" label="生成目标">
           <Select
@@ -350,11 +357,11 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
         </Form.Item>
 
         <Space>
-          <Button type="primary" htmlType="submit" loading={generating} disabled={!canWritePage}>
-            生成草稿
+          <Button type="primary" onClick={handleAgentRun} loading={agentRunning} disabled={!canWritePage}>
+            让 Agent 处理
           </Button>
-          <Button onClick={handleAgentRun} loading={agentRunning} disabled={!canWritePage}>
-            Agent 修改
+          <Button htmlType="submit" loading={generating} disabled={!canWritePage}>
+            仅生成草稿
           </Button>
           <Button
             onClick={() => {
@@ -423,6 +430,18 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
 
       {agentRun && <div className="mt-[16px]">
         <Divider className="!my-[12px]" />
+        {agentRouteDecision && <div className="mb-[12px] rounded-[6px] border border-[#dbeafe] bg-[#eff6ff] px-[10px] py-[8px] text-[12px] leading-[20px]">
+          <div className="font-medium text-[#1e40af]">Agent 理解</div>
+          <div className="mt-[4px] text-[#475569]">
+            意图：{toRouteIntentLabel(agentRouteDecision.intent)} · 置信度：{Math.round(agentRouteDecision.confidence * 100)}% · 工具：{toPreferredToolLabel(agentRouteDecision.preferredTool)} · 范围：{toTargetScopeLabel(agentRouteDecision.targetScope)}
+          </div>
+          {agentRouteDecision.reasons.length > 0 && <div className="mt-[3px] text-[#64748b]">
+            原因：{agentRouteDecision.reasons.join('；')}
+          </div>}
+          {agentRouteDecision.fallback && <div className="mt-[3px] text-[#b45309]">
+            降级：{agentRouteDecision.fallback}
+          </div>}
+        </div>}
         {agentMessages.length > 0 && <div className="mb-[12px] space-y-[8px]">
           <Typography.Text strong>Agent 对话</Typography.Text>
           {agentMessages.map((item) => (
@@ -448,6 +467,14 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
           <div className="mt-[8px] text-[12px] text-[#64748b]">
             影响范围：{agentRun.candidate.impactScope === 'page' ? '整页' : '当前选中'} · 类型：{agentRun.candidate.kind === 'patch' ? 'Patch' : '组件树'}
           </div>
+
+          {agentCrudMetadata && <div className="mt-[10px] rounded-[6px] border border-[#dbeafe] bg-[#eff6ff] px-[10px] py-[8px] text-[12px] leading-[20px] text-[#1e3a8a]">
+            <div className="font-medium text-[#1e40af]">CRUD 页面候选</div>
+            <div className="mt-[4px] text-[#475569]">
+              已使用确定性 CRUD 生成器 · 模型：{agentCrudMetadata.modelName}（{agentCrudMetadata.modelKey}） · 页面类型：{toCrudPageTypeLabel(agentCrudMetadata.pageType)} · 来源：{agentCrudMetadata.source === 'existingModel' ? '项目数据源模型' : '临时模型草稿'}
+              {agentCrudMetadata.routePath ? ` · 路由：${agentCrudMetadata.routePath}` : ''}
+            </div>
+          </div>}
 
           {agentRun.candidate.assumptions.length > 0 && <Alert
             className="mt-[10px]"
@@ -502,4 +529,48 @@ function parseResponseSample(value: string | undefined) {
 function extractInsertNodes(components: LowcodeComponentSchema[]) {
   const page = components.find((component) => component.name === 'Page');
   return page?.children?.length ? page.children : components.filter((component) => component.name !== 'Page');
+}
+
+function toCrudPageTypeLabel(pageType: string) {
+  const labels: Record<string, string> = {
+    list: '列表',
+    create: '新增',
+    edit: '编辑',
+    detail: '详情',
+  };
+  return labels[pageType] || pageType;
+}
+
+function toRouteIntentLabel(intent: string) {
+  const labels: Record<string, string> = {
+    'crud-page': 'CRUD 页面',
+    'free-page': '普通页面生成',
+    'edit-selected': '选中组件修改',
+    'style-polish': '样式优化',
+    'bind-data-source': '数据源绑定',
+    'add-event-action': '事件动作配置',
+    'fix-page-issue': '页面问题修复',
+  };
+  return labels[intent] || intent;
+}
+
+function toPreferredToolLabel(tool: string) {
+  const labels: Record<string, string> = {
+    'crud-generator': '确定性 CRUD 生成器',
+    'schema-draft': 'Schema 草稿',
+    'schema-patch': 'Schema Patch',
+    'data-source-patch': '数据源 Patch',
+    'event-action-patch': '事件 Patch',
+    'diagnostic-patch': '诊断修复',
+  };
+  return labels[tool] || tool;
+}
+
+function toTargetScopeLabel(scope: string) {
+  const labels: Record<string, string> = {
+    page: '整页',
+    selection: '当前选中',
+    component: '组件',
+  };
+  return labels[scope] || scope;
 }

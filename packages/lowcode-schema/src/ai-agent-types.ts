@@ -1,4 +1,5 @@
 import type { AiPageGenerationResult, AiValidationIssue } from './ai-types';
+import type { CrudPageType, ProjectDataSourceModelConfig } from './data-model-crud-types';
 import type { LowcodeComponentSchema } from './types';
 
 export type AiAgentRunStatus =
@@ -12,6 +13,31 @@ export type AiAgentRunStatus =
 export type AiAgentTargetScope = 'page' | 'selection' | 'component';
 export type AiAgentToolKind = 'read' | 'generate' | 'patch' | 'validate';
 export type AiAgentCandidateKind = 'patch' | 'components';
+export type AiAgentRouteIntent =
+  | 'crud-page'
+  | 'free-page'
+  | 'edit-selected'
+  | 'style-polish'
+  | 'bind-data-source'
+  | 'add-event-action'
+  | 'fix-page-issue';
+export type AiAgentPreferredTool =
+  | 'crud-generator'
+  | 'schema-draft'
+  | 'schema-patch'
+  | 'data-source-patch'
+  | 'event-action-patch'
+  | 'diagnostic-patch';
+
+export interface AiAgentRouteDecision {
+  intent: AiAgentRouteIntent;
+  confidence: number;
+  reasons: string[];
+  targetScope: AiAgentTargetScope;
+  preferredTool: AiAgentPreferredTool;
+  fallback?: string;
+  deterministic?: boolean;
+}
 
 export interface AiAgentMessage {
   id?: string;
@@ -47,7 +73,7 @@ export interface AiAgentContextPackage {
   componentSummaries: AiAgentContextComponentSummary[];
   selectedComponentPath?: AiAgentContextComponentSummary[];
   materials: AiAgentMaterialSummary[];
-  dataSourceModels?: unknown[];
+  dataSourceModels?: ProjectDataSourceModelConfig[];
   history?: AiAgentMessage[];
 }
 
@@ -97,6 +123,7 @@ export interface AiAgentRunRequest {
   apiDescription?: string;
   responseSample?: unknown;
   dataSourceModel?: unknown;
+  dataSourceModels?: ProjectDataSourceModelConfig[];
 }
 
 export interface AiAgentCandidateBase {
@@ -109,6 +136,21 @@ export interface AiAgentCandidateBase {
   assumptions: string[];
   validationErrors: AiValidationIssue[];
   validationWarnings: AiValidationIssue[];
+  metadata?: AiAgentCandidateMetadata;
+}
+
+export interface AiAgentCandidateMetadata {
+  crud?: AiAgentCrudCandidateMetadata;
+}
+
+export interface AiAgentCrudCandidateMetadata {
+  source: 'existingModel' | 'draftModel';
+  modelId?: string;
+  modelKey: string;
+  modelName: string;
+  pageType: CrudPageType;
+  routePath?: string;
+  generatedBy: 'data-model-crud-generation';
 }
 
 export interface AiAgentPatchCandidate extends AiAgentCandidateBase {
@@ -128,6 +170,7 @@ export interface AiAgentRunResult {
   runId: string;
   status: AiAgentRunStatus;
   context: AiAgentContextPackage;
+  routeDecision?: AiAgentRouteDecision;
   plan: string[];
   events: AiAgentRunEvent[];
   toolCalls: AiAgentToolCall[];
@@ -148,6 +191,8 @@ export interface AiAgentRunAuditSummary {
   warningCount: number;
   failureReason?: string;
   candidateKind?: AiAgentCandidateKind;
+  routeIntent?: AiAgentRouteIntent;
+  routeFallback?: string;
 }
 
 export type AiComponentPatchOperation =

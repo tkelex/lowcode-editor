@@ -4,12 +4,13 @@ import { ProjectsModule } from '../projects/projects.module';
 import { PagePublishService } from './page-publish.service';
 import { PageSchemaService } from './page-schema.service';
 import { PageVersionsService } from './page-versions.service';
+import { PublishedPageRevalidateService } from './published-page-revalidate.service';
 import { PagesController, PublicPagesController } from './pages.controller';
 import { PagesService } from './pages.service';
 
 @Module({
   imports: [ProjectsModule, AuditLogsModule],
   controllers: [PagesController, PublicPagesController],
-  providers: [PagesService, PageSchemaService, PageVersionsService, PagePublishService],
+  providers: [PagesService, PageSchemaService, PageVersionsService, PagePublishService, PublishedPageRevalidateService],
 })
 export class PagesModule {}

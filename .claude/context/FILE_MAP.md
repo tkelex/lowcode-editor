@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | `CLAUDE.md` | Claude Code 项目级工作说明，包含命令、关键约定和上下文入口。 | 不要写成大段源码说明，否则每次会话都会浪费 token。 |
 | `package.json` | 前端依赖和脚本。 | 改 lint/build 脚本会影响验证流程。 |
+| `apps/publisher-next/package.json` | Next.js 公开发布页运行时依赖和脚本。 | 改 Next 版本或脚本要验证 `npm run build:publisher`。 |
 | `server/package.json` | 后端依赖和脚本。 | 后端依赖升级需注意 NestJS/Prisma 兼容。 |
 | `.github/workflows/ci.yml` | GitHub Actions 质量门禁，执行依赖安装和 `npm run check`。 | 改脚本前要确保 CI 环境也安装了 `server` 依赖。 |
 | `.gitignore` | 忽略 node_modules、dist、.env 等。 | 不要让 `.env` 被提交。 |
@@ -40,6 +41,7 @@
 | `scripts/architecture/check-boundaries.mjs` | 架构边界检查，防止前端直接引用后端、共享包反向依赖应用、以及新代码绕回旧 `src/api`。 | 新增合法跨层依赖时先评估是否应该调整模块边界，而不是直接放宽规则。 |
 | `scripts/smoke/api-smoke.mjs` | API smoke 脚本，验证注册、项目成员权限、数据源模型、页面保存、版本、发布、公开读取和审计闭环。 | 需要后端和数据库运行；改 API 路由或权限规则时同步。 |
 | `infra/docker/Dockerfile.web` | 前端生产镜像构建，Nginx 托管 Vite dist。 | 改 Vite 环境变量或构建命令时同步。 |
+| `infra/docker/Dockerfile.publisher-next` | Next.js 公开发布页运行时镜像构建。 | 改发布页环境变量或构建路径时同步 compose 和部署文档。 |
 | `infra/docker/Dockerfile.server` | 后端生产镜像构建，包含 Nest 构建产物和 Prisma 资源。 | 依赖 `server/dist/server/src/main.js` 输出路径。 |
 | `infra/nginx/web.conf` | 前端 SPA fallback 和 `/api` 反向代理。 | 改后端服务名或 API 前缀时同步。 |
 | `infra/docker/docker-compose.prod.example.yml` | 测试环境容器编排示例。 | 生产使用前必须替换 secret 和数据库配置。 |
@@ -78,6 +80,8 @@
 | `src/features/admin/model/*`、`src/features/admin/components/*` | 管理员后台展示字典、格式化工具、概览卡片、状态标签和表格工具栏。 | 子模块保持展示或纯工具职责，不直接新增管理员 API 调用。 |
 | `src/features/admin/tableColumns.tsx` | 管理员后台用户、项目、发布页和审计表格列定义。 | 列中的操作回调由 AdminDashboard 注入，避免在列配置里直接请求 API。 |
 | `src/features/publish/PublishedPageView.tsx` | 公开发布页运行态渲染，先迁移发布快照，再传 `allowCustomJS={false}`。 | 公开页必须绕过登录且不能执行 customJS。 |
+| `apps/publisher-next/app/publish/[publicId]/page.tsx` | Next.js 公开发布页入口，服务端读取发布快照并生成 metadata。 | 不要直连数据库；必须通过 NestJS 公开接口读取发布快照。 |
+| `apps/publisher-next/src/published-pages/*` | Next.js 发布页取数、metadata、缓存 tag 和客户端 runtime adapter。 | 公开页必须传 `allowCustomJS={false}`，并使用显式 runtime 配置。 |
 
 ## 前端 API 层
 
@@ -91,6 +95,7 @@
 | `src/shared/api/data-source-models.ts` | 数据源模型配置 API 封装。 | 要和 DataSourceModelsController 路由保持一致；只保存外部 API 配置，不保存业务记录。 |
 | `src/shared/api/admin.ts` | 平台管理员 API 封装。 | 要和 AdminController 路由保持一致。 |
 | `src/shared/api/types.ts` | 前端 API 类型，`PageSchema` 复用 `packages/lowcode-schema`。 | 后端响应结构或共享 schema 类型变化时同步。 |
+| `src/shared/publish/url.ts` | 公开发布页 URL 构造，支持 `VITE_PUBLISHER_SITE_URL` 和旧 Vite fallback。 | 改路径要同步后台按钮、管理员发布页链接和部署文档。 |
 | `src/api/*` | 旧 API 路径兼容导出。 | 不要在这里新增主逻辑。 |
 | `src/api/admin.ts`、`src/api/index.ts` | 管理员 API 和聚合 API 的旧路径兼容导出。 | 只允许 re-export，新增 API 主实现必须放在 `src/shared/api`。 |
 
@@ -187,6 +192,7 @@
 | `server/src/modules/pages/page-schema.service.ts` | 页面 schema normalize，统一先调用共享迁移器再做服务端 schema 校验。 | 影响新页面、保存、发布、回滚的 schema 结构。 |
 | `server/src/modules/pages/page-versions.service.ts` | PageVersion 列表、创建、回滚和删除。 | 高风险；影响版本号、回滚和删除历史版本。 |
 | `server/src/modules/pages/page-publish.service.ts` | 发布、取消发布和公开读取发布快照。 | 高风险；影响公开页和草稿/发布隔离。 |
+| `server/src/modules/pages/published-page-revalidate.service.ts` | 发布/取消发布后通知 Next.js 发布页运行时按 publicId 失效缓存。 | 通知失败不能破坏发布主流程；secret 不能暴露到前端。 |
 | `server/src/modules/pages/dto/*.ts` | 页面 DTO 校验，包括 routePath 和 rollback versionId。 | 前端创建页面和回滚接口要同步。 |
 | `server/src/modules/ai/*` | AI 页面生成、模型网关、agent 编排、上下文构建、白名单工具和审计。 | 高风险；模型 key 只在后端，工具不得直接保存/发布/执行任意代码，候选结果必须校验。 |
 
