@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const moduleUrl = new URL('../../server/dist/server/src/modules/auth/auth-normalization.js', import.meta.url);
+const moduleUrl = new URL('../../server/dist/modules/auth/auth-normalization.js', import.meta.url);
 const {
   normalizeEmail,
   normalizeLoginAccount,

@@ -1,11 +1,11 @@
 import {
   assertValidComponentTree as assertValidLowcodeComponentTree,
   validateComponentTree as validateLowcodeComponentTree,
-} from '../../../packages/lowcode-schema/src/validate';
+} from '@lowcode/schema';
 import type {
   ComponentTreeValidationResult,
   LowcodeComponentConfigMap,
-} from '../../../packages/lowcode-schema/src/types';
+} from '@lowcode/schema';
 import type { Component } from '../stores/components';
 
 export type ComponentSchemaValidationResult = ComponentTreeValidationResult;

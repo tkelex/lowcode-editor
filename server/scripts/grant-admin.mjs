@@ -4,7 +4,7 @@ const emailArgIndex = process.argv.findIndex((arg) => arg === '--email');
 const email = emailArgIndex >= 0 ? process.argv[emailArgIndex + 1] : undefined;
 
 if (!email) {
-  console.error('Usage: npm run admin:grant --prefix server -- --email admin@example.com');
+  console.error('Usage: npm run admin:grant -- --email admin@example.com');
   process.exit(1);
 }
 

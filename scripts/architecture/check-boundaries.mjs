@@ -1,15 +1,17 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-const root = process.cwd();
+const root = path.resolve(process.argv[2] ?? process.cwd());
 const sourceExtensions = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
 const maxRecommendedLines = 500;
-const ignoredDirectories = new Set([
+const ignoredDirectoryNames = new Set([
   '.git',
+  '.next',
+  '.codegraph',
+  'coverage',
   'dist',
   'node_modules',
-  'server/dist',
-  'server/node_modules',
+  'test-results',
 ]);
 
 const importPattern =
@@ -21,7 +23,7 @@ function toPosix(value) {
 
 function isIgnored(relativePath) {
   const normalized = toPosix(relativePath);
-  return [...ignoredDirectories].some((directory) => normalized === directory || normalized.startsWith(`${directory}/`));
+  return normalized.split('/').some((segment) => ignoredDirectoryNames.has(segment));
 }
 
 async function collectFiles(directory, output = []) {
@@ -49,11 +51,19 @@ async function collectFiles(directory, output = []) {
 }
 
 function resolveImport(filePath, specifier) {
-  if (!specifier.startsWith('.')) {
+  let absolutePath;
+
+  if (specifier.startsWith('.')) {
+    absolutePath = path.resolve(path.dirname(filePath), specifier);
+  } else if (specifier.startsWith('@root/')) {
+    absolutePath = path.resolve(root, specifier.slice('@root/'.length));
+  } else if (specifier.startsWith('@publisher/')) {
+    absolutePath = path.resolve(root, 'apps/publisher-next/src', specifier.slice('@publisher/'.length));
+  } else {
     return null;
   }
 
-  return toPosix(path.normalize(path.join(path.dirname(filePath), specifier)));
+  return toPosix(path.relative(root, absolutePath));
 }
 
 function describeImport(filePath, specifier) {
@@ -99,6 +109,22 @@ for (const filePath of files) {
 
     if (relativeFile.startsWith('server/') && resolved && isUnder(resolved, 'src')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Backend code must not import frontend implementation files.`);
+    }
+
+    if (relativeFile.startsWith('apps/publisher-next/') && resolved) {
+      const importsFrontend = isUnder(resolved, 'src');
+      const usesPublicRuntime = isUnder(resolved, 'src/editor/runtime/public');
+      const usesSharedPublish = isUnder(resolved, 'src/shared/publish');
+
+      if (importsFrontend && !usesPublicRuntime && !usesSharedPublish) {
+        violations.push(
+          `${describeImport(filePath, specifier)}\n  Publisher code must use the public runtime seam at src/editor/runtime/public.`,
+        );
+      }
+
+      if (isUnder(resolved, 'server')) {
+        violations.push(`${describeImport(filePath, specifier)}\n  Publisher code must call backend behavior through HTTP.`);
+      }
     }
 
     if (relativeFile.startsWith('packages/lowcode-schema/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'server'))) {

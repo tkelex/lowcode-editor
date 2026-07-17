@@ -1,6 +1,6 @@
 import { Button, Empty, Form, Input, Modal, Segmented, Select, Space, Typography, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
-import { CURRENT_SCHEMA_VERSION } from "../../../../packages/lowcode-schema/src";
+import { CURRENT_SCHEMA_VERSION } from '@lowcode/schema';
 import { createProjectTemplate, listProjectTemplates } from "../../../shared/api/templates";
 import type { PageTemplate, ProjectRole } from "../../../shared/api/types";
 import { ComponentCategory, ComponentConfig, useComponentConfigStore } from "../../registry/component-config";

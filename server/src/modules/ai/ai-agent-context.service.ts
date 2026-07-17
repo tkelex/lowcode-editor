@@ -8,7 +8,7 @@ import {
   type AiAgentRunRequest,
   type LowcodeComponentSchema,
   type ProjectDataSourceModelConfig,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 
 @Injectable()
 export class AiAgentContextService {

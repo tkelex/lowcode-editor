@@ -1,10 +1,8 @@
 import { Spin } from 'antd';
 import { isAxiosError } from 'axios';
 import { Component as ReactComponent, useEffect, useState, type ErrorInfo, type ReactNode } from 'react';
-import { migratePageSchema } from '../../../packages/lowcode-schema/src';
 import { RuntimeErrorFallback } from '../../shared/components/RuntimeErrorFallback';
-import { Component } from '../../editor/stores/components';
-import { Preview } from '../../editor/runtime/Preview';
+import { preparePublishedPageSnapshot, PublishedPageRuntime } from '../../editor/runtime/public';
 import { getPublishedPage } from '../../shared/api/pages';
 import { PublishedPage } from '../../shared/api/types';
 
@@ -81,16 +79,16 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
     />;
   }
 
-  let components: Component[];
+  let preparedPage;
 
   try {
-    const schema = migratePageSchema(page.schema);
-    components = schema.components as Component[];
+    preparedPage = preparePublishedPageSnapshot(page);
   } catch (error) {
-    console.error('Published page schema migration failed', error);
+    console.error('Published page schema preparation failed', error);
     return <RuntimeErrorFallback title="页面数据异常" description="发布快照无法正常解析，请联系管理员重新发布页面。" />;
   }
 
+  const components = preparedPage.schema.components;
   const pageProps = components[0]?.name === 'Page' ? components[0].props || {} : {};
   const seoTitle = getTextMeta(pageProps.seoTitle) || page.name;
   const seoDescription = getTextMeta(pageProps.seoDescription);
@@ -99,7 +97,11 @@ export function PublishedPageView({ publicId }: PublishedPageViewProps) {
   return <PublishedPageErrorBoundary>
     <PublishedPageSeo title={seoTitle} description={seoDescription} favicon={favicon} />
     <div className="min-h-screen bg-slate-50">
-      <Preview components={components} allowCustomJS={false} />
+      <PublishedPageRuntime
+        snapshot={preparedPage}
+        apiBaseUrl={import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api'}
+        allowedOrigins={parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS)}
+      />
     </div>
   </PublishedPageErrorBoundary>;
 }
@@ -157,6 +159,13 @@ function ensureFaviconLink() {
 
 function getTextMeta(value: unknown) {
   return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseAllowedOrigins(value: string | undefined) {
+  return (value || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
 }
 
 function getApiRequestId(error: unknown) {

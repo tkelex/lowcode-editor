@@ -7,7 +7,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin'
 
 export default [
   {
-    ignores: ['dist/**', 'server/**', 'apps/publisher-next/.next/**'],
+    ignores: ['dist/**', 'packages/*/dist/**', 'server/**', 'apps/publisher-next/.next/**'],
   },
   js.configs.recommended,
   {

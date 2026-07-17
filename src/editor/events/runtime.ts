@@ -3,7 +3,7 @@ import {
   LowcodeActionRuntimeContext,
   runLowcodeAction as runLowcodeActionCore,
   runLowcodeActions as runLowcodeActionsCore,
-} from '../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import type { LowcodeAction, LowcodeEventRuntimeContext, ToastType } from './types';
 import {
   formatRuntimeErrorMessage,

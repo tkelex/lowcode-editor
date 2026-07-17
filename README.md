@@ -1,389 +1,98 @@
-﻿# 低代码编辑器 Lowcode Editor
+# 低代码编辑器 Lowcode Editor
 
-一个从 React 学习型 demo 演进中的低代码编辑器项目，目标是逐步完善为可上线的全栈低代码平台雏形。
+这是一个 Vite React 编辑器、Next.js 公开发布运行时、NestJS API 与 PostgreSQL 组成的全栈低代码平台。页面以 schema 表达，可编辑、保存、版本化、回滚并发布为匿名访问页面。
 
-当前项目已经具备注册登录、项目管理、页面管理、编辑器组件树保存、页面重新打开恢复、页面历史版本、版本回滚、删除历史版本记录和页面发布访问等核心能力。
+## 已有能力
 
-## 项目亮点
+- 用户、项目、成员角色与审计日志
+- 页面 schema 编辑、保存、版本、回滚与发布
+- 物料、组件树、属性、样式、事件、数据源和运行时变量
+- 项目级外部 API 数据源模型与 CRUD 页面生成
+- AI 页面草稿和受限 schema patch，写入前必须预览并确认
+- Vite 编辑器预览与 Next.js 公开发布运行时
+- PostgreSQL、Prisma migration、Docker 与基础 CI/部署配置
 
-- **完整产品闭环**：登录 → 项目 → 页面 → 编辑器 → 保存 → 恢复 → 版本历史 → 回滚 → 发布访问。
-- **低代码编辑器核心模型**：用组件树描述页面，支持拖拽组件、属性配置、样式配置和事件配置。
-- **前后端全栈实现**：前端负责编辑器交互，后端负责用户、项目、页面和 schema 持久化。
-- **页面版本管理**：每次保存生成 `PageVersion`，支持回滚旧版本和删除无用版本记录。
-- **页面发布访问**：发布时生成快照和公开 `publicId`，访客无需登录即可访问发布页。
-- **权限校验**：业务接口使用 JWT，项目、页面和版本操作都需要校验 owner。
-- **工程文档完善**：包含架构说明、API 文档、上下文索引和开发进度总结。
-
-## 技术栈
-
-### 前端
-
-- Vite
-- React
-- TypeScript
-- Ant Design
-- Zustand
-- React DnD
-- Allotment
-- Monaco Editor
-- Tailwind CSS
-
-### 后端
-
-- NestJS
-- TypeScript
-- Prisma
-- PostgreSQL
-- JWT + Passport
-- class-validator
-
-### 本地开发
-
-- Docker Compose PostgreSQL
-- Prisma Migration
-- 前后端同仓管理
-
-## 核心功能
-
-### 用户与项目
-
-- 用户注册
-- 用户登录
-- JWT 鉴权
-- 获取当前用户
-- 创建 / 查看项目
-- 创建 / 查看页面
-
-### 编辑器
-
-- 物料面板
-- 拖拽添加组件
-- 编辑态画布
-- 预览态渲染
-- 属性配置
-- 样式配置
-- 事件配置
-- 组件树 Zustand 状态管理
-
-### 页面持久化
-
-- 打开页面时从后端读取 `Page.schema`
-- 保存时把当前组件树写入 PostgreSQL
-- 刷新或重新进入页面后恢复组件树
-
-### 页面发布
-
-- 登录用户可以发布页面
-- 发布时生成 `PageVersion(source = publish)` 快照
-- 公开访问使用不可枚举的 `publicId`
-- 访客无需登录即可访问 `/publish/:publicId`
-- 公开页面读取发布快照，不受后续草稿编辑影响
-- 公开运行态禁用 `customJS`
-
-## 项目结构
+## 仓库结构
 
 ```text
-lowcode-editor/
-  src/                 # React 前端和低代码编辑器
-  server/              # NestJS 后端 API
-  server/prisma/       # Prisma schema 和 migration
-  docs/                # 项目文档、架构说明、API 说明、进度总结
-  .claude/context/     # AI 协作上下文索引
-  docker-compose.yml   # 本地 PostgreSQL 服务
+src/                         Vite 前端、项目后台和编辑器
+apps/publisher-next/         Next.js 公开发布运行时
+server/                      NestJS API
+server/prisma/               数据库 schema 与 migrations
+packages/lowcode-schema/     跨运行时 schema 契约
+scripts/                     测试、smoke 与架构检查
+infra/                       Docker、Nginx 和部署模板
+docs/                        产品、架构、接口和运维文档
 ```
 
-## 核心数据流
-
-### 页面保存
+依赖方向：
 
 ```text
-编辑器 Zustand components
-  ↓
-点击保存
-  ↓
-PATCH /api/pages/:id
-  ↓
-后端校验页面 owner
-  ↓
-更新 Page.schema
-  ↓
-创建 PageVersion 历史版本
+Vite editor ───────┐
+Next publisher ────┼──> lowcode-schema
+NestJS server ─────┘
+
+Vite / Next ──HTTP──> NestJS ──Prisma──> PostgreSQL
 ```
 
-### 页面恢复
-
-```text
-进入页面
-  ↓
-GET /api/pages/:id
-  ↓
-后端返回 Page.schema
-  ↓
-前端 setComponents(schema.components)
-  ↓
-恢复编辑器画布
-```
-
-### 页面回滚
-
-```text
-打开版本历史
-  ↓
-GET /api/pages/:id/versions
-  ↓
-选择版本并确认回滚
-  ↓
-POST /api/pages/:id/rollback
-  ↓
-后端将 PageVersion.schema 恢复到 Page.schema
-  ↓
-前端更新 Zustand components
-```
-
-### 删除历史版本
-
-```text
-打开版本历史
-  ↓
-点击删除并确认
-  ↓
-DELETE /api/pages/:id/versions/:versionId
-  ↓
-后端删除对应 PageVersion
-  ↓
-前端刷新版本列表
-```
-
-删除历史版本只删除快照记录，不会修改当前 `Page.schema`。
-
-### 页面发布
-
-```text
-编辑器保存页面
-  ↓
-点击发布
-  ↓
-POST /api/pages/:id/publish
-  ↓
-后端校验页面 owner
-  ↓
-创建 PageVersion(source = publish) 发布快照
-  ↓
-更新 Page.isPublished / publicId / publishedVersionId
-  ↓
-访客访问 /publish/:publicId
-  ↓
-GET /api/public/pages/:publicId
-  ↓
-公开页面渲染发布快照
-```
-
-公开页面读取发布时的 `PageVersion.schema`，不会因为后续继续编辑草稿而自动变化。
-
-## 数据库模型概览
-
-核心模型：
-
-```text
-User
-Project
-Page
-PageVersion
-```
-
-关系：
-
-```text
-User 1 - N Project
-Project 1 - N Page
-Page 1 - N PageVersion
-```
-
-关键字段：
-
-```prisma
-Page.schema Json
-Page.publicId String?
-Page.isPublished Boolean
-Page.publishedVersionId Int?
-PageVersion.schema Json
-```
-
-`Page.schema` 保存当前页面状态，`PageVersion.schema` 保存历史快照。发布时会创建一条 `source = publish` 的 `PageVersion`，并通过 `Page.publishedVersionId` 指向当前公开访问的快照。
+公开发布运行时通过 `src/editor/runtime/public` 使用页面运行能力，不读取编辑器 Zustand 状态，不执行 custom JS，也不携带当前用户 token。
 
 ## 本地启动
 
-### 1. 安装依赖
-
-根目录安装前端依赖：
+环境要求：Node.js 20、Docker Desktop、PostgreSQL 容器。
 
 ```bash
 npm install
-```
 
-安装后端依赖：
-
-```bash
-npm install --prefix server
-```
-
-### 2. 配置环境变量
-
-前端环境变量参考：
-
-```bash
 cp .env.example .env
-```
-
-后端环境变量参考：
-
-```bash
 cp server/.env.example server/.env
-```
+cp apps/publisher-next/.env.example apps/publisher-next/.env.local
 
-本地默认 API 地址：
-
-```text
-VITE_API_BASE_URL=http://localhost:3000/api
-```
-
-后端需要配置：
-
-```text
-DATABASE_URL=postgresql://...
-JWT_SECRET=...
-FRONTEND_ORIGIN=http://localhost:5173
-```
-
-### 3. 启动 PostgreSQL
-
-```bash
 docker compose up -d postgres
+npm run prisma:generate
+npm run prisma:migrate -- --name init
 ```
 
-查看容器状态：
-
-```bash
-docker compose ps
-```
-
-如果 Windows Bash 找不到 Docker，可以使用 Docker Desktop 的完整路径执行 compose 命令。
-
-### 4. 执行 Prisma migration
-
-```bash
-npm run prisma:migrate --prefix server -- --name init
-```
-
-如果 schema 已经迁移过，只需要确保 Prisma Client 已生成：
-
-```bash
-npm run prisma:generate --prefix server
-```
-
-### 5. 启动后端
-
-```bash
-npm run dev --prefix server
-```
-
-默认地址：
-
-```text
-http://localhost:3000/api
-```
-
-### 6. 启动前端
+分别启动三个进程：
 
 ```bash
 npm run dev
+npm run dev:server
+npm run dev:publisher
 ```
 
 默认地址：
 
-```text
-http://localhost:5173
-```
+- Vite 编辑器：`http://localhost:5173`
+- NestJS API：`http://localhost:3000/api`
+- Next.js 发布页：`http://localhost:5174/publish/:publicId`
 
 ## 常用命令
 
-### 前端
-
-```bash
-npm run dev
-npm run build
-npm run lint
-npm run preview
-```
-
-### 后端
-
-```bash
-npm run dev --prefix server
-npm run build --prefix server
-npm run prisma:generate --prefix server
-npm run prisma:migrate --prefix server -- --name <migration_name>
-npm run prisma:studio --prefix server
-```
-
-### 数据库
-
-```bash
-docker compose up -d postgres
-docker compose ps
-docker compose down
-```
-
-## 已验证能力
-
-最近已验证：
-
-- PostgreSQL Docker 容器 healthy
-- Prisma migration 成功
-- 注册 / 登录 API 通过
-- 创建项目 API 通过
-- 创建页面 API 通过
-- 保存页面 schema API 通过
-- 读取页面 schema API 通过
-- 页面历史版本 API 通过
-- 页面回滚 API 通过
-- 删除历史版本记录 API 通过
-- 页面发布 API 通过
-- 公开发布页面 API 通过
-- `npm run build` 通过
-- `npm run build --prefix server` 通过
+| 目标 | 命令 |
+| --- | --- |
+| 前端开发 | `npm run dev` |
+| 发布运行时开发 | `npm run dev:publisher` |
+| 后端开发 | `npm run dev:server` |
+| Lint | `npm run lint` |
+| Vite 构建 | `npm run build` |
+| Next.js 构建 | `npm run build:publisher` |
+| 后端构建 | `npm run build:server` |
+| 单元/运行时测试 | `npm run test` |
+| 架构检查 | `npm run check:architecture` |
+| API smoke | `npm run smoke:api` |
+| 编辑器 E2E | `npm run test:e2e:editor` |
+| 完整本地检查 | `npm run check` |
 
 ## 文档入口
 
-- `docs/00-总览/项目上下文索引.md`：项目低 token 总入口和阅读顺序
-- `.claude/context/FILE_MAP.md`：关键文件地图
-- `docs/02-架构/架构说明.md`：架构说明和数据流
-- `docs/03-接口/接口说明.md`：API 路由、鉴权和 schema contract
-- `docs/02-架构/技术决策记录.md`：关键技术 / 产品决策
-- `../lowcode-editor-notes/docs/08-复盘/开发进度与学习总结.md`：开发进度和学习总结
-- `../lowcode-editor-notes/docs/09-学习资料/面试讲解稿.md`：面试讲解稿
-- `docs/06-测试与验收/功能演示流程.md`：功能演示流程和讲解话术
+- [AGENTS.md](./AGENTS.md)：跨工具协作规则与高风险约束
+- [CONTEXT-MAP.md](./CONTEXT-MAP.md)：领域上下文和术语关系
+- [项目上下文索引](./docs/00-总览/项目上下文索引.md)：低 token 项目入口和任务路由
+- [架构说明](./docs/02-架构/架构说明.md)：当前架构与数据流
+- [模块边界与拆分规范](./docs/02-架构/模块边界与拆分规范.md)：允许和禁止的依赖方向
+- [接口说明](./docs/03-接口/接口说明.md)：HTTP、鉴权与持久化契约
+- [技术决策记录](./docs/02-架构/技术决策记录.md)：长期决策及原因
+- [项目运行指南](./docs/05-开发/项目运行指南.md)：更完整的环境和启动说明
 
-## 当前限制与后续计划
-
-当前尚未完成：
-
-- 项目成员协作权限
-- 生产部署 Dockerfile / Nginx
-- CI/CD
-- 自定义 JS 沙箱化
-- 更完整的自动化测试
-
-后续优先方向：
-
-1. 完善发布能力，增加取消发布入口、发布记录、SEO 和自定义域名等能力。
-2. 增加项目成员和角色权限。
-3. 补充生产部署方案。
-4. 增加 CI/CD 自动构建和检查。
-5. 补充更完整的自动化测试和异常兜底。
-
-## 面试介绍简版
-
-可以这样介绍这个项目：
-
-> 这是一个 React 低代码编辑器项目，前端使用 React、TypeScript、Zustand 和 React DnD 实现组件拖拽、属性配置、样式配置、事件配置、编辑态和预览态渲染。后端使用 NestJS、Prisma 和 PostgreSQL 实现用户登录、项目管理、页面管理、页面 schema 持久化、历史版本和页面发布。项目的核心是把编辑器里的组件树保存到数据库，并且再次打开页面时恢复出来。后来我还补充了页面历史版本，每次保存生成快照，用户可以查看版本历史、回滚到旧版本，也可以删除无用版本记录；页面发布时会生成公开访问快照，访客无需登录即可打开发布页。
+需求、规划和实现状态以 OpenSpec、GitHub Issues 与源码为准；README 不维护阶段进度、面试稿或完整接口清单。

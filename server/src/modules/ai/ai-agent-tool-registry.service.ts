@@ -12,7 +12,7 @@ import {
   type AiComponentPatch,
   type AiPageGenerationRequest,
   type LowcodeComponentSchema,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { AiPageGeneratorService } from './ai-page-generator.service';

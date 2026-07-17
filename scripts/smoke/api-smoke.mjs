@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 const { PrismaClient, UserRole, UserStatus } = require('../../server/node_modules/@prisma/client');
-const { generateCrudPageSchema } = require('../../server/dist/packages/lowcode-schema/src/index.js');
+const { generateCrudPageSchema } = require('@lowcode/schema');
 
 const apiBaseUrl = (process.env.API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');
 const runId = Date.now();
@@ -302,12 +302,32 @@ async function main() {
   const publicPage = await request(`/public/pages/${publishedPage.publicId}`);
   assertEqual(publicPage.schema.components[0].children[0].props.text, 'Smoke Test', 'public page should read published snapshot');
 
+  const publishedVersionDeleteDenied = await request(
+    `/pages/${page.id}/versions/${publishedPage.publishedVersionId}`,
+    {
+      method: 'DELETE',
+      token: editor.token,
+      expectedStatus: 409,
+    },
+  );
+  assertEqual(
+    publishedVersionDeleteDenied.code,
+    'PAGE_VERSION_IN_USE',
+    'current published snapshot should not be deletable',
+  );
+
   const publishedPages = await request('/admin/published-pages', { token: owner.token });
   assertIncludes(publishedPages.map((item) => item.id), page.id, 'admin should list published page');
 
-  await request(`/admin/pages/${page.id}/unpublish`, {
+  const unpublishedPage = await request(`/admin/pages/${page.id}/unpublish`, {
     method: 'POST',
     token: owner.token,
+  });
+  assertEqual(unpublishedPage.publishedVersionId, null, 'unpublish should release the published snapshot');
+
+  await request(`/pages/${page.id}/versions/${publishedPage.publishedVersionId}`, {
+    method: 'DELETE',
+    token: editor.token,
   });
 
   const unpublishedPublicPage = await request(`/public/pages/${publishedPage.publicId}`, {

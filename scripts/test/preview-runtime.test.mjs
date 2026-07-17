@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 
 describe('preview runtime rendering', () => {
   it('renders key built-in materials without crashing or dropping child config', async () => {
-    const { Preview } = await loadPreviewRuntime();
+    const { Preview } = await loadRuntimeModule('src/editor/runtime/Preview/index.tsx');
     const warnings = [];
     const originalError = console.error;
 
@@ -41,15 +41,54 @@ describe('preview runtime rendering', () => {
       console.error = originalError;
     }
   });
+
+  it('renders a published snapshot through the anonymous public runtime interface', async () => {
+    const { PublishedPageRuntime } = await loadRuntimeModule(
+      'src/editor/runtime/public/PublishedPageRuntime.tsx',
+    );
+
+    const html = renderToString(React.createElement(PublishedPageRuntime, {
+      snapshot: {
+        publicId: 'pub-1',
+        name: '公开页面',
+        routePath: '/public-page',
+        schema: {
+          components: [
+            {
+              id: 1,
+              name: 'Page',
+              desc: '页面',
+              props: {},
+              children: [
+                {
+                  id: 2,
+                  parentId: 1,
+                  name: 'Button',
+                  desc: '按钮',
+                  props: {
+                    text: '公开按钮',
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+      apiBaseUrl: 'https://api.example.com',
+      allowedOrigins: ['https://data.example.com'],
+    }));
+
+    assert.match(html, /公开按钮/);
+  });
 });
 
-async function loadPreviewRuntime() {
+async function loadRuntimeModule(entryPoint) {
   const outdir = path.resolve('node_modules/.tmp/lowcode-preview-runtime-test');
   await mkdir(outdir, { recursive: true });
 
   const outfile = path.join(outdir, `preview-${Date.now()}-${Math.random().toString(16).slice(2)}.cjs`);
   const result = await build({
-    entryPoints: ['src/editor/runtime/Preview/index.tsx'],
+    entryPoints: [entryPoint],
     bundle: true,
     platform: 'node',
     format: 'cjs',

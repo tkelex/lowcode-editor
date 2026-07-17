@@ -7,7 +7,7 @@ import {
   LowcodeComponentSchema,
   normalizeAiGeneratedComponents,
   validateAiGeneratedComponents,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import { AiModelGatewayService } from './ai-model-gateway.service';
 
 interface BuildState {

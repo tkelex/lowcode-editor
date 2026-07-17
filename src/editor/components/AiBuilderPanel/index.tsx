@@ -8,12 +8,12 @@ import type {
   AiPageBuilderWriteMode,
   AiPageGenerationResult,
   LowcodeComponentSchema,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import {
   applyAiComponentPatch,
   createAiComponentTreeFingerprint,
   validateAiGeneratedComponents,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import {
   createAiAgentRunForPage,
   createAiAgentRunForProject,

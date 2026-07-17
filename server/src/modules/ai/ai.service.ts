@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { AiAgentRunResult, AiPageGenerationRequest } from '../../../../packages/lowcode-schema/src';
+import type { AiAgentRunResult, AiPageGenerationRequest } from '@lowcode/schema';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../prisma/prisma.service';

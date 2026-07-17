@@ -1,0 +1,32 @@
+{
+  "name": "@lowcode/schema",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build:types": "tsc -p tsconfig.json",
+    "build:esm": "esbuild src/index.ts --bundle --format=esm --platform=neutral --target=es2021 --sourcemap --outfile=dist/index.js",
+    "build:cjs": "esbuild src/index.ts --bundle --format=cjs --platform=node --target=es2021 --sourcemap --outfile=dist/index.cjs",
+    "build": "npm run clean && npm run build:types && npm run build:esm && npm run build:cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.5",
+    "typescript": "^5.7.2"
+  }
+}

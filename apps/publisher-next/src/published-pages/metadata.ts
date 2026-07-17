@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import type { LowcodeComponentSchema } from '../../../../packages/lowcode-schema/src';
+import type { LowcodeComponentSchema } from '@lowcode/schema';
 import { getPublisherRuntimeConfig } from './config';
 import type { PreparedPublishedPage } from './types';
 

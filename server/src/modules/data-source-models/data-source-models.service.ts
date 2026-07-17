@@ -3,7 +3,7 @@ import { Prisma, ProjectDataSourceModel, ProjectMemberRole } from '@prisma/clien
 import {
   ProjectDataSourceModelConfig,
   validateDataSourceModelConfig,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../prisma/prisma.service';

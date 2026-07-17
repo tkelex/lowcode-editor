@@ -2,8 +2,7 @@ import type { Metadata } from 'next';
 import { fetchPublishedPage } from '@publisher/published-pages/fetchPublishedPage';
 import { getPublisherRuntimeConfig } from '@publisher/published-pages/config';
 import { createPublishedPageMetadata } from '@publisher/published-pages/metadata';
-import { PublishedPageRuntime } from '@publisher/published-pages/PublishedPageRuntime';
-import type { Component } from '../../../../../src/editor/stores/components';
+import { PublishedPageRuntime } from '@root/src/editor/runtime/public';
 
 interface PublishedPageRouteProps {
   params: Promise<{
@@ -24,7 +23,7 @@ export default async function PublishedPage({ params }: PublishedPageRouteProps)
 
   return (
     <PublishedPageRuntime
-      components={page.schema.components as Component[]}
+      snapshot={page}
       apiBaseUrl={config.apiBaseUrl}
       allowedOrigins={config.lowcodeHttpAllowedOrigins}
     />

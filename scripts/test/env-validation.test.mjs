@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const moduleUrl = new URL('../../server/dist/server/src/config/env.validation.js', import.meta.url);
+const moduleUrl = new URL('../../server/dist/config/env.validation.js', import.meta.url);
 const { validateEnv } = await import(moduleUrl.href);
 
 const baseConfig = {

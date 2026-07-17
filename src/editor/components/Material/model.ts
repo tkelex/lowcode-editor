@@ -1,5 +1,5 @@
-import { migratePageSchema } from '../../../../packages/lowcode-schema/src';
-import type { LowcodeComponentSchema } from '../../../../packages/lowcode-schema/src';
+import { migratePageSchema } from '@lowcode/schema';
+import type { LowcodeComponentSchema } from '@lowcode/schema';
 import type { PageTemplate } from '../../../shared/api/types';
 import type { ComponentCategory } from '../../registry/component-config';
 import type { Component } from '../../stores/components';

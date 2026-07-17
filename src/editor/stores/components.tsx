@@ -1,7 +1,7 @@
 import { CSSProperties } from 'react';
 import { create, StateCreator } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { migratePageSchema } from '../../../packages/lowcode-schema/src';
+import { migratePageSchema } from '@lowcode/schema';
 import {
   cloneComponentWithFreshIds,
   cloneComponents,

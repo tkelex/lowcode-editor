@@ -1,4 +1,4 @@
-import type { LowcodePageSchema } from '../../../packages/lowcode-schema/src';
+import type { LowcodePageSchema } from '@lowcode/schema';
 
 export interface User {
   id: number;

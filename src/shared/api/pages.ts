@@ -1,4 +1,4 @@
-import { http } from './http';
+import { http, publicHttp } from './http';
 import { EditorPage, PageSchema, PageVersion, PublishedPage } from './types';
 
 export async function listPages(projectId: number) {
@@ -32,7 +32,7 @@ export async function unpublishPage(pageId: number) {
 }
 
 export async function getPublishedPage(publicId: string) {
-  const { data } = await http.get<PublishedPage>(`/public/pages/${publicId}`);
+  const { data } = await publicHttp.get<PublishedPage>(`/public/pages/${publicId}`);
   return data;
 }
 

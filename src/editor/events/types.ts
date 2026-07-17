@@ -19,7 +19,7 @@ export type {
   ToastType,
   EventCategory,
   UrlAction,
-} from '../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 
 import type { Component } from '../stores/components';
 

@@ -1,8 +1,9 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
-import { Prisma, UserRole, UserStatus } from '@prisma/client';
+import { UserRole, UserStatus } from '@prisma/client';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { AuditLogsService } from '../audit/audit-logs.service';
+import { PageLifecycleService } from '../pages/page-lifecycle.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AdminProjectStatus } from './dto/update-project-status.dto';
 import { AdminUserStatus } from './dto/update-user-status.dto';
@@ -12,6 +13,7 @@ export class AdminService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly pageLifecycleService: PageLifecycleService,
   ) {}
 
   async getOverview() {
@@ -175,7 +177,7 @@ export class AdminService {
       throw new BusinessException(AppErrorCode.PROJECT_NOT_FOUND, 'Project not found', HttpStatus.NOT_FOUND);
     }
 
-    const updatedProject = await this.prisma.$transaction(async (tx) => {
+    const { updatedProject, publicIdsToRevalidate } = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.project.update({
         where: { id: projectId },
         data: { status: this.toDbProjectStatus(status) },
@@ -198,12 +200,9 @@ export class AdminService {
         },
       });
 
-      if (status === 'disabled') {
-        await tx.page.updateMany({
-          where: { projectId },
-          data: { isPublished: false },
-        });
-      }
+      const publicIds = status === 'disabled'
+        ? await this.pageLifecycleService.unpublishProjectPages(tx, projectId)
+        : [];
 
       await this.auditLogsService.record(
         {
@@ -223,8 +222,13 @@ export class AdminService {
         tx,
       );
 
-      return updated;
+      return {
+        updatedProject: updated,
+        publicIdsToRevalidate: publicIds,
+      };
     });
+
+    await this.pageLifecycleService.revalidatePublishedPages(publicIdsToRevalidate);
 
     return this.toAdminProjectResponse(updatedProject);
   }
@@ -270,42 +274,7 @@ export class AdminService {
   }
 
   async unpublishPage(pageId: number, actorId: number) {
-    const page = await this.prisma.page.findUnique({
-      where: { id: pageId },
-      include: { project: true },
-    });
-
-    if (!page) {
-      throw new BusinessException(AppErrorCode.PAGE_NOT_FOUND, 'Page not found', HttpStatus.NOT_FOUND);
-    }
-
-    const unpublishedPage = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.page.update({
-        where: { id: pageId },
-        data: { isPublished: false },
-      });
-
-      await this.auditLogsService.record(
-        {
-          actorId,
-          projectId: page.projectId,
-          pageId,
-          action: 'admin.page.unpublish',
-          targetType: 'page',
-          targetId: pageId,
-          summary: `Admin unpublish page ${page.name}`,
-          metadata: {
-            publicId: page.publicId,
-            publishedVersionId: page.publishedVersionId,
-          },
-        },
-        tx,
-      );
-
-      return updated;
-    });
-
-    return unpublishedPage;
+    return this.pageLifecycleService.unpublish(pageId, actorId, 'admin');
   }
 
   async listAuditLogs() {

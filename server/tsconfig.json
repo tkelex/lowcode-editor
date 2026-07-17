@@ -16,6 +16,6 @@
     "strictPropertyInitialization": false,
     "noImplicitAny": true
   },
-  "include": ["src/**/*.ts", "../packages/lowcode-schema/src/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { build } from 'esbuild';
@@ -68,6 +68,105 @@ describe('Next.js publisher runtime helpers', () => {
 
     assert.equal(createPublishedPageTag('abc'), 'published-page:abc');
     assert.deepEqual(parseCsv(' https://a.com, ,https://b.com '), ['https://a.com', 'https://b.com']);
+  });
+
+  it('prepares only valid published snapshots through the public runtime interface', async () => {
+    const {
+      preparePublishedPageSnapshot,
+      PublishedPageSchemaError,
+    } = await loadModule('src/editor/runtime/public/index.ts');
+
+    const prepared = preparePublishedPageSnapshot({
+      publicId: 'pub-1',
+      name: '公开页面',
+      routePath: '/public-page',
+      schema: {
+        components: [
+          {
+            id: 1,
+            name: 'Page',
+            desc: '页面',
+            props: {},
+            children: [
+              {
+                id: 2,
+                parentId: 1,
+                name: 'Button',
+                desc: '按钮',
+                props: {
+                  onClick: {
+                    actions: [
+                      { type: 'showMessage', config: { type: 'success', text: '已发布' } },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    assert.equal(prepared.schema.schemaVersion, '1.0.0');
+    assert.deepEqual(prepared.schema.components[0].children[0].props.onEvent.click.actions, [
+      {
+        actionType: 'toast',
+        args: {
+          msgType: 'success',
+          msg: '已发布',
+        },
+      },
+    ]);
+
+    assert.throws(
+      () => preparePublishedPageSnapshot({
+        publicId: 'pub-invalid',
+        name: '非法页面',
+        routePath: '/invalid',
+        schema: {
+          components: [
+            {
+              id: 1,
+              name: 'UnknownMaterial',
+              desc: '未知物料',
+              props: {},
+            },
+          ],
+        },
+      }),
+      (error) => {
+        assert.ok(error instanceof PublishedPageSchemaError);
+        assert.match(error.message, /未注册物料/);
+        return true;
+      },
+    );
+  });
+
+  it('keeps the Next publisher adapter on the public runtime interface', async () => {
+    const source = await readFile('apps/publisher-next/app/publish/[publicId]/page.tsx', 'utf8');
+
+    assert.match(source, /src\/editor\/runtime\/public['"]/);
+    assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);
+    assert.doesNotMatch(source, /src\/editor\/stores/);
+  });
+
+  it('keeps the Vite publisher adapter on the public runtime interface', async () => {
+    const source = await readFile('src/features/publish/PublishedPageView.tsx', 'utf8');
+
+    assert.match(source, /editor\/runtime\/public/);
+    assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);
+    assert.doesNotMatch(source, /editor\/runtime\/Preview/);
+    assert.doesNotMatch(source, /editor\/stores/);
+    assert.doesNotMatch(source, /packages\/lowcode-schema/);
+  });
+
+  it('loads public snapshots without the authenticated HTTP client', async () => {
+    const pagesSource = await readFile('src/shared/api/pages.ts', 'utf8');
+    const httpSource = await readFile('src/shared/api/http.ts', 'utf8');
+
+    assert.match(pagesSource, /publicHttp\.get<PublishedPage>/);
+    assert.match(httpSource, /export const publicHttp = axios\.create/);
+    assert.doesNotMatch(httpSource, /publicHttp\.interceptors\.request/);
   });
 });
 

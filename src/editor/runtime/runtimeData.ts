@@ -1,4 +1,4 @@
-import { evaluateSafeExpression, normalizeHttpActionUrl, isHttpActionUrlAllowed } from '../../../packages/lowcode-schema/src';
+import { evaluateSafeExpression, normalizeHttpActionUrl, isHttpActionUrlAllowed } from '@lowcode/schema';
 
 export interface RuntimeDataSourceConfig {
   id: string;

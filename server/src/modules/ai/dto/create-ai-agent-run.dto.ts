@@ -1,5 +1,5 @@
 import { IsIn, IsInt, IsObject, IsOptional, IsString, Length, MaxLength } from 'class-validator';
-import type { AiAgentMessage, AiAgentTargetScope, LowcodeComponentSchema } from '../../../../../packages/lowcode-schema/src';
+import type { AiAgentMessage, AiAgentTargetScope, LowcodeComponentSchema } from '@lowcode/schema';
 
 const TARGET_SCOPES: AiAgentTargetScope[] = ['page', 'selection', 'component'];
 

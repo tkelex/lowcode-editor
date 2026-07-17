@@ -16,7 +16,7 @@ import {
   type AiComponentPatch,
   type AiPageGenerationResult,
   type LowcodeComponentSchema,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { AiAgentContextService } from './ai-agent-context.service';

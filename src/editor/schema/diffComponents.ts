@@ -1,4 +1,4 @@
-import type { LowcodeComponentSchema } from '../../../packages/lowcode-schema/src';
+import type { LowcodeComponentSchema } from '@lowcode/schema';
 
 export type ComponentDiffType = 'added' | 'removed' | 'updated';
 

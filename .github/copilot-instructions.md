@@ -1,38 +1,18 @@
-# Repository AI Coding Instructions
+# GitHub Copilot Instructions
 
-This repository is a Vite + React + TypeScript low-code editor with a NestJS + Prisma backend. Treat `AGENTS.md` as the canonical AI entrypoint, then read only the docs and source files needed for the current task.
+`AGENTS.md` 是本仓库跨工具协作规则的唯一事实来源。开始任务前先读取它，不在本文件复制命令、架构或兼容约束。
 
-## First Read
+## Context
 
-1. `AGENTS.md`
-2. `docs/00-总览/AI快速上手.md`
-3. `docs/00-总览/项目上下文索引.md`
-4. `.claude/context/FILE_MAP.md`
+1. 从 `CONTEXT-MAP.md` 选择相关领域上下文。
+2. 使用 `docs/00-总览/项目上下文索引.md` 定位任务阅读路线。
+3. 需要文件职责时读取 `.claude/context/FILE_MAP.md`。
+4. 架构、接口和长期决策分别读取 `docs/02-架构`、`docs/03-接口` 和相关 ADR。
 
-For architecture, API, or persistence work, also read:
+## Path Rules
 
-- `docs/02-架构/架构说明.md`
-- `docs/03-接口/接口说明.md`
-- `docs/02-架构/技术决策记录.md`
+- 编辑器、前端、schema：`.github/instructions/editor.instructions.md`
+- NestJS、权限和 Prisma：`.github/instructions/server.instructions.md`
+- 文档和 AI 上下文：`.github/instructions/docs.instructions.md`
 
-## Working Rules
-
-- Preserve existing user changes. Check the task scope before editing and do not revert unrelated files.
-- Prefer existing project patterns over new abstractions.
-- Keep public compatibility typos unless doing a deliberate cleanup: `useComponetsStore`, `useMaterailDrop`, `components/Preivew`, `components/Sourse`.
-- When adding or changing materials, update dev render, prod render, registry metadata, schema rules, and relevant tests together.
-- Published pages must not execute custom user JavaScript. Keep `allowCustomJS={false}` for public publish runtime.
-- Backend authorization must be enforced in services/guards, not only hidden in the frontend UI.
-- Prisma schema changes require a migration and generated client update.
-
-## Validation Matrix
-
-- Frontend component or style change: `npm run lint` and `npm run build`.
-- Schema, event, URL, or HTTP action change: `npm run test`.
-- Backend API change: `npm run build --prefix server`.
-- Permission, save, publish, or version flow: `npm run smoke:api`.
-- Editor interaction change: `npm run test:e2e:editor`.
-- Release-level confidence: `npm run preflight`.
-
-If a validation command cannot be run, explain why and name the remaining risk.
-
+验证命令、公开发布安全约束、历史兼容名称和文档职责均以 `AGENTS.md` 为准。

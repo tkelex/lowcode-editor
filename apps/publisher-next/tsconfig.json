@@ -28,16 +28,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "../../src/editor/runtime/**/*",
-    "../../src/editor/events/**/*",
-    "../../src/editor/materials/**/*",
-    "../../src/editor/hooks/**/*",
-    "../../src/editor/components/MaterialItem/**/*",
-    "../../src/editor/registry/**/*",
-    "../../src/editor/stores/**/*",
-    "../../src/editor/interface.ts",
-    "../../src/shared/publish/**/*",
-    "../../packages/lowcode-schema/src/**/*"
+    "../../src/editor/runtime/public/**/*",
+    "../../src/shared/publish/**/*"
   ],
   "exclude": [
     "node_modules"

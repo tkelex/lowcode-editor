@@ -1,5 +1,5 @@
-import { CURRENT_SCHEMA_VERSION } from '../../../../packages/lowcode-schema/src';
-import type { LowcodeComponentSchema, LowcodePageSchema } from '../../../../packages/lowcode-schema/src';
+import { CURRENT_SCHEMA_VERSION } from '@lowcode/schema';
+import type { LowcodeComponentSchema, LowcodePageSchema } from '@lowcode/schema';
 import type { Component } from '../../stores/components';
 
 export function buildPageSchema(components: Component[], pageId?: number): LowcodePageSchema {

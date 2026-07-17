@@ -26,7 +26,7 @@ scripts/smoke/api-smoke.mjs
 
 ```bash
 docker compose up -d postgres
-npm.cmd run dev --prefix server
+npm.cmd run dev:server
 npm.cmd run smoke:api
 ```
 
@@ -57,10 +57,10 @@ CI 配置位置：
 
 ```text
 npm ci
-npm ci --prefix server
-npm run prisma:generate --prefix server
+npm run prisma:generate
 npm run check
-npm run prisma:deploy --prefix server
+npm run build:publisher
+npm run prisma:deploy
 npm run smoke:api
 npm run test:e2e
 ```

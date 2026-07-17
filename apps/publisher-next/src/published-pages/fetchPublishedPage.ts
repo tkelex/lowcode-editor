@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { migratePageSchema } from '../../../../packages/lowcode-schema/src';
+import { preparePublishedPageSnapshot } from '@root/src/editor/runtime/public';
 import { createPublishedPageTag, getPublisherRuntimeConfig } from './config';
 import type { PreparedPublishedPage, PublishedPage } from './types';
 
@@ -29,10 +29,7 @@ export async function fetchPublishedPage(publicId: string): Promise<PreparedPubl
   const page = await response.json() as PublishedPage;
 
   try {
-    return {
-      ...page,
-      schema: migratePageSchema(page.schema),
-    };
+    return preparePublishedPageSnapshot(page);
   } catch (error) {
     console.error('Published page schema migration failed', error);
     throw new PublishedPageLoadError('发布快照无法正常解析');

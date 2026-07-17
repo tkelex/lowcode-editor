@@ -1,5 +1,5 @@
 import { IsIn, IsObject, IsOptional, IsString, Length, MaxLength } from 'class-validator';
-import type { AiPageBuilderTarget, AiPageBuilderWriteMode } from '../../../../../packages/lowcode-schema/src';
+import type { AiPageBuilderTarget, AiPageBuilderWriteMode } from '@lowcode/schema';
 
 const TARGETS: AiPageBuilderTarget[] = ['fullPage', 'section', 'crud'];
 const WRITE_MODES: AiPageBuilderWriteMode[] = ['replacePage', 'insertSelection', 'createPage'];

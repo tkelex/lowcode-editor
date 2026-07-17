@@ -6,7 +6,7 @@ import type {
   AiAgentTargetScope,
   AiPageGenerationResult,
   LowcodeComponentSchema,
-} from '../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import { http } from './http';
 
 export interface GenerateAiPageInput {

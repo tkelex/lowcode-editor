@@ -177,8 +177,8 @@ chore
 | --- | --- |
 | 共享 schema | `npm run test` |
 | 前端编辑器 | `npm run lint`、`npm run build`、相关 e2e |
-| 后端 API | `npm run build --prefix server`、API smoke 或 node test |
-| 数据库迁移 | `npm run prisma:generate --prefix server`、本地迁移 |
+| 后端 API | `npm run build:server`、API smoke 或 node test |
+| 数据库迁移 | `npm run prisma:generate`、本地迁移 |
 | 发布链路 | `npm run smoke:api` |
 | 大型跨模块 | `npm run check` |
 

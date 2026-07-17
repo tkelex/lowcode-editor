@@ -2,7 +2,7 @@ import type { Component } from '../stores/components';
 import { getLowcodeEventName, getReactEventProp } from './eventNames';
 import type { LowcodeAction, LowcodeEventConfig, LowcodeEvents } from './types';
 
-export { normalizeActionUrl, normalizeHttpActionUrl } from '../../../packages/lowcode-schema/src';
+export { normalizeActionUrl, normalizeHttpActionUrl } from '@lowcode/schema';
 
 export function getComponentEventConfig(component: Component, eventNameOrProp: string): LowcodeEventConfig | undefined {
   const eventName = getLowcodeEventName(eventNameOrProp);

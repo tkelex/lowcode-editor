@@ -1,6 +1,6 @@
 import { message } from 'antd';
 import { useCallback, useState } from 'react';
-import { migratePageSchema } from '../../../packages/lowcode-schema/src';
+import { migratePageSchema } from '@lowcode/schema';
 import { Component, useComponetsStore } from '../../editor/stores/components';
 import { getPage } from '../../shared/api/pages';
 import type { ProjectRole } from '../../shared/api/types';

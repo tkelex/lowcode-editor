@@ -1,4 +1,4 @@
-import type { ProjectDataSourceModelConfig } from '../../../packages/lowcode-schema/src';
+import type { ProjectDataSourceModelConfig } from '@lowcode/schema';
 import { http } from './http';
 
 export type DataSourceModelInput = Omit<ProjectDataSourceModelConfig, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>;

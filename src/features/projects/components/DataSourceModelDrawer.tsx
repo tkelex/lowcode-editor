@@ -21,7 +21,7 @@ import {
   ProjectDataSourceModelConfig,
   generateCrudPageSchema,
   validateDataSourceModelConfig,
-} from '../../../../packages/lowcode-schema/src';
+} from '@lowcode/schema';
 import {
   createDataSourceModel,
   deleteDataSourceModel,
