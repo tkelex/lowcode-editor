@@ -13,7 +13,7 @@ describe('repository architecture policy', () => {
       await mkdir(path.dirname(publisherFile), { recursive: true });
       await writeFile(
         publisherFile,
-        "import '@root/src/editor/stores/components';\n",
+        "import '@root/apps/editor-web/src/editor/stores/components';\n",
         'utf8',
       );
 

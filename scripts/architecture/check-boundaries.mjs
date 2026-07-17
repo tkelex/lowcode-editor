@@ -57,8 +57,15 @@ function resolveImport(filePath, specifier) {
     absolutePath = path.resolve(path.dirname(filePath), specifier);
   } else if (specifier.startsWith('@root/')) {
     absolutePath = path.resolve(root, specifier.slice('@root/'.length));
-  } else if (specifier.startsWith('@/') && toPosix(path.relative(root, filePath)).startsWith('apps/publisher-web/')) {
-    absolutePath = path.resolve(root, 'apps/publisher-web/src', specifier.slice('@/'.length));
+  } else if (specifier.startsWith('@/')) {
+    const relativeFile = toPosix(path.relative(root, filePath));
+    if (relativeFile.startsWith('apps/editor-web/')) {
+      absolutePath = path.resolve(root, 'apps/editor-web/src', specifier.slice('@/'.length));
+    } else if (relativeFile.startsWith('apps/publisher-web/')) {
+      absolutePath = path.resolve(root, 'apps/publisher-web/src', specifier.slice('@/'.length));
+    } else {
+      return null;
+    }
   } else {
     return null;
   }
@@ -81,7 +88,8 @@ const files = await collectFiles(root);
 for (const filePath of files) {
   const relativeFile = toPosix(path.relative(root, filePath));
   const source = await readFile(filePath, 'utf8');
-  const isCompatibilityApi = isUnder(relativeFile, 'src/api');
+  const editorSourceRoot = 'apps/editor-web/src';
+  const isCompatibilityApi = isUnder(relativeFile, `${editorSourceRoot}/api`);
 
   importPattern.lastIndex = 0;
 
@@ -89,8 +97,8 @@ for (const filePath of files) {
     const specifier = match[1] ?? match[2];
     const resolved = resolveImport(filePath, specifier);
 
-    if (relativeFile.startsWith('src/') && !isCompatibilityApi) {
-      if (specifier.startsWith('../api') || specifier.startsWith('./api') || (resolved && isUnder(resolved, 'src/api'))) {
+    if (relativeFile.startsWith(`${editorSourceRoot}/`) && !isCompatibilityApi) {
+      if (specifier.startsWith('../api') || specifier.startsWith('./api') || (resolved && isUnder(resolved, `${editorSourceRoot}/api`))) {
         violations.push(`${describeImport(filePath, specifier)}\n  New frontend code must import API modules from src/shared/api.`);
       }
 
@@ -98,41 +106,47 @@ for (const filePath of files) {
         violations.push(`${describeImport(filePath, specifier)}\n  Frontend code must not import backend implementation files.`);
       }
 
-      if (relativeFile.startsWith('src/features/') && resolved && isUnder(resolved, 'src/app')) {
+      if (relativeFile.startsWith(`${editorSourceRoot}/features/`) && resolved && isUnder(resolved, `${editorSourceRoot}/app`)) {
         violations.push(`${describeImport(filePath, specifier)}\n  Feature modules must not depend on the app assembly layer. Move shared UI or helpers to src/shared.`);
       }
 
-      if (relativeFile.startsWith('src/shared/') && resolved && (isUnder(resolved, 'src/app') || isUnder(resolved, 'src/features') || isUnder(resolved, 'src/editor'))) {
+      if (relativeFile.startsWith(`${editorSourceRoot}/shared/`) && resolved && (
+        isUnder(resolved, `${editorSourceRoot}/app`) ||
+        isUnder(resolved, `${editorSourceRoot}/features`) ||
+        isUnder(resolved, `${editorSourceRoot}/editor`)
+      )) {
         violations.push(`${describeImport(filePath, specifier)}\n  Shared frontend code must not depend on app, feature, or editor implementation modules.`);
       }
     }
 
-    if (relativeFile.startsWith('apps/api-server/') && resolved && isUnder(resolved, 'src')) {
+    if (relativeFile.startsWith('apps/api-server/') && resolved && (
+      isUnder(resolved, 'apps/editor-web') || isUnder(resolved, 'apps/publisher-web')
+    )) {
       violations.push(`${describeImport(filePath, specifier)}\n  Backend code must not import frontend implementation files.`);
     }
 
     if (relativeFile.startsWith('apps/publisher-web/') && resolved) {
-      if (isUnder(resolved, 'src') || isUnder(resolved, 'apps/api-server')) {
+      if (isUnder(resolved, 'apps/editor-web') || isUnder(resolved, 'apps/api-server')) {
         violations.push(
           `${describeImport(filePath, specifier)}\n  Publisher code must use workspace package exports instead of editor or backend source.`,
         );
       }
     }
 
-    if (relativeFile.startsWith('packages/lowcode-schema/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'apps'))) {
+    if (relativeFile.startsWith('packages/lowcode-schema/') && resolved && isUnder(resolved, 'apps')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Shared schema package must stay independent from frontend and backend apps.`);
     }
 
-    if (relativeFile.startsWith('packages/lowcode-runtime/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'apps'))) {
+    if (relativeFile.startsWith('packages/lowcode-runtime/') && resolved && isUnder(resolved, 'apps')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Shared runtime package must not import application source.`);
     }
 
-    if (relativeFile.startsWith('src/') && resolved && isUnder(resolved, 'apps/api-server/prisma')) {
+    if (relativeFile.startsWith(`${editorSourceRoot}/`) && resolved && isUnder(resolved, 'apps/api-server/prisma')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Database schema and migrations belong behind the backend boundary.`);
     }
   }
 
-  if (isCompatibilityApi && relativeFile !== 'src/api/index.ts') {
+  if (isCompatibilityApi && relativeFile !== `${editorSourceRoot}/api/index.ts`) {
     const forbidden = source
       .split('\n')
       .map((line, index) => ({ line: line.trim(), lineNo: index + 1 }))

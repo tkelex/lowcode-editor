@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const configDir = path.join(rootDir, 'src/editor/registry/configs');
+const configDir = path.join(rootDir, 'apps/editor-web/src/editor/registry/configs');
 const strict = process.argv.includes('--strict');
 
 const setterFactories = [
@@ -259,6 +259,17 @@ function parseImports(source, configFile) {
 }
 
 function resolveImportFile(fromFile, importPath, exportName) {
+  if (importPath === '@lowcode/runtime') {
+    const runtimeIndex = path.join(rootDir, 'packages/lowcode-runtime/src/index.ts');
+    const reExportFile = resolveReExportFile(runtimeIndex, exportName);
+    if (reExportFile) return reExportFile;
+
+    return listFiles(path.join(rootDir, 'packages/lowcode-runtime/src'), ['.tsx', '.ts']).find((file) => {
+      const text = readText(file);
+      return new RegExp(`\\bexport\\s+(?:function|const|class)\\s+${escapeRegExp(exportName)}\\b`).test(text);
+    }) || null;
+  }
+
   if (!importPath.startsWith('.')) return null;
 
   const basePath = path.resolve(path.dirname(fromFile), importPath);
@@ -274,7 +285,13 @@ function resolveImportFile(fromFile, importPath, exportName) {
 
   if (fs.existsSync(basePath) && fs.statSync(basePath).isDirectory()) {
     const index = resolveFileWithExtension(path.join(basePath, 'index'));
-    if (index) return index;
+    if (index) {
+      if (exportName !== 'default') {
+        const reExportFile = resolveReExportFile(index, exportName);
+        if (reExportFile) return reExportFile;
+      }
+      return index;
+    }
 
     const exported = listFiles(basePath, ['.tsx', '.ts', '.jsx', '.js']).find((file) => {
       const text = readText(file);
