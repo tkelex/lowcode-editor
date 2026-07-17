@@ -94,7 +94,7 @@ for (const filePath of files) {
         violations.push(`${describeImport(filePath, specifier)}\n  New frontend code must import API modules from src/shared/api.`);
       }
 
-      if (resolved && isUnder(resolved, 'server')) {
+      if (resolved && isUnder(resolved, 'apps/api-server')) {
         violations.push(`${describeImport(filePath, specifier)}\n  Frontend code must not import backend implementation files.`);
       }
 
@@ -107,27 +107,27 @@ for (const filePath of files) {
       }
     }
 
-    if (relativeFile.startsWith('server/') && resolved && isUnder(resolved, 'src')) {
+    if (relativeFile.startsWith('apps/api-server/') && resolved && isUnder(resolved, 'src')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Backend code must not import frontend implementation files.`);
     }
 
     if (relativeFile.startsWith('apps/publisher-next/') && resolved) {
-      if (isUnder(resolved, 'src') || isUnder(resolved, 'server')) {
+      if (isUnder(resolved, 'src') || isUnder(resolved, 'apps/api-server')) {
         violations.push(
           `${describeImport(filePath, specifier)}\n  Publisher code must use workspace package exports instead of editor or backend source.`,
         );
       }
     }
 
-    if (relativeFile.startsWith('packages/lowcode-schema/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'server'))) {
+    if (relativeFile.startsWith('packages/lowcode-schema/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'apps'))) {
       violations.push(`${describeImport(filePath, specifier)}\n  Shared schema package must stay independent from frontend and backend apps.`);
     }
 
-    if (relativeFile.startsWith('packages/lowcode-runtime/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'server') || isUnder(resolved, 'apps'))) {
+    if (relativeFile.startsWith('packages/lowcode-runtime/') && resolved && (isUnder(resolved, 'src') || isUnder(resolved, 'apps'))) {
       violations.push(`${describeImport(filePath, specifier)}\n  Shared runtime package must not import application source.`);
     }
 
-    if (relativeFile.startsWith('src/') && resolved && isUnder(resolved, 'server/prisma')) {
+    if (relativeFile.startsWith('src/') && resolved && isUnder(resolved, 'apps/api-server/prisma')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Database schema and migrations belong behind the backend boundary.`);
     }
   }
@@ -151,7 +151,7 @@ for (const filePath of files) {
   const lines = source.split(/\r?\n/).length;
   if (
     lines > maxRecommendedLines &&
-    !relativeFile.startsWith('server/prisma/migrations/') &&
+    !relativeFile.startsWith('apps/api-server/prisma/migrations/') &&
     !relativeFile.endsWith('.d.ts')
   ) {
     warnings.push(`${relativeFile} has ${lines} lines. Consider splitting by feature, section, or registry group.`);

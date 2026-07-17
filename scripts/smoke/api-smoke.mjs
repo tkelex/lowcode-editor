@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
-const { PrismaClient, UserRole, UserStatus } = require('../../server/node_modules/@prisma/client');
+const { PrismaClient, UserRole, UserStatus } = require('@prisma/client');
 const { generateCrudPageSchema } = require('@lowcode/schema');
 
 const apiBaseUrl = (process.env.API_BASE_URL || 'http://localhost:3000/api').replace(/\/$/, '');

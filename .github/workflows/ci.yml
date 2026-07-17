@@ -63,7 +63,7 @@ jobs:
 
       - name: Start API server
         run: |
-          npm run start --workspace lowcode-editor-server > server-ci.log 2>&1 &
+          npm run start --workspace @lowcode/api-server > server-ci.log 2>&1 &
           echo $! > server-ci.pid
 
       - name: Wait for API health

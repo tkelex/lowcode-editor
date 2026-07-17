@@ -3,7 +3,7 @@ import { createRequire } from 'node:module';
 import { describe, it } from 'node:test';
 
 const require = createRequire(import.meta.url);
-const { PageLifecycleService } = require('../../server/dist/modules/pages/page-lifecycle.service.js');
+const { PageLifecycleService } = require('../../apps/api-server/dist/modules/pages/page-lifecycle.service.js');
 
 describe('page lifecycle cache invalidation', () => {
   it('revalidates a deleted public page after its transaction commits', async () => {

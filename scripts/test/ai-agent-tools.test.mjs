@@ -10,9 +10,9 @@ import {
 } from './schema-test-utils.mjs';
 
 const require = createRequire(import.meta.url);
-const { AiAgentContextService } = require('../../server/dist/modules/ai/ai-agent-context.service.js');
-const { AiAgentToolRegistryService } = require('../../server/dist/modules/ai/ai-agent-tool-registry.service.js');
-const { AiAgentOrchestrationService } = require('../../server/dist/modules/ai/ai-agent-orchestration.service.js');
+const { AiAgentContextService } = require('../../apps/api-server/dist/modules/ai/ai-agent-context.service.js');
+const { AiAgentToolRegistryService } = require('../../apps/api-server/dist/modules/ai/ai-agent-tool-registry.service.js');
+const { AiAgentOrchestrationService } = require('../../apps/api-server/dist/modules/ai/ai-agent-orchestration.service.js');
 
 describe('ai agent specialized patch tools', () => {
   it('adds a URL click action to the selected button', () => {

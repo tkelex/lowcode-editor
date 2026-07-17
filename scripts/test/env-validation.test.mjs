@@ -1,14 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const moduleUrl = new URL('../../server/dist/config/env.validation.js', import.meta.url);
+const moduleUrl = new URL('../../apps/api-server/dist/config/env.validation.js', import.meta.url);
 const { validateEnv } = await import(moduleUrl.href);
 
 const baseConfig = {
   DATABASE_URL: 'postgresql://user:password@localhost:5432/lowcode_editor?schema=public',
   JWT_SECRET: 'a'.repeat(48),
   FRONTEND_ORIGIN: 'https://lowcode.example.com',
-  UPLOAD_DIR: '/app/server/uploads',
+  UPLOAD_DIR: '/app/apps/api-server/uploads',
   NODE_ENV: 'production',
 };
 
