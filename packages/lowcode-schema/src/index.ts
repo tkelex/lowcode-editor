@@ -2,6 +2,7 @@ export * from './action-runtime';
 export * from './ai-agent-patch';
 export * from './ai-agent-crud';
 export * from './ai-agent-routing';
+export * from './ai-agent-tools';
 export * from './ai-agent-types';
 export * from './ai-normalize';
 export * from './ai-registry';

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useDrag } from "react-dnd";
 import { StarFilled, StarOutlined } from '@ant-design/icons';
 import { Tooltip } from "antd";
@@ -11,6 +12,7 @@ export interface MaterialItemProps {
 }
 
 export function MaterialItem(props: MaterialItemProps) {
+    const itemRef = useRef<HTMLDivElement>(null);
 
     const {
         name,
@@ -30,8 +32,12 @@ export function MaterialItem(props: MaterialItemProps) {
         }),
     });
 
+    useEffect(() => {
+        drag(itemRef);
+    }, [drag]);
+
     return <div
-        ref={drag}
+        ref={itemRef}
         className={`
             relative
             flex

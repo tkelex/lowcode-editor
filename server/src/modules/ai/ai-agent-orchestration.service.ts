@@ -30,6 +30,13 @@ interface CrudToolResult {
   crud: AiAgentCrudCandidateMetadata;
 }
 
+interface SpecializedPatchToolResult {
+  patch: AiComponentPatch;
+  summary?: string;
+  warnings?: string[];
+  assumptions?: string[];
+}
+
 @Injectable()
 export class AiAgentOrchestrationService {
   private readonly runs = new Map<string, AiAgentRunResult>();
@@ -85,6 +92,18 @@ export class AiAgentOrchestrationService {
 
       if (isCrudRouteDecision(routeDecision)) {
         return await this.runCrudGeneration({
+          input,
+          run,
+          startedAt,
+          runId,
+          toolInput,
+          toolCalls,
+          events,
+        });
+      }
+
+      if (isSpecializedPatchRoute(routeDecision)) {
+        return await this.runSpecializedPatchGeneration({
           input,
           run,
           startedAt,
@@ -264,6 +283,65 @@ export class AiAgentOrchestrationService {
     return input.run;
   }
 
+  private async runSpecializedPatchGeneration(input: {
+    input: AiAgentRunRequest;
+    run: AiAgentRunResult;
+    startedAt: number;
+    runId: string;
+    toolInput: ToolInput;
+    toolCalls: AiAgentToolCall[];
+    events: AiAgentRunEvent[];
+  }) {
+    const toolName = input.run.routeDecision?.intent === 'bind-data-source'
+      ? 'bindDataSource'
+      : 'generateEventActionPatch';
+    const patchCall = await this.toolRegistry.call(toolName, {}, input.toolInput);
+    input.toolCalls.push(patchCall);
+    this.pushEvent(input.events, 'tool_call', toolName === 'bindDataSource' ? '已调用数据源绑定工具' : '已调用事件动作工具', lastSummary(input.toolCalls));
+    this.assertStillRunning(input.runId);
+
+    if (patchCall.status !== 'success') {
+      throw new BusinessException(
+        AppErrorCode.AI_GENERATION_INVALID,
+        patchCall.error || 'AI specialized patch generation failed',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
+    const toolResult = patchCall.result as SpecializedPatchToolResult;
+    const patch = toolResult.patch;
+    const validationCall = await this.toolRegistry.call('validateCandidate', {
+      patch,
+      scopeRootId: undefined,
+    }, input.toolInput);
+    input.toolCalls.push(validationCall);
+    this.pushEvent(input.events, 'validation', '专用工具候选 patch 校验完成', lastSummary(input.toolCalls));
+
+    const validation = validationCall.result as ReturnType<typeof applyAiComponentPatch>;
+    if (!validation.valid || !validation.components) {
+      return this.failValidation(input, validation.errors[0]?.message || '专用工具候选 patch 未通过校验');
+    }
+
+    const candidate: AiAgentCandidate = {
+      id: createId('candidate'),
+      kind: 'patch',
+      summary: toolResult.summary || patch.summary || '已生成专用工具候选修改',
+      impactScope: input.toolInput.context.targetScope,
+      baselineFingerprint: input.toolInput.context.pageFingerprint,
+      warnings: toolResult.warnings || [],
+      assumptions: toolResult.assumptions || [],
+      validationErrors: validation.errors,
+      validationWarnings: validation.warnings,
+      patch,
+      previewComponents: validation.components,
+    };
+    input.run.status = 'awaiting_confirmation';
+    input.run.candidate = candidate;
+    input.run.audit = createAudit(input.runId, input.input, input.run.status, input.startedAt, input.toolCalls, input.run.routeDecision, candidate);
+    this.pushEvent(input.events, 'candidate', '专用工具候选修改已准备好', candidate.summary);
+    return input.run;
+  }
+
   private failValidation(
     input: {
       input: AiAgentRunRequest;
@@ -350,6 +428,16 @@ function createPlan(routeDecision: AiAgentRouteDecision) {
     ];
   }
 
+  if (isSpecializedPatchRoute(routeDecision)) {
+    return [
+      '读取当前页面上下文',
+      '读取可用物料和工具边界',
+      `调用${routeDecision.intent === 'bind-data-source' ? '数据源绑定' : '事件动作'}专用工具`,
+      '校验候选 patch',
+      '等待用户确认应用',
+    ];
+  }
+
   return [
     '读取当前页面上下文',
     '读取可用物料和工具边界',
@@ -357,6 +445,10 @@ function createPlan(routeDecision: AiAgentRouteDecision) {
     '转换为候选 patch',
     '校验候选修改并等待用户确认',
   ];
+}
+
+function isSpecializedPatchRoute(routeDecision: AiAgentRouteDecision) {
+  return routeDecision.intent === 'add-event-action' || routeDecision.intent === 'bind-data-source';
 }
 
 function createAudit(

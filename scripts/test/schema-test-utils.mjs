@@ -9,6 +9,8 @@ export const {
   CURRENT_SCHEMA_VERSION,
   applyAiComponentPatch,
   createAiComponentTreeFingerprint,
+  createAgentDataSourceBindingPatch,
+  createAgentEventActionPatch,
   createAiRepairPromptFromIssues,
   decideAiAgentRoute,
   generateAiCrudPageCandidate,

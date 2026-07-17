@@ -6,6 +6,7 @@ import { migratePageSchema } from '../../../../packages/lowcode-schema/src';
 import type { LowcodeComponentSchema } from '../../../../packages/lowcode-schema/src';
 import { deletePageVersion, listPageVersions, publishPage, rollbackPage, updatePage } from '../../../shared/api/pages';
 import { PageVersion, ProjectRole } from '../../../shared/api/types';
+import { buildPublishedPageUrl, getConfiguredPublisherSiteUrl } from '../../../shared/publish/url';
 import { assertValidComponentTree } from '../../schema/validateComponents';
 import { ComponentDiffSummary, diffComponentTrees } from '../../schema/diffComponents';
 import { useComponentConfigStore } from '../../registry/component-config';
@@ -192,7 +193,10 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
         await loadVersions();
       }
 
-      const publishUrl = `${window.location.origin}/publish/${page.publicId}`;
+      const publishUrl = buildPublishedPageUrl(page.publicId, {
+        siteUrl: getConfiguredPublisherSiteUrl(),
+        origin: window.location.origin,
+      });
       if (navigator.clipboard?.writeText) {
         try {
           await navigator.clipboard.writeText(publishUrl);

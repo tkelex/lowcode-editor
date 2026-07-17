@@ -6,7 +6,6 @@ import { getComponentEventConfig } from "../../events/normalize";
 import { runLowcodeActions } from "../../events/runtime";
 import { useComponentConfigStore } from "../../registry/component-config";
 import { Component, useComponetsStore } from "../../stores/components"
-import { getStoredToken } from "../../../shared/api/auth";
 import {
     parseRuntimeDataSources,
     parseRuntimeJsonObject,
@@ -24,6 +23,13 @@ import {
 interface PreviewProps {
     components?: Component[];
     allowCustomJS?: boolean;
+    runtimeConfig?: PreviewRuntimeConfig;
+}
+
+export interface PreviewRuntimeConfig {
+    apiBaseUrl?: string;
+    allowedOrigins?: string[];
+    getAuthToken?: () => string | undefined;
 }
 
 interface PreviewComponentBoundaryProps {
@@ -67,9 +73,43 @@ class PreviewComponentBoundary extends React.Component<PreviewComponentBoundaryP
     }
 }
 
-export function Preview({ components: propsComponents, allowCustomJS = true }: PreviewProps) {
+export function Preview({ components: propsComponents, allowCustomJS = true, runtimeConfig }: PreviewProps) {
+    if (propsComponents) {
+        return <PreviewRuntime
+            sourceComponents={propsComponents}
+            allowCustomJS={allowCustomJS}
+            runtimeConfig={runtimeConfig}
+        />;
+    }
+
+    return <StorePreviewRuntime allowCustomJS={allowCustomJS} runtimeConfig={runtimeConfig} />;
+}
+
+function StorePreviewRuntime({
+    allowCustomJS,
+    runtimeConfig,
+}: {
+    allowCustomJS: boolean;
+    runtimeConfig?: PreviewRuntimeConfig;
+}) {
     const storeComponents = useComponetsStore((state) => state.components);
-    const sourceComponents = propsComponents ?? storeComponents;
+
+    return <PreviewRuntime
+        sourceComponents={storeComponents}
+        allowCustomJS={allowCustomJS}
+        runtimeConfig={runtimeConfig}
+    />;
+}
+
+function PreviewRuntime({
+    sourceComponents,
+    allowCustomJS,
+    runtimeConfig,
+}: {
+    sourceComponents: Component[];
+    allowCustomJS: boolean;
+    runtimeConfig?: PreviewRuntimeConfig;
+}) {
     const [runtimeComponents, setRuntimeComponents] = useState<Component[]>(() => cloneComponents(sourceComponents));
     const [variables, setVariables] = useState<Record<string, any>>({});
     const [dataSourceState, setDataSourceState] = useState<RuntimeDataSourceState>({});
@@ -106,11 +146,11 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
             }));
 
             requestRuntimeDataSource(dataSource, {
-                apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
-                allowedOrigins: parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS),
+                apiBaseUrl: runtimeConfig?.apiBaseUrl ?? readViteEnv('VITE_API_BASE_URL') ?? 'http://localhost:3000/api',
+                allowedOrigins: runtimeConfig?.allowedOrigins ?? parseAllowedOrigins(readViteEnv('VITE_LOWCODE_HTTP_ALLOWED_ORIGINS')),
                 variables,
                 dataSources: dataSourceState,
-                getAuthToken: () => getStoredToken() || undefined,
+                getAuthToken: runtimeConfig?.getAuthToken ?? getDefaultAuthToken,
             })
                 .then((data) => {
                     if (disposed) return;
@@ -187,7 +227,10 @@ export function Preview({ components: propsComponents, allowCustomJS = true }: P
                         setVariable: setRuntimeVariable,
                         updateComponentProps: updateRuntimeComponentProps,
                         updateComponentStyles: updateRuntimeComponentStyles,
-                        getAuthToken: () => getStoredToken() || undefined,
+                        getAuthToken: runtimeConfig?.getAuthToken ?? getDefaultAuthToken,
+                    }, {
+                        apiBaseUrl: runtimeConfig?.apiBaseUrl,
+                        allowedOrigins: runtimeConfig?.allowedOrigins,
                     }).catch(() => {
                         message.error('事件动作执行失败');
                     });
@@ -268,6 +311,22 @@ function parseAllowedOrigins(value: string | undefined) {
         .split(',')
         .map((origin) => origin.trim())
         .filter(Boolean);
+}
+
+function readViteEnv(name: string) {
+    try {
+        return import.meta.env?.[name];
+    } catch {
+        return undefined;
+    }
+}
+
+function getDefaultAuthToken() {
+    if (typeof window === 'undefined') {
+        return undefined;
+    }
+
+    return window.localStorage.getItem('lowcode_token') || undefined;
 }
 
 function cloneComponents(components: Component[]) {

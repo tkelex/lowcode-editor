@@ -1,6 +1,8 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   applyAiComponentPatch,
+  createAgentDataSourceBindingPatch,
+  createAgentEventActionPatch,
   createAiRepairPromptFromIssues,
   generateAiCrudPageCandidate,
   validateAiGeneratedComponents,
@@ -65,6 +67,20 @@ export class AiAgentToolRegistryService {
     {
       name: 'proposeSchemaPatch',
       description: '把生成草稿转换为候选 schema patch',
+      kind: 'patch',
+      readOnly: false,
+      timeoutMs: 1000,
+    },
+    {
+      name: 'generateEventActionPatch',
+      description: '根据自然语言为目标组件生成低代码事件动作 patch',
+      kind: 'patch',
+      readOnly: false,
+      timeoutMs: 1000,
+    },
+    {
+      name: 'bindDataSource',
+      description: '根据自然语言为 Page dataSources 和目标组件 dataSourceId 生成 patch',
       kind: 'patch',
       readOnly: false,
       timeoutMs: 1000,
@@ -206,6 +222,36 @@ export class AiAgentToolRegistryService {
       };
     }
 
+    if (toolName === 'generateEventActionPatch') {
+      const result = createAgentEventActionPatch({
+        components: input.components,
+        prompt: input.prompt,
+        selectedComponentId: input.context.selectedComponentId,
+        pageFingerprint: input.context.pageFingerprint,
+        apiDescription: input.apiDescription,
+      });
+
+      return {
+        ...result,
+        candidateKind: 'patch',
+      };
+    }
+
+    if (toolName === 'bindDataSource') {
+      const result = createAgentDataSourceBindingPatch({
+        components: input.components,
+        prompt: input.prompt,
+        selectedComponentId: input.context.selectedComponentId,
+        pageFingerprint: input.context.pageFingerprint,
+        apiDescription: input.apiDescription,
+      });
+
+      return {
+        ...result,
+        candidateKind: 'patch',
+      };
+    }
+
     if (toolName === 'validateCandidate') {
       const components = args.components;
       if (Array.isArray(components)) {
@@ -227,7 +273,9 @@ export class AiAgentToolRegistryService {
 
       const validation = applyAiComponentPatch(input.components, patch, {
         expectedBaselineFingerprint: input.context.pageFingerprint,
-        scopeRootId: input.context.targetScope === 'page' ? undefined : input.context.selectedComponentId,
+        scopeRootId: Object.prototype.hasOwnProperty.call(args, 'scopeRootId')
+          ? readScopeRootId(args.scopeRootId)
+          : input.context.targetScope === 'page' ? undefined : input.context.selectedComponentId,
       });
       return {
         ...validation,
@@ -285,6 +333,10 @@ function readComponents(value: unknown): LowcodeComponentSchema[] {
     'generatedComponents must be an array',
     HttpStatus.BAD_REQUEST,
   );
+}
+
+function readScopeRootId(value: unknown) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 }
 
 function summarizeResult(toolName: string, result: unknown) {

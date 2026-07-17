@@ -11,7 +11,18 @@ import {
   useRuntimeLogsStore,
 } from '../stores/runtime-logs';
 
-const runtimeAdapters = {
+export interface LowcodeRuntimeAdapterOptions {
+  apiBaseUrl?: string;
+  allowedOrigins?: string[];
+}
+
+const defaultRuntimeAdapterOptions = {
+  apiBaseUrl: readViteEnv('VITE_API_BASE_URL') ?? 'http://localhost:3000/api',
+  allowedOrigins: parseAllowedOrigins(readViteEnv('VITE_LOWCODE_HTTP_ALLOWED_ORIGINS')),
+};
+
+function createRuntimeAdapters(options: LowcodeRuntimeAdapterOptions = {}) {
+  return {
   showMessage(content: string, type: ToastType) {
     message.open({ type, content });
   },
@@ -55,19 +66,30 @@ const runtimeAdapters = {
     console.error(error);
   },
   normalizeHttpUrlOptions: {
-    apiBaseUrl: import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
-    allowedOrigins: parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS),
+    apiBaseUrl: options.apiBaseUrl ?? defaultRuntimeAdapterOptions.apiBaseUrl,
+    allowedOrigins: options.allowedOrigins ?? defaultRuntimeAdapterOptions.allowedOrigins,
   },
-};
+  };
+}
 
-export function runLowcodeActions(actions: LowcodeAction[], context: LowcodeEventRuntimeContext) {
+export function runLowcodeActions(
+  actions: LowcodeAction[],
+  context: LowcodeEventRuntimeContext,
+  options?: LowcodeRuntimeAdapterOptions,
+) {
+  const runtimeAdapters = createRuntimeAdapters(options);
   return runLowcodeActionsCore(actions, context as LowcodeActionRuntimeContext, runtimeAdapters).catch((error) => {
     runtimeAdapters.onError(error, context as LowcodeActionRuntimeContext);
     throw error;
   });
 }
 
-export function runLowcodeAction(action: LowcodeAction, context: LowcodeEventRuntimeContext) {
+export function runLowcodeAction(
+  action: LowcodeAction,
+  context: LowcodeEventRuntimeContext,
+  options?: LowcodeRuntimeAdapterOptions,
+) {
+  const runtimeAdapters = createRuntimeAdapters(options);
   return runLowcodeActionCore(action, context as LowcodeActionRuntimeContext, runtimeAdapters).catch((error) => {
     runtimeAdapters.onError(error, context as LowcodeActionRuntimeContext, action);
     throw error;
@@ -79,4 +101,12 @@ function parseAllowedOrigins(value: string | undefined) {
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+}
+
+function readViteEnv(name: string) {
+  try {
+    return import.meta.env?.[name];
+  } catch {
+    return undefined;
+  }
 }

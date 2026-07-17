@@ -14,6 +14,7 @@ import { UpdatePageDto } from './dto/update-page.dto';
 import { PagePublishService } from './page-publish.service';
 import { PageSchemaService } from './page-schema.service';
 import { PageVersionsService } from './page-versions.service';
+import { PublishedPageRevalidateService } from './published-page-revalidate.service';
 
 type PageWithProject = Prisma.PageGetPayload<{ include: { project: true } }>;
 
@@ -25,6 +26,7 @@ export class PagesService {
     private readonly pageSchemaService: PageSchemaService,
     private readonly pageVersionsService: PageVersionsService,
     private readonly pagePublishService: PagePublishService,
+    private readonly publishedPageRevalidateService: PublishedPageRevalidateService,
     private readonly auditLogsService: AuditLogsService,
   ) {}
 
@@ -168,6 +170,7 @@ export class PagesService {
   async publish(id: number, userId: number) {
     const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
     const publishedPage = await this.pagePublishService.publish(page, userId);
+    const revalidateResult = await this.publishedPageRevalidateService.revalidate(publishedPage.publicId);
 
     await this.auditLogsService.record({
       actorId: userId,
@@ -180,6 +183,7 @@ export class PagesService {
       metadata: {
         publicId: publishedPage.publicId,
         publishedVersionId: publishedPage.publishedVersionId,
+        revalidate: this.toJsonObject(revalidateResult),
       },
     });
 
@@ -189,6 +193,7 @@ export class PagesService {
   async unpublish(id: number, userId: number) {
     const page = await this.getPageForAccess(id, userId, EDITABLE_PROJECT_ROLES);
     const unpublishedPage = await this.pagePublishService.unpublish(id);
+    const revalidateResult = await this.publishedPageRevalidateService.revalidate(unpublishedPage.publicId);
 
     await this.auditLogsService.record({
       actorId: userId,
@@ -201,6 +206,7 @@ export class PagesService {
       metadata: {
         publicId: unpublishedPage.publicId,
         publishedVersionId: unpublishedPage.publishedVersionId,
+        revalidate: this.toJsonObject(revalidateResult),
       },
     });
 
@@ -308,6 +314,10 @@ export class PagesService {
   }
 
   private getDefinedJson(input: Record<string, unknown>) {
+    return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Prisma.InputJsonObject;
+  }
+
+  private toJsonObject(input: object) {
     return Object.fromEntries(Object.entries(input).filter(([, value]) => value !== undefined)) as Prisma.InputJsonObject;
   }
 }

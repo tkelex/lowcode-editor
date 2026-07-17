@@ -1,6 +1,7 @@
 import { Button, Popconfirm, Space, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { AdminProject, AdminPublishedPage, AdminUser, AuditLog, User } from '../../shared/api/types';
+import { buildPublishedPageUrl, getConfiguredPublisherSiteUrl } from '../../shared/publish/url';
 import { StatusTag } from './components/StatusTag';
 import { auditActionText } from './model/display';
 import { formatDateTime } from './model/format';
@@ -159,7 +160,7 @@ const publishedPageColumns: ColumnsType<AdminPublishedPage> = [
       dataIndex: 'publicId',
       width: 112,
       render: (publicId?: string | null) => publicId
-        ? <Button type="link" href={`/publish/${publicId}`} target="_blank">打开</Button>
+        ? <Button type="link" href={buildPublishedPageUrl(publicId, { siteUrl: getConfiguredPublisherSiteUrl() })} target="_blank">打开</Button>
         : <Typography.Text type="secondary">-</Typography.Text>,
     },
     {

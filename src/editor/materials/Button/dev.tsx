@@ -1,12 +1,14 @@
 import { Button as AntdButton } from 'antd';
+import { useEffect, useRef } from 'react';
 import { CommonComponentProps } from '../../interface';
 import { useDrag } from 'react-dnd';
 import { splitControlStyles } from '../styleSplit';
 
 const Button = ({id, type, text, size, disabled, block, loading, danger, styles}: CommonComponentProps) => {
   const { shellStyles, controlStyles } = splitControlStyles(styles);
+  const spanRef = useRef<HTMLSpanElement>(null);
 
-  const [_, drag] = useDrag({
+  const [, drag] = useDrag({
       type: 'Button',
       item: {
           type: 'Button',
@@ -15,8 +17,12 @@ const Button = ({id, type, text, size, disabled, block, loading, danger, styles}
       }
   });
 
+  useEffect(() => {
+    drag(spanRef);
+  }, [drag]);
+
   return (
-    <span ref={drag} data-component-id={id} style={shellStyles} className="editor-component editor-inline-component rounded-[6px]">
+    <span ref={spanRef} data-component-id={id} style={shellStyles} className="editor-component editor-inline-component rounded-[6px]">
       <AntdButton
         type={type}
         size={size}
