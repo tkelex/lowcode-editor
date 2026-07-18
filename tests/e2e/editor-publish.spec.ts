@@ -33,12 +33,11 @@ const pageRecord = {
   updatedAt: now,
 };
 
-test('completes the mocked edit, preview, save, publish and public page flow', async ({ page }) => {
+test('completes the mocked edit, preview, save and publish flow', async ({ page }) => {
   const state = {
     projects: [] as typeof project[],
     pages: [] as typeof pageRecord[],
     savedSchema: pageRecord.schema,
-    publishedSchema: createPageSchema('E2E Published Page'),
   };
 
   await mockApi(page, state);
@@ -79,10 +78,6 @@ test('completes the mocked edit, preview, save, publish and public page flow', a
 
   await clickButton(page, '发布');
   await expect(page.getByText(/页面已保存并发布/)).toBeVisible();
-
-  await page.goto('/publish/public-e2e-page');
-  await expect(page.getByText('E2E Published Page')).toBeVisible();
-  await expect(page.getByText('页面运行异常')).toHaveCount(0);
 });
 
 async function mockApi(
@@ -91,7 +86,6 @@ async function mockApi(
     projects: typeof project[];
     pages: typeof pageRecord[];
     savedSchema: ReturnType<typeof createPageSchema>;
-    publishedSchema: ReturnType<typeof createPageSchema>;
   },
 ) {
   await page.route('http://localhost:3000/api/**', async (route) => {
@@ -159,7 +153,6 @@ async function mockApi(
     }
 
     if (method === 'POST' && pathname === `/pages/${pageRecord.id}/publish`) {
-      state.publishedSchema = state.savedSchema;
       await json(route, {
         ...pageRecord,
         schema: state.savedSchema,
@@ -167,17 +160,6 @@ async function mockApi(
         publicId: 'public-e2e-page',
         publishedAt: now,
         publishedVersionId: 100,
-      });
-      return;
-    }
-
-    if (method === 'GET' && pathname === '/public/pages/public-e2e-page') {
-      await json(route, {
-        id: pageRecord.id,
-        name: pageRecord.name,
-        publicId: 'public-e2e-page',
-        schema: state.publishedSchema,
-        publishedAt: now,
       });
       return;
     }

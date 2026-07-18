@@ -8,7 +8,7 @@ const baseConfig = {
   DATABASE_URL: 'postgresql://user:password@localhost:5432/lowcode_editor?schema=public',
   JWT_SECRET: 'a'.repeat(48),
   FRONTEND_ORIGIN: 'https://lowcode.example.com',
-  UPLOAD_DIR: '/app/apps/api-server/uploads',
+  UPLOAD_DIR: '/workspace/apps/api-server/uploads',
   NODE_ENV: 'production',
 };
 
