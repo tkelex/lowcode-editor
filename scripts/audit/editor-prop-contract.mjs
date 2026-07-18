@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(__dirname, '../..');
-const configDir = path.join(rootDir, 'apps/editor-web/src/editor/registry/configs');
+const configDir = path.join(rootDir, 'apps/editor-web/src/features/editor/registry/configs');
 const strict = process.argv.includes('--strict');
 
 const setterFactories = [

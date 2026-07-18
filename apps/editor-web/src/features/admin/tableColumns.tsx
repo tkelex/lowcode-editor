@@ -1,10 +1,11 @@
 import { Button, Popconfirm, Space, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import type { AdminProject, AdminPublishedPage, AdminUser, AuditLog, User } from '../../shared/api/types';
-import { buildPublishedPageUrl, getConfiguredPublisherSiteUrl } from '../../shared/publish/url';
+import type { User } from '../auth';
+import { buildPublishedPageUrl, getConfiguredPublisherSiteUrl, type AuditLog } from '../projects';
+import type { AdminProject, AdminPublishedPage, AdminUser } from './types';
 import { StatusTag } from './components/StatusTag';
-import { auditActionText } from './model/display';
-import { formatDateTime } from './model/format';
+import { auditActionText } from './display';
+import { formatDateTime } from './format';
 
 interface AdminTableColumnOptions {
   currentUser: User;

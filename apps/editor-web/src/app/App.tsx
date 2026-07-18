@@ -1,24 +1,16 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { ProjectRole, User } from '../shared/api/types';
+import { useCallback, useEffect, useState } from 'react';
+import type { User } from '../features/auth';
+import type { ProjectRole } from '../features/projects';
 import { AppLoading } from './components/AppLoading';
 import { AppViewOutlet } from './components/AppViewOutlet';
 import { useAuthSession } from './hooks/useAuthSession';
 import { useEditorPageLoader } from './hooks/useEditorPageLoader';
 import { getInitialAppView } from './routes/initialView';
-import { getPublishPublicId } from './routes/publicRoutes';
 import type { AppView } from './routes/types';
 
-const PublishedPageView = lazy(() => import('../features/publish/PublishedPageView').then((module) => ({
-  default: module.PublishedPageView,
-})));
-
 function App() {
-  const publishPublicId = useMemo(() => getPublishPublicId(), []);
-  const isPublicRoute = Boolean(publishPublicId);
-  const [view, setView] = useState<AppView>(() => getInitialAppView(isPublicRoute));
-  const { user, status, initializing, authenticate, signOut } = useAuthSession({
-    disabled: isPublicRoute,
-  });
+  const [view, setView] = useState<AppView>(getInitialAppView);
+  const { user, status, initializing, authenticate, signOut } = useAuthSession();
 
   const handlePageLoaded = useCallback((pageId: number, projectId?: number, projectRole?: ProjectRole) => {
     setView({ name: 'editor', pageId, projectId, projectRole });
@@ -26,8 +18,6 @@ function App() {
   const { loadingPage, openPage } = useEditorPageLoader(handlePageLoaded);
 
   useEffect(() => {
-    if (isPublicRoute) return;
-
     if (status === 'anonymous') {
       setView({ name: 'auth' });
       return;
@@ -36,7 +26,7 @@ function App() {
     if (status === 'authenticated') {
       setView((currentView) => currentView.name === 'auth' ? { name: 'dashboard' } : currentView);
     }
-  }, [isPublicRoute, status]);
+  }, [status]);
 
   const handleAuthenticated = useCallback((nextUser: User) => {
     authenticate(nextUser);
@@ -70,12 +60,6 @@ function App() {
     window.history.pushState(null, '', '/admin');
     setView({ name: 'admin' });
   }, []);
-
-  if (publishPublicId) {
-    return <Suspense fallback={<AppLoading />}>
-      <PublishedPageView publicId={publishPublicId} />
-    </Suspense>;
-  }
 
   if (initializing || loadingPage) {
     return <AppLoading />;

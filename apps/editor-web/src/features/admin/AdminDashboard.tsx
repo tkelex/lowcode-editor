@@ -20,12 +20,14 @@ import {
   listAdminUsers,
   updateAdminProjectStatus,
   updateAdminUserStatus,
-} from '../../shared/api/admin';
-import { AdminOverview, AdminProject, AdminPublishedPage, AdminUser, AuditLog, User } from '../../shared/api/types';
+} from './api/admin';
+import type { User } from '../auth';
+import type { AuditLog } from '../projects';
+import type { AdminOverview, AdminProject, AdminPublishedPage, AdminUser } from './types';
 import { OverviewPane } from './components/OverviewPane';
 import { TableToolbar } from './components/TableToolbar';
-import { auditActionText, StatusFilter } from './model/display';
-import { normalizeKeyword } from './model/format';
+import { auditActionText, StatusFilter } from './display';
+import { normalizeKeyword } from './format';
 import { createAdminTableColumns } from './tableColumns';
 
 interface AdminDashboardProps {

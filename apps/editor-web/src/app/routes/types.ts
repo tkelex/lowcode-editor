@@ -1,4 +1,4 @@
-import type { ProjectRole } from '../../shared/api/types';
+import type { ProjectRole } from '../../features/projects';
 
 export type AppView =
   | { name: 'auth' }

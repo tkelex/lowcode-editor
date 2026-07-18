@@ -16,7 +16,7 @@ import {
 } from 'antd';
 import dayjs from 'dayjs';
 import { useEffect, useMemo, useState } from 'react';
-import { createPage, listPages, listPageVersions } from '../../shared/api/pages';
+import { createPage, listPages, listPageVersions } from './api/pages';
 import {
   addProjectMember,
   createProject,
@@ -26,10 +26,10 @@ import {
   removeProjectMember,
   updateProject,
   updateProjectMember,
-} from '../../shared/api/projects';
-import { AuditLog, EditorPage, PageVersion, Project, ProjectMember, ProjectRole } from '../../shared/api/types';
-import { roleColor, roleText } from './model/display';
-import type { AddMemberFormValues, ProjectDashboardProps } from './model/types';
+} from './api/projects';
+import type { AuditLog, EditorPage, PageVersion, Project, ProjectMember, ProjectRole } from './types';
+import { roleColor, roleText } from './display';
+import type { AddMemberFormValues, ProjectDashboardProps } from './dashboard-types';
 import { ProjectMemberDrawer } from './components/ProjectMemberDrawer';
 import { PublishRecordDrawer } from './components/PublishRecordDrawer';
 import { DataSourceModelDrawer } from './components/DataSourceModelDrawer';

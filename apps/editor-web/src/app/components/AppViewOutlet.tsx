@@ -1,16 +1,17 @@
 import { lazy, Suspense } from 'react';
-import { ProjectRole, User } from '../../shared/api/types';
+import type { User } from '../../features/auth';
+import type { ProjectRole } from '../../features/projects';
 import type { AppView } from '../routes/types';
 import { AppLoading } from './AppLoading';
 
-const LowcodeEditor = lazy(() => import('../../editor/'));
-const AuthView = lazy(() => import('../../features/auth/AuthView').then((module) => ({
+const LowcodeEditor = lazy(() => import('../../features/editor'));
+const AuthView = lazy(() => import('../../features/auth').then((module) => ({
   default: module.AuthView,
 })));
-const ProjectDashboard = lazy(() => import('../../features/projects/ProjectDashboard').then((module) => ({
+const ProjectDashboard = lazy(() => import('../../features/projects').then((module) => ({
   default: module.ProjectDashboard,
 })));
-const AdminDashboard = lazy(() => import('../../features/admin/AdminDashboard').then((module) => ({
+const AdminDashboard = lazy(() => import('../../features/admin').then((module) => ({
   default: module.AdminDashboard,
 })));
 

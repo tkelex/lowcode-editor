@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 
 describe('Next.js publisher runtime helpers', () => {
   it('builds published page urls with publisher site fallback', async () => {
-    const { buildPublishedPageUrl } = await loadModule('apps/editor-web/src/shared/publish/url.ts');
+    const { buildPublishedPageUrl } = await loadModule('apps/editor-web/src/features/projects/publish-url.ts');
 
     assert.equal(buildPublishedPageUrl('abc 123', {
       siteUrl: 'https://pages.example.com/',
@@ -150,23 +150,11 @@ describe('Next.js publisher runtime helpers', () => {
     assert.doesNotMatch(source, /src\/editor\/stores/);
   });
 
-  it('keeps the Vite publisher adapter on the public runtime interface', async () => {
-    const source = await readFile('apps/editor-web/src/features/publish/PublishedPageView.tsx', 'utf8');
-
-    assert.match(source, /editor\/runtime\/public/);
-    assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);
-    assert.doesNotMatch(source, /editor\/runtime\/Preview/);
-    assert.doesNotMatch(source, /editor\/stores/);
-    assert.doesNotMatch(source, /packages\/lowcode-schema/);
-  });
-
   it('loads public snapshots without the authenticated HTTP client', async () => {
-    const pagesSource = await readFile('apps/editor-web/src/shared/api/pages.ts', 'utf8');
-    const httpSource = await readFile('apps/editor-web/src/shared/api/http.ts', 'utf8');
+    const source = await readFile('apps/publisher-web/src/published-pages/fetchPublishedPage.ts', 'utf8');
 
-    assert.match(pagesSource, /publicHttp\.get<PublishedPage>/);
-    assert.match(httpSource, /export const publicHttp = axios\.create/);
-    assert.doesNotMatch(httpSource, /publicHttp\.interceptors\.request/);
+    assert.match(source, /fetch\(`\$\{config\.apiBaseUrl\}\/public\/pages\//);
+    assert.doesNotMatch(source, /Authorization|localStorage|axios/);
   });
 });
 

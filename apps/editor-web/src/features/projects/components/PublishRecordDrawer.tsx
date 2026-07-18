@@ -1,6 +1,6 @@
 import { Button, Drawer, List, Space, Tag, Typography } from 'antd';
 import dayjs from 'dayjs';
-import type { EditorPage, PageVersion } from '../../../shared/api/types';
+import type { EditorPage, PageVersion } from '../types';
 
 interface PublishRecordDrawerProps {
   open: boolean;

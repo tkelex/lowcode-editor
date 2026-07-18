@@ -1,6 +1,6 @@
 import { Card, Statistic, Typography } from 'antd';
-import type { AdminOverview } from '../../../shared/api/types';
-import { formatBytes } from '../model/format';
+import type { AdminOverview } from '../types';
+import { formatBytes } from '../format';
 
 export function OverviewPane({ overview, loading }: { overview: AdminOverview | null; loading: boolean }) {
   const stats = [

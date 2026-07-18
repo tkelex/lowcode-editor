@@ -1,8 +1,8 @@
 import { Button, Drawer, Form, Input, Select, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import type { FormInstance } from 'antd';
-import type { Project, ProjectMember } from '../../../shared/api/types';
-import type { AddMemberFormValues } from '../model/types';
+import type { Project, ProjectMember } from '../types';
+import type { AddMemberFormValues } from '../dashboard-types';
 
 interface ProjectMemberDrawerProps {
   open: boolean;

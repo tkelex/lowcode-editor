@@ -7,10 +7,6 @@ export const http = axios.create({
   baseURL: apiBaseUrl,
 });
 
-export const publicHttp = axios.create({
-  baseURL: apiBaseUrl,
-});
-
 http.interceptors.request.use((config) => {
   const token = localStorage.getItem(tokenStorageKey);
   if (token) {

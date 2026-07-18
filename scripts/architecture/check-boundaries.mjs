@@ -81,6 +81,12 @@ function isUnder(resolvedPath, segment) {
   return resolvedPath === segment || resolvedPath.startsWith(`${segment}/`);
 }
 
+function getFeatureName(relativePath, editorSourceRoot) {
+  const prefix = `${editorSourceRoot}/features/`;
+  if (!relativePath.startsWith(prefix)) return null;
+  return relativePath.slice(prefix.length).split('/')[0] || null;
+}
+
 const violations = [];
 const warnings = [];
 const files = await collectFiles(root);
@@ -89,7 +95,18 @@ for (const filePath of files) {
   const relativeFile = toPosix(path.relative(root, filePath));
   const source = await readFile(filePath, 'utf8');
   const editorSourceRoot = 'apps/editor-web/src';
-  const isCompatibilityApi = isUnder(relativeFile, `${editorSourceRoot}/api`);
+  const sourceFeature = getFeatureName(relativeFile, editorSourceRoot);
+
+  if (isUnder(relativeFile, `${editorSourceRoot}/api`)) {
+    violations.push(`${relativeFile}\n  Legacy src/api compatibility files are not allowed after the feature migration.`);
+  }
+
+  if (
+    isUnder(relativeFile, `${editorSourceRoot}/shared/api`) &&
+    relativeFile !== `${editorSourceRoot}/shared/api/http.ts`
+  ) {
+    violations.push(`${relativeFile}\n  Shared API code is limited to the business-agnostic HTTP client. Put business APIs in their owning feature.`);
+  }
 
   importPattern.lastIndex = 0;
 
@@ -97,11 +114,7 @@ for (const filePath of files) {
     const specifier = match[1] ?? match[2];
     const resolved = resolveImport(filePath, specifier);
 
-    if (relativeFile.startsWith(`${editorSourceRoot}/`) && !isCompatibilityApi) {
-      if (specifier.startsWith('../api') || specifier.startsWith('./api') || (resolved && isUnder(resolved, `${editorSourceRoot}/api`))) {
-        violations.push(`${describeImport(filePath, specifier)}\n  New frontend code must import API modules from src/shared/api.`);
-      }
-
+    if (relativeFile.startsWith(`${editorSourceRoot}/`)) {
       if (resolved && isUnder(resolved, 'apps/api-server')) {
         violations.push(`${describeImport(filePath, specifier)}\n  Frontend code must not import backend implementation files.`);
       }
@@ -112,10 +125,17 @@ for (const filePath of files) {
 
       if (relativeFile.startsWith(`${editorSourceRoot}/shared/`) && resolved && (
         isUnder(resolved, `${editorSourceRoot}/app`) ||
-        isUnder(resolved, `${editorSourceRoot}/features`) ||
-        isUnder(resolved, `${editorSourceRoot}/editor`)
+        isUnder(resolved, `${editorSourceRoot}/features`)
       )) {
-        violations.push(`${describeImport(filePath, specifier)}\n  Shared frontend code must not depend on app, feature, or editor implementation modules.`);
+        violations.push(`${describeImport(filePath, specifier)}\n  Shared frontend code must not depend on app or feature implementation modules.`);
+      }
+
+      const targetFeature = resolved ? getFeatureName(resolved, editorSourceRoot) : null;
+      if (sourceFeature && targetFeature && sourceFeature !== targetFeature) {
+        const targetPublicRoot = `${editorSourceRoot}/features/${targetFeature}`;
+        if (resolved !== targetPublicRoot) {
+          violations.push(`${describeImport(filePath, specifier)}\n  Cross-feature imports must use the target feature public index.`);
+        }
       }
     }
 
@@ -143,22 +163,6 @@ for (const filePath of files) {
 
     if (relativeFile.startsWith(`${editorSourceRoot}/`) && resolved && isUnder(resolved, 'apps/api-server/prisma')) {
       violations.push(`${describeImport(filePath, specifier)}\n  Database schema and migrations belong behind the backend boundary.`);
-    }
-  }
-
-  if (isCompatibilityApi && relativeFile !== `${editorSourceRoot}/api/index.ts`) {
-    const forbidden = source
-      .split('\n')
-      .map((line, index) => ({ line: line.trim(), lineNo: index + 1 }))
-      .filter(({ line }) => line && !line.startsWith('/**') && !line.startsWith('*') && !line.startsWith('*/') && !line.startsWith('export'));
-    const unexpected = forbidden.filter(({ line }) => {
-      return !line.startsWith('}') && !line.startsWith('from ') && !/^[A-Za-z_$][\w$]*(,)?$/.test(line);
-    });
-
-    if (unexpected.length > 0) {
-      violations.push(
-        `${relativeFile}\n  src/api is a deprecated compatibility layer. Keep files as re-export only. First unexpected line: ${unexpected[0].lineNo}`,
-      );
     }
   }
 

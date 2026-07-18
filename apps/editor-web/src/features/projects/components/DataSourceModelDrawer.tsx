@@ -27,9 +27,9 @@ import {
   deleteDataSourceModel,
   listDataSourceModels,
   updateDataSourceModel,
-} from '../../../shared/api/data-source-models';
-import { createPage } from '../../../shared/api/pages';
-import type { EditorPage, Project, ProjectRole } from '../../../shared/api/types';
+} from '../api/data-source-models';
+import { createPage } from '../api/pages';
+import type { EditorPage, Project, ProjectRole } from '../types';
 
 interface DataSourceModelDrawerProps {
   open: boolean;

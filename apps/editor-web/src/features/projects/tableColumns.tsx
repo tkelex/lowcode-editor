@@ -1,8 +1,8 @@
 import { Button, Popconfirm, Select, Space, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import dayjs from 'dayjs';
-import type { AuditLog, ProjectMember, ProjectRole } from '../../shared/api/types';
-import { auditActionText, roleColor, roleText } from './model/display';
+import type { AuditLog, ProjectMember, ProjectRole } from './types';
+import { auditActionText, roleColor, roleText } from './display';
 
 interface ProjectTableColumnOptions {
   canManageProject: boolean;

@@ -1,11 +1,7 @@
-import { getStoredToken } from '../../shared/api/auth';
+import { getStoredToken } from '../../features/auth';
 import type { AppView } from './types';
 
-export function getInitialAppView(isPublicRoute: boolean): AppView {
-  if (isPublicRoute) {
-    return { name: 'auth' };
-  }
-
+export function getInitialAppView(): AppView {
   if (window.location.pathname === '/admin') {
     return getStoredToken() ? { name: 'admin' } : { name: 'auth' };
   }

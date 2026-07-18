@@ -1,25 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { getCurrentUser, getStoredToken, logout } from '../../shared/api/auth';
-import { User } from '../../shared/api/types';
+import { getCurrentUser, getStoredToken, logout, type User } from '../../features/auth';
 
 type SessionStatus = 'checking' | 'authenticated' | 'anonymous';
 
-interface UseAuthSessionOptions {
-  disabled?: boolean;
-}
-
-export function useAuthSession({ disabled = false }: UseAuthSessionOptions = {}) {
+export function useAuthSession() {
   const [user, setUser] = useState<User | null>(null);
   const [status, setStatus] = useState<SessionStatus>(() => (
-    !disabled && getStoredToken() ? 'checking' : 'anonymous'
+    getStoredToken() ? 'checking' : 'anonymous'
   ));
 
   useEffect(() => {
-    if (disabled) {
-      setStatus('anonymous');
-      return;
-    }
-
     if (!getStoredToken()) {
       setUser(null);
       setStatus('anonymous');
@@ -45,7 +35,7 @@ export function useAuthSession({ disabled = false }: UseAuthSessionOptions = {})
     return () => {
       ignore = true;
     };
-  }, [disabled]);
+  }, []);
 
   const authenticate = useCallback((nextUser: User) => {
     setUser(nextUser);
