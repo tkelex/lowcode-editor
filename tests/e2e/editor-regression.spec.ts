@@ -469,7 +469,7 @@ test('ai builder previews and applies generated page after confirmation', async 
 
   await openMockEditor(page);
   await page.getByText('AI', { exact: true }).click();
-  await page.getByPlaceholder('例如：生成一个用户管理页面，包含统计卡片、用户列表、新增/编辑表单').fill('生成一个用户管理页面');
+  await page.locator('.ant-form textarea').first().fill('生成一个用户管理页面');
 
   await page.getByRole('button', { name: '生成草稿' }).click();
   await expect(page.getByText('已生成 AI 测试页面草稿')).toBeVisible();
@@ -487,9 +487,9 @@ test('ai agent shows run details and applies candidate patch after confirmation'
   await openMockEditor(page);
   await page.locator('[data-component-id="1001"]').first().click();
   await page.getByText('AI', { exact: true }).click();
-  await page.getByPlaceholder('例如：生成一个用户管理页面，包含统计卡片、用户列表、新增/编辑表单').fill('给当前容器添加说明文本');
+  await page.locator('.ant-form textarea').first().fill('给当前容器添加说明文本');
 
-  await page.getByRole('button', { name: 'Agent 修改' }).click();
+  await page.getByRole('button').filter({ hasText: 'Agent' }).click();
   await expect(page.getByText('执行计划已创建')).toBeVisible();
   await expect(page.getByText('候选修改已准备好')).toBeVisible();
   await expect(page.getByText('给当前容器添加一段 Agent 说明文本。').first()).toBeVisible();
