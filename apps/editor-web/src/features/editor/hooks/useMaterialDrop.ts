@@ -76,10 +76,6 @@ export function useMaterialDrop(accept: string[], id: number) {
     return { canDrop, isOverCurrent, canDropCurrent, drop }
 }
 
-/**
- * @deprecated Use `useMaterialDrop` instead. Kept for existing material imports.
- */
-
 function createMaterialDefaultProps(type: string, defaultProps: Record<string, any>, componentId: number) {
   const props = { ...defaultProps };
 
