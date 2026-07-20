@@ -15,6 +15,7 @@ packages/
 infra/              Compose、Nginx 与运维脚本
 tests/e2e/           跨应用 Playwright 流程
 docs/                当前产品、架构、接口和运维事实
+agent-context/      AI 工具的统一上下文入口
 ```
 
 应用之间不读取彼此的内部实现：两个前端通过 HTTP 访问 API，共享能力只通过 `packages/*` 的公开导出复用。
