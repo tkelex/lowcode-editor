@@ -19,5 +19,5 @@
 ## Documentation
 
 - 项目事实写入 `docs/`，AI 阅读规则写入 `agent-context/`。
-- 个人规划、复盘和学习资料写入 `E:\obsidian notes\笔记`，不提交到仓库。
+- 个人规划、复盘和学习资料写入 `E:\obsidian notes\笔记\我的资源\前端\项目\lowcode`，不提交到仓库。
 - 架构、接口、命令或目录变化时，同步更新 `agent-context/` 与相应文档。
