@@ -1,15 +1,17 @@
 # dependencies
 node_modules/
-server/node_modules/
+apps/api-server/node_modules/
 
 # build outputs
 dist/
 dist-ssr/
-server/dist/
-apps/publisher-next/.next/
+apps/editor-web/dist/
+apps/api-server/dist/
+apps/publisher-web/.next/
+packages/*/dist/
 build/
 coverage/
-server/uploads/
+apps/api-server/uploads/
 
 # env files
 .env
@@ -18,8 +20,8 @@ server/uploads/
 !.env.example
 !.env.production.example
 !infra/docker/.env.prod.example
-!server/.env.example
-!server/.env.production.example
+!apps/api-server/.env.example
+!apps/api-server/.env.production.example
 
 # logs
 logs/
@@ -54,14 +56,3 @@ playwright-report/
 # local database backups
 backups/
 *.dump
-
-# external notes repository
-PRPs/
-docs/08-复盘/
-docs/09-学习资料/
-docs/10-协作/
-docs/99-归档/
-docs/01-产品/产品路线图.md
-
-# Claude local settings
-.claude/settings.local.json

@@ -41,31 +41,29 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            server/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install frontend dependencies
+      - name: Install workspace dependencies
         run: npm ci
-
-      - name: Install server dependencies
-        run: npm ci --prefix server
 
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
       - name: Generate Prisma client
-        run: npm run prisma:generate --prefix server
+        run: npm run prisma:generate
 
       - name: Run checks
         run: npm run check
 
+      - name: Build public publisher
+        run: npm run build:publisher
+
       - name: Apply database migrations
-        run: npm run prisma:deploy --prefix server
+        run: npm run prisma:deploy
 
       - name: Start API server
         run: |
-          npm run start --prefix server > server-ci.log 2>&1 &
+          npm run start --workspace @lowcode/api-server > server-ci.log 2>&1 &
           echo $! > server-ci.pid
 
       - name: Wait for API health

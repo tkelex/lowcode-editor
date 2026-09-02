@@ -17,10 +17,10 @@ services:
   server:
     build:
       context: ../..
-      dockerfile: infra/docker/Dockerfile.server
+      dockerfile: apps/api-server/Dockerfile
     restart: unless-stopped
     env_file:
-      - path: ../../server/.env.production
+      - path: ../../apps/api-server/.env.production
         required: false
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-lowcode_editor}?schema=public
@@ -28,11 +28,20 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
       FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?FRONTEND_ORIGIN is required}
-      UPLOAD_DIR: ${UPLOAD_DIR:-/app/server/uploads}
+      UPLOAD_DIR: ${UPLOAD_DIR:-/workspace/apps/api-server/uploads}
       UPLOAD_MAX_SIZE: ${UPLOAD_MAX_SIZE:-5242880}
       PUBLISHER_SITE_URL: ${PUBLISHER_SITE_URL:-http://publisher:5174}
       PUBLISHER_REVALIDATE_SECRET: ${PUBLISHER_REVALIDATE_SECRET:?PUBLISHER_REVALIDATE_SECRET is required}
       PUBLISHER_REVALIDATE_TIMEOUT_MS: ${PUBLISHER_REVALIDATE_TIMEOUT_MS:-3000}
+      AI_PROVIDER_BASE_URL: ${AI_PROVIDER_BASE_URL:-https://api.openai.com/v1}
+      AI_PROVIDER_API_KEY: ${AI_PROVIDER_API_KEY:-}
+      AI_PROVIDER_MODEL: ${AI_PROVIDER_MODEL:-gpt-4.1-mini}
+      AI_PROVIDER_TIMEOUT_MS: ${AI_PROVIDER_TIMEOUT_MS:-30000}
+      AI_AGENT_MAX_STEPS: ${AI_AGENT_MAX_STEPS:-8}
+      AI_AGENT_MAX_REPAIRS: ${AI_AGENT_MAX_REPAIRS:-1}
+      AI_AGENT_TIMEOUT_MS: ${AI_AGENT_TIMEOUT_MS:-45000}
+      AI_AGENT_MAX_CONTEXT_COMPONENTS: ${AI_AGENT_MAX_CONTEXT_COMPONENTS:-80}
+      AI_AGENT_RATE_LIMIT_PER_MINUTE: ${AI_AGENT_RATE_LIMIT_PER_MINUTE:-12}
     depends_on:
       postgres:
         condition: service_healthy
@@ -40,7 +49,7 @@ services:
     expose:
       - "3000"
     volumes:
-      - uploads_data:/app/server/uploads
+      - uploads_data:/workspace/apps/api-server/uploads
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null 2>&1"]
       interval: 10s
@@ -50,7 +59,7 @@ services:
   web:
     build:
       context: ../..
-      dockerfile: infra/docker/Dockerfile.web
+      dockerfile: apps/editor-web/Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
         VITE_PUBLISHER_SITE_URL: ${VITE_PUBLISHER_SITE_URL:-http://localhost:5174}
@@ -65,7 +74,7 @@ services:
   publisher:
     build:
       context: ../..
-      dockerfile: infra/docker/Dockerfile.publisher-next
+      dockerfile: apps/publisher-web/Dockerfile
       args:
         PUBLISHER_API_BASE_URL: ${PUBLISHER_API_BASE_URL:-http://server:3000/api}
         PUBLISHER_SITE_URL: ${PUBLISHER_SITE_URL:-http://localhost:5174}

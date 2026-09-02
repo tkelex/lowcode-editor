@@ -29,7 +29,7 @@ export const {
   validateAiGeneratedComponents,
   validateDataSourceModelConfig,
   validateComponentTree,
-} = require('../../server/dist/packages/lowcode-schema/src/index.js');
+} = require('@lowcode/schema');
 
 export function createFetchResponse({ ok, status, data, contentType = 'application/json' }) {
   return {

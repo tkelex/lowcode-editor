@@ -1,0 +1,28 @@
+import { Alert as AntdAlert } from 'antd';
+import { useEffect, useRef } from 'react';
+import { useDrag } from 'react-dnd';
+import { CommonComponentProps } from '../types';
+import { splitControlStyles } from '../style';
+
+const Alert = ({ id, name, type, message, description, showIcon, closable, styles }: CommonComponentProps) => {
+    const { shellStyles, controlStyles } = splitControlStyles(styles);
+    const divRef = useRef<HTMLDivElement>(null);
+    const [, drag] = useDrag({
+        type: name,
+        item: {
+            type: name,
+            dragType: 'move',
+            id,
+        }
+    });
+
+    useEffect(() => {
+        drag(divRef);
+    }, [drag]);
+
+    return <div ref={divRef} data-component-id={id} style={shellStyles} className="editor-component rounded-[8px]">
+        <AntdAlert style={controlStyles} type={type} message={message} description={description} showIcon={showIcon} closable={closable} />
+    </div>
+}
+
+export default Alert;

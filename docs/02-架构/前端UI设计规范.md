@@ -38,7 +38,7 @@
 每次改编辑器 UI 后至少检查：
 
 - `npm run build`
-- `npm run test:e2e -- e2e/editor-regression.spec.ts`
+- `npm run test:e2e:editor`
 - 右侧设置区不出现内部组件 ID。
 - `.setting-panel`、`.edit-area` 不产生横向滚动。
 - 预览模式能正常显示输入类组件，并且可以退出预览。

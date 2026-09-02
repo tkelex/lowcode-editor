@@ -7,7 +7,7 @@ import tsPlugin from '@typescript-eslint/eslint-plugin'
 
 export default [
   {
-    ignores: ['dist/**', 'server/**', 'apps/publisher-next/.next/**'],
+    ignores: ['dist/**', 'apps/*/dist/**', 'packages/*/dist/**', 'apps/api-server/**', 'apps/publisher-web/.next/**'],
   },
   js.configs.recommended,
   {
@@ -22,7 +22,7 @@ export default [
     },
   },
   {
-    files: ['src/**/*.{ts,tsx}', 'apps/publisher-next/{app,src}/**/*.{ts,tsx}'],
+    files: ['apps/editor-web/src/**/*.{ts,tsx}', 'apps/publisher-web/src/**/*.{ts,tsx}', 'packages/lowcode-runtime/src/**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
@@ -50,7 +50,7 @@ export default [
     },
   },
   {
-    files: ['apps/publisher-next/{app,src}/**/*.{ts,tsx}'],
+    files: ['apps/publisher-web/src/**/*.{ts,tsx}'],
     languageOptions: {
       globals: {
         React: 'readonly',

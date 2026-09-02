@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { build } from 'esbuild';
@@ -9,7 +9,7 @@ const require = createRequire(import.meta.url);
 
 describe('Next.js publisher runtime helpers', () => {
   it('builds published page urls with publisher site fallback', async () => {
-    const { buildPublishedPageUrl } = await loadModule('src/shared/publish/url.ts');
+    const { buildPublishedPageUrl } = await loadModule('apps/editor-web/src/features/projects/publish-url.ts');
 
     assert.equal(buildPublishedPageUrl('abc 123', {
       siteUrl: 'https://pages.example.com/',
@@ -25,7 +25,7 @@ describe('Next.js publisher runtime helpers', () => {
       createPublishedPageMetadata,
       normalizeSafeUrl,
       normalizeText,
-    } = await loadModule('apps/publisher-next/src/published-pages/metadata.ts');
+    } = await loadModule('apps/publisher-web/src/published-pages/metadata.ts');
 
     process.env.PUBLISHER_SITE_URL = 'https://pages.example.com';
 
@@ -64,10 +64,97 @@ describe('Next.js publisher runtime helpers', () => {
   });
 
   it('creates stable cache tags for public ids', async () => {
-    const { createPublishedPageTag, parseCsv } = await loadModule('apps/publisher-next/src/published-pages/config.ts');
+    const { createPublishedPageTag, parseCsv } = await loadModule('apps/publisher-web/src/published-pages/config.ts');
 
     assert.equal(createPublishedPageTag('abc'), 'published-page:abc');
     assert.deepEqual(parseCsv(' https://a.com, ,https://b.com '), ['https://a.com', 'https://b.com']);
+  });
+
+  it('prepares only valid published snapshots through the public runtime interface', async () => {
+    const {
+      preparePublishedPageSnapshot,
+      PublishedPageSchemaError,
+    } = await loadModule('packages/lowcode-runtime/src/index.ts');
+
+    const prepared = preparePublishedPageSnapshot({
+      publicId: 'pub-1',
+      name: '公开页面',
+      routePath: '/public-page',
+      schema: {
+        components: [
+          {
+            id: 1,
+            name: 'Page',
+            desc: '页面',
+            props: {},
+            children: [
+              {
+                id: 2,
+                parentId: 1,
+                name: 'Button',
+                desc: '按钮',
+                props: {
+                  onClick: {
+                    actions: [
+                      { type: 'showMessage', config: { type: 'success', text: '已发布' } },
+                    ],
+                  },
+                },
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    assert.equal(prepared.schema.schemaVersion, '1.0.0');
+    assert.deepEqual(prepared.schema.components[0].children[0].props.onEvent.click.actions, [
+      {
+        actionType: 'toast',
+        args: {
+          msgType: 'success',
+          msg: '已发布',
+        },
+      },
+    ]);
+
+    assert.throws(
+      () => preparePublishedPageSnapshot({
+        publicId: 'pub-invalid',
+        name: '非法页面',
+        routePath: '/invalid',
+        schema: {
+          components: [
+            {
+              id: 1,
+              name: 'UnknownMaterial',
+              desc: '未知物料',
+              props: {},
+            },
+          ],
+        },
+      }),
+      (error) => {
+        assert.ok(error instanceof PublishedPageSchemaError);
+        assert.match(error.message, /未注册物料/);
+        return true;
+      },
+    );
+  });
+
+  it('keeps the Next publisher adapter on the public runtime interface', async () => {
+    const source = await readFile('apps/publisher-web/src/app/publish/[publicId]/page.tsx', 'utf8');
+
+    assert.match(source, /@lowcode\/runtime\/client['"]/);
+    assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);
+    assert.doesNotMatch(source, /src\/editor\/stores/);
+  });
+
+  it('loads public snapshots without the authenticated HTTP client', async () => {
+    const source = await readFile('apps/publisher-web/src/published-pages/fetchPublishedPage.ts', 'utf8');
+
+    assert.match(source, /fetch\(`\$\{config\.apiBaseUrl\}\/public\/pages\//);
+    assert.doesNotMatch(source, /Authorization|localStorage|axios/);
   });
 });
 
