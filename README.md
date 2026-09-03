@@ -24,6 +24,8 @@ agent-context/      AI 工具的统一上下文入口
 
 环境要求：Node.js 22、npm、Docker Desktop。
 
+仓库根目录的 `.node-version` 固定为 Node.js 22.23.1。PowerShell 已启用 `fnm env --use-on-cd` 时，进入本目录会自动切换版本，不会修改全局默认 Node；已提前进入目录的终端请执行一次 `fnm use` 或重新进入目录。
+
 ```powershell
 npm install
 Copy-Item apps/editor-web/.env.example apps/editor-web/.env
