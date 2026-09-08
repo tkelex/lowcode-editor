@@ -31,6 +31,7 @@
 - 构建：`npm run build`、`npm run build:publisher`、`npm run build:server`
 - 检查：`npm run lint`、`npm run test`、`npm run check:architecture`、`npm run check`
 - 主链路：`npm run smoke:api`、`npm run test:e2e:editor`、`npm run preflight`
+- Agent 数据库集成：`npm run test:agent:postgres`；先迁移独立测试库，显式设置 `AGENT_TEST_DATABASE_URL`（数据库名以 `_test` 或 `_ci` 结尾），不能复用个人开发库。
 
 ## Repository Boundaries
 
@@ -59,6 +60,7 @@
 - 模型调用只通过后端 AI 网关，前端不得保存模型 API key。
 - AI 结果写入前必须经过物料、组件树、事件、stale baseline 和 custom JS 校验。
 - AI 结果先展示摘要、warnings、assumptions、执行轨迹和预览，用户确认后才写入 store。
+- Agent 创建返回 202 + runId；任务持久化与 worker 在 API 的 `ai-agent-run-store.service.ts` / `ai-agent-worker.service.ts`，不要重新把 HTTP 查询接到生成器进程内 Map。当前阶段边界见 `docs/01-产品/AI页面搭建.md`。
 
 ## Validation
 

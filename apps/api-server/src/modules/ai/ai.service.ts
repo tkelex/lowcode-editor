@@ -1,6 +1,6 @@
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { AiAgentRunResult, AiPageGenerationRequest } from '@lowcode/schema';
+import type { AiPageGenerationRequest } from '@lowcode/schema';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
@@ -8,10 +8,9 @@ import { AuditLogsService } from '../audit/audit-logs.service';
 import { DataSourceModelsService } from '../data-source-models/data-source-models.service';
 import {
   EDITABLE_PROJECT_ROLES,
-  READABLE_PROJECT_ROLES,
   ProjectAccessService,
 } from '../projects/project-access.service';
-import { AiAgentOrchestrationService } from './ai-agent-orchestration.service';
+import { AiAgentRunStore } from './ai-agent-run-store.service';
 import { CreateAiAgentRunDto } from './dto/create-ai-agent-run.dto';
 import { GenerateAiPageDto } from './dto/generate-ai-page.dto';
 import { AiPageGeneratorService } from './ai-page-generator.service';
@@ -24,7 +23,7 @@ export class AiService {
     private readonly auditLogsService: AuditLogsService,
     private readonly dataSourceModelsService: DataSourceModelsService,
     private readonly pageGenerator: AiPageGeneratorService,
-    private readonly agentOrchestration: AiAgentOrchestrationService,
+    private readonly agentRuns: AiAgentRunStore,
   ) {}
 
   async generateForProject(projectId: number, userId: number, dto: GenerateAiPageDto) {
@@ -65,15 +64,13 @@ export class AiService {
 
   async createAgentRunForProject(projectId: number, userId: number, dto: CreateAiAgentRunDto) {
     await this.projectAccessService.requireProjectRole(projectId, userId, EDITABLE_PROJECT_ROLES);
-    const result = await this.agentOrchestration.run({
+    return this.agentRuns.enqueue({
       ...dto,
       projectId,
       currentComponents: dto.currentComponents,
       targetScope: dto.targetScope || 'page',
       dataSourceModels: await this.dataSourceModelsService.list(projectId, userId),
     }, userId);
-    await this.recordAgentAudit(result, userId, projectId);
-    return result;
   }
 
   async createAgentRunForPage(pageId: number, userId: number, dto: CreateAiAgentRunDto) {
@@ -90,7 +87,7 @@ export class AiService {
     const role = await this.projectAccessService.getRoleForProject(page.project, userId);
     this.projectAccessService.assertRole(role, EDITABLE_PROJECT_ROLES, 'Page not found');
 
-    const result = await this.agentOrchestration.run({
+    return this.agentRuns.enqueue({
       ...dto,
       projectId: page.projectId,
       pageId: page.id,
@@ -99,20 +96,24 @@ export class AiService {
       targetScope: dto.targetScope || (dto.selectedComponentId ? 'selection' : 'page'),
       dataSourceModels: await this.dataSourceModelsService.list(page.projectId, userId),
     }, userId);
-    await this.recordAgentAudit(result, userId, page.projectId, page.id);
-    return result;
   }
 
   async getAgentRun(runId: string, userId: number) {
-    const run = this.agentOrchestration.getRun(runId);
-    await this.assertCanReadAgentRun(run, userId);
-    return run;
+    return this.agentRuns.get(runId, userId);
   }
 
   async cancelAgentRun(runId: string, userId: number) {
-    const run = this.agentOrchestration.getRun(runId);
-    await this.assertCanReadAgentRun(run, userId);
-    return this.agentOrchestration.cancelRun(runId);
+    return this.agentRuns.cancel(runId, userId);
+  }
+
+  async listAgentRunsForProject(projectId: number, userId: number) {
+    return this.agentRuns.list(projectId, userId);
+  }
+
+  async listAgentRunsForPage(pageId: number, userId: number) {
+    const page = await this.prisma.page.findUnique({ where: { id: pageId }, select: { projectId: true } });
+    if (!page) throw new BusinessException(AppErrorCode.PAGE_NOT_FOUND, 'Page not found', HttpStatus.NOT_FOUND);
+    return this.agentRuns.list(page.projectId, userId, pageId);
   }
 
   private async generateAndAudit(input: {
@@ -176,42 +177,6 @@ export class AiService {
     }
   }
 
-  private async assertCanReadAgentRun(run: AiAgentRunResult, userId: number) {
-    const projectId = run.context.projectId;
-    if (!projectId) {
-      throw new BusinessException(AppErrorCode.AI_AGENT_RUN_NOT_FOUND, 'AI agent run not found', HttpStatus.NOT_FOUND);
-    }
-
-    await this.projectAccessService.requireProjectRole(projectId, userId, READABLE_PROJECT_ROLES);
-  }
-
-  private async recordAgentAudit(result: AiAgentRunResult, userId: number, projectId: number, pageId?: number) {
-    const action = result.status === 'failed' ? 'ai.agent.run.failed' : 'ai.agent.run';
-    await this.auditLogsService.record({
-      actorId: userId,
-      projectId,
-      pageId,
-      action,
-      targetType: pageId ? 'page' : 'project',
-      targetId: pageId || projectId,
-      summary: `${result.status === 'failed' ? 'AI agent run failed' : 'Run AI agent'}: ${truncate(result.context.userPrompt, 80)}`,
-      metadata: toPrismaJson({
-        prompt: truncate(result.context.userPrompt, 500),
-        runId: result.runId,
-        status: result.status,
-        targetScope: result.context.targetScope,
-        selectedComponentId: result.context.selectedComponentId,
-        toolCallCount: result.toolCalls.length,
-        warningCount: result.candidate?.warnings.length || 0,
-        candidateKind: result.candidate?.kind,
-        routeIntent: result.routeDecision?.intent,
-        routeConfidence: result.routeDecision?.confidence,
-        routePreferredTool: result.routeDecision?.preferredTool,
-        routeFallback: result.routeDecision?.fallback,
-        error: result.error,
-      }),
-    });
-  }
 }
 
 function readCurrentComponents(schema: Prisma.JsonValue) {

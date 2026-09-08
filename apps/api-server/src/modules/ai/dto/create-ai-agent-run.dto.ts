@@ -1,4 +1,4 @@
-import { IsIn, IsInt, IsObject, IsOptional, IsString, Length, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 import type { AiAgentMessage, AiAgentTargetScope, LowcodeComponentSchema } from '@lowcode/schema';
 
 const TARGET_SCOPES: AiAgentTargetScope[] = ['page', 'selection', 'component'];
@@ -32,8 +32,12 @@ export class CreateAiAgentRunDto {
   context?: Record<string, unknown>;
 
   @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(80)
   currentComponents?: LowcodeComponentSchema[];
 
   @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(50)
   history?: AiAgentMessage[];
 }

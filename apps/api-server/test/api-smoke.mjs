@@ -261,8 +261,9 @@ async function main() {
   });
   assertEqual(viewerAiDenied.code, 'PROJECT_FORBIDDEN', 'viewer should not generate AI pages');
 
-  const agentRun = await request(`/pages/${page.id}/ai/agent-runs`, {
+  const createdAgentRun = await request(`/pages/${page.id}/ai/agent-runs`, {
     method: 'POST',
+    expectedStatus: 202,
     token: editor.token,
     body: {
       prompt: '给当前页面增加一个用户说明区块',
@@ -323,6 +324,13 @@ async function main() {
     method: 'POST',
     token: owner.token,
   });
+  assertEqual(createdAgentRun.status, 'queued', 'AI agent should enqueue immediately');
+  let agentRun;
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    agentRun = await request(`/ai/agent-runs/${createdAgentRun.runId}`, { token: editor.token });
+    if (!['queued', 'running'].includes(agentRun.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
   assertEqual(unpublishedPage.publishedVersionId, null, 'unpublish should release the published snapshot');
 
   await request(`/pages/${page.id}/versions/${publishedPage.publishedVersionId}`, {

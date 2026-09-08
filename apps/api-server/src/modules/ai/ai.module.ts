@@ -9,11 +9,15 @@ import { AiAgentToolRegistryService } from './ai-agent-tool-registry.service';
 import { AiModelGatewayService } from './ai-model-gateway.service';
 import { AiPageGeneratorService } from './ai-page-generator.service';
 import { AiService } from './ai.service';
+import { AiAgentRunStore } from './ai-agent-run-store.service';
+import { AiAgentWorker } from './ai-agent-worker.service';
 
 @Module({
   imports: [AuditLogsModule, DataSourceModelsModule, ProjectsModule],
   controllers: [AiController],
   providers: [
+    AiAgentRunStore,
+    AiAgentWorker,
     AiAgentContextService,
     AiAgentOrchestrationService,
     AiAgentToolRegistryService,

@@ -6,7 +6,9 @@ export type AiAgentRunStatus =
   | 'queued'
   | 'running'
   | 'awaiting_confirmation'
-  | 'completed'
+  | 'accepted'
+  | 'rejected'
+  | 'expired'
   | 'failed'
   | 'cancelled';
 
@@ -98,6 +100,7 @@ export interface AiAgentToolCall {
 }
 
 export interface AiAgentRunEvent {
+  sequence?: number;
   id: string;
   type: 'plan' | 'tool_call' | 'validation' | 'repair' | 'candidate' | 'error' | 'message';
   title: string;
@@ -167,6 +170,9 @@ export interface AiAgentComponentsCandidate extends AiAgentCandidateBase {
 export type AiAgentCandidate = AiAgentPatchCandidate | AiAgentComponentsCandidate;
 
 export interface AiAgentRunResult {
+  lastSequence?: number;
+  candidateExpiresAt?: string;
+  savedVersionId?: number;
   runId: string;
   status: AiAgentRunStatus;
   context: AiAgentContextPackage;
@@ -193,6 +199,11 @@ export interface AiAgentRunAuditSummary {
   candidateKind?: AiAgentCandidateKind;
   routeIntent?: AiAgentRouteIntent;
   routeFallback?: string;
+}
+
+export interface AiAgentRunCreated {
+  runId: string;
+  status: 'queued';
 }
 
 export type AiComponentPatchOperation =

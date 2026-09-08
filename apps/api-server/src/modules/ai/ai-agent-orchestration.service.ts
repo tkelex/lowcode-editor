@@ -129,6 +129,9 @@ export class AiAgentOrchestrationService {
       run.audit = createAudit(runId, input, run.status, startedAt, toolCalls, routeDecision, undefined, run.error);
       this.pushEvent(events, 'error', 'agent 执行失败', run.error);
       return run;
+    } finally {
+      // This map only coordinates an in-flight execution. Durable reads belong to AiAgentRunStore.
+      this.runs.delete(runId);
     }
   }
 

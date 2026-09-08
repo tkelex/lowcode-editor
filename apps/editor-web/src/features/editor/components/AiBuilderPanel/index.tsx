@@ -2,7 +2,6 @@ import { Alert, Button, Divider, Empty, Form, Input, Radio, Select, Space, Spin,
 import { useMemo, useState } from 'react';
 import type {
   AiAgentMessage,
-  AiAgentRunResult,
   AiAgentTargetScope,
   AiPageBuilderTarget,
   AiPageBuilderWriteMode,
@@ -15,11 +14,10 @@ import {
   validateAiGeneratedComponents,
 } from '@lowcode/schema';
 import {
-  createAiAgentRunForPage,
-  createAiAgentRunForProject,
   generateAiPageForPage,
   generateAiPageForProject,
 } from '../../api/ai';
+import { useAgentRun } from './useAgentRun';
 import type { ProjectRole } from '../../../projects';
 import { Preview } from '../Preview';
 import { useComponentConfigStore } from '../../registry/component-registry-store';
@@ -58,12 +56,11 @@ const DEFAULT_FORM_VALUES: Partial<AiBuilderFormValues> = {
 export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiBuilderPanelProps) {
   const [form] = Form.useForm<AiBuilderFormValues>();
   const [generating, setGenerating] = useState(false);
-  const [agentRunning, setAgentRunning] = useState(false);
+  const { run: agentRun, busy: agentRunning, error: agentError, setError: setAgentError,
+    reset: clearAgentRun, submit: submitAgentRun } = useAgentRun(pageId, projectId);
   const [result, setResult] = useState<AiPageGenerationResult | null>(null);
-  const [agentRun, setAgentRun] = useState<AiAgentRunResult | null>(null);
   const [agentMessages, setAgentMessages] = useState<AiAgentMessage[]>([]);
   const [error, setError] = useState('');
-  const [agentError, setAgentError] = useState('');
   const components = useComponentsStore((state) => state.components);
   const curComponentId = useComponentsStore((state) => state.curComponentId);
   const setComponents = useComponentsStore((state) => state.setComponents);
@@ -117,7 +114,7 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
           ...validation.warnings.map((issue) => issue.message),
         ],
       });
-      setAgentRun(null);
+      clearAgentRun();
       message.success('AI 页面草稿已生成，请确认后应用');
     } catch (requestError) {
       setResult(null);
@@ -139,7 +136,6 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
       return;
     }
 
-    setAgentRunning(true);
     setAgentError('');
     const userMessage: AiAgentMessage = {
       id: `user_${Date.now()}`,
@@ -165,31 +161,10 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
           baselineFingerprint: createAiComponentTreeFingerprint(components as LowcodeComponentSchema[]),
         },
       };
-      const nextRun = pageId
-        ? await createAiAgentRunForPage(pageId, payload)
-        : await createAiAgentRunForProject(projectId as number, payload);
-
       setResult(null);
-      setAgentRun(nextRun);
-      if (nextRun.status === 'awaiting_confirmation') {
-        setAgentMessages([
-          ...nextHistory,
-          {
-            id: `assistant_${Date.now()}`,
-            role: 'assistant',
-            content: nextRun.candidate?.summary || '已生成候选修改。',
-            createdAt: new Date().toISOString(),
-          },
-        ]);
-        message.success('AI Agent 已生成候选修改，请确认后应用');
-      } else {
-        setAgentError(nextRun.error || 'AI Agent 未生成可应用候选修改');
-      }
+      await submitAgentRun(payload);
     } catch (requestError) {
-      setAgentRun(null);
       setAgentError(requestError instanceof Error ? requestError.message : 'AI Agent 执行失败');
-    } finally {
-      setAgentRunning(false);
     }
   }
 
@@ -263,8 +238,15 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
     if (!candidate) return;
 
     try {
+      if (agentRun.candidateExpiresAt && Date.now() >= Date.parse(agentRun.candidateExpiresAt)) {
+        throw new Error('候选已过期，请重新生成');
+      }
+      const latest = useComponentsStore.getState().components as LowcodeComponentSchema[];
+      if (candidate.baselineFingerprint && createAiComponentTreeFingerprint(latest) !== candidate.baselineFingerprint) {
+        throw new Error('页面草稿已变化，请重新生成候选，避免覆盖当前修改');
+      }
       const nextComponents = candidate.kind === 'patch'
-        ? applyAiComponentPatch(components as LowcodeComponentSchema[], candidate.patch, {
+        ? applyAiComponentPatch(latest, candidate.patch, {
           expectedBaselineFingerprint: candidate.baselineFingerprint,
           scopeRootId: candidate.impactScope === 'page' ? undefined : agentRun.context.selectedComponentId,
         }).components
@@ -277,8 +259,8 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
       assertValidComponentTree(nextComponents, componentConfig);
       setComponents(nextComponents as Component[]);
       setCurComponentId(null);
-      setAgentRun(null);
-      message.success('AI Agent 候选修改已应用到当前页面');
+      clearAgentRun();
+      message.success('AI Agent 候选修改已应用，尚未保存');
     } catch (applyError) {
       message.error(applyError instanceof Error ? applyError.message : 'AI Agent 候选修改无法应用');
     }
@@ -357,16 +339,16 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
         </Form.Item>
 
         <Space>
-          <Button type="primary" onClick={handleAgentRun} loading={agentRunning} disabled={!canWritePage}>
+          <Button type="primary" onClick={handleAgentRun} loading={agentRunning} disabled={!canWritePage || generating}>
             让 Agent 处理
           </Button>
-          <Button htmlType="submit" loading={generating} disabled={!canWritePage}>
+          <Button htmlType="submit" loading={generating} disabled={!canWritePage || agentRunning}>
             仅生成草稿
           </Button>
           <Button
             onClick={() => {
               setResult(null);
-              setAgentRun(null);
+              clearAgentRun();
               setAgentMessages([]);
               setError('');
               setAgentError('');
@@ -385,7 +367,7 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
 
       {agentRunning && <div className="mt-[16px] rounded-[6px] border border-[#dbeafe] bg-[#eff6ff] p-[12px]">
         <Spin size="small" />
-        <Typography.Text className="ml-[8px] text-[13px]">AI Agent 正在读取上下文并生成候选修改...</Typography.Text>
+        <Typography.Text className="ml-[8px] text-[13px]">{agentRun?.status === 'queued' ? '任务排队中...' : '正在查询或执行 Agent 任务，可关闭面板后恢复进度...'}</Typography.Text>
       </div>}
 
       {error && <Alert className="mt-[16px]" type="error" showIcon message={error} />}
@@ -429,6 +411,7 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
       </div>}
 
       {agentRun && <div className="mt-[16px]">
+        <Typography.Text type="secondary">任务状态：{agentRun.status} · 进度每 1.5 秒刷新</Typography.Text>
         <Divider className="!my-[12px]" />
         {agentRouteDecision && <div className="mb-[12px] rounded-[6px] border border-[#dbeafe] bg-[#eff6ff] px-[10px] py-[8px] text-[12px] leading-[20px]">
           <div className="font-medium text-[#1e40af]">Agent 理解</div>
@@ -508,7 +491,7 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
             <Button type="primary" onClick={applyAgentCandidate} disabled={!canWritePage}>
               应用 Agent 修改
             </Button>
-            <Button onClick={() => setAgentRun(null)}>放弃结果</Button>
+            <Button onClick={() => clearAgentRun()}>隐藏结果</Button>
           </Space>
         </div>}
       </div>}

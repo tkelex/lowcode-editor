@@ -499,6 +499,27 @@ test('ai agent shows run details and applies candidate patch after confirmation'
   await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
 });
 
+test('ai agent recovers a queued task after refresh without applying it', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.route(`**/pages/${pageRecord.id}/ai/agent-runs`, async (route) => {
+    await json(route, [{ id: aiAgentRunResult.runId, status: 'queued', createdAt: now }]);
+  });
+  let reads = 0;
+  await page.route(`**/ai/agent-runs/${aiAgentRunResult.runId}`, async (route) => {
+    reads += 1;
+    await json(route, reads < 3 ? { ...aiAgentRunResult, status: reads === 1 ? 'queued' : 'running', candidate: undefined, events: [] } : aiAgentRunResult);
+  });
+  await page.goto('/');
+  await openMockEditor(page);
+  await page.getByText('AI', { exact: true }).click();
+  await expect(page.getByText('任务排队中...', { exact: true })).toBeVisible();
+  await page.reload();
+  await openMockEditor(page);
+  await page.getByText('AI', { exact: true }).click();
+  await expect(page.getByRole('button', { name: '应用 Agent 修改' })).toBeVisible();
+  await expect(page.locator('.editor-page')).not.toContainText('Agent 修改已应用');
+});
+
 test('ai agent shows CRUD generator candidate metadata with stable selectors', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -1064,9 +1085,20 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
       return;
     }
 
+    if (method === 'GET' && pathname === `/pages/${editorPage.id}/ai/agent-runs`) {
+      await json(route, []);
+      return;
+    }
+
+    if (method === 'GET' && pathname.startsWith('/ai/agent-runs/')) {
+      await json(route, pathname.endsWith(aiAgentCrudRunResult.runId) ? aiAgentCrudRunResult : aiAgentRunResult);
+      return;
+    }
+
     if (method === 'POST' && pathname === `/pages/${editorPage.id}/ai/agent-runs`) {
       const body = JSON.parse(request.postData() || '{}');
-      await json(route, String(body.prompt || '').includes('/api/users') ? aiAgentCrudRunResult : aiAgentRunResult);
+      const result = String(body.prompt || '').includes('/api/users') ? aiAgentCrudRunResult : aiAgentRunResult;
+      await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({ runId: result.runId, status: 'queued' }) });
       return;
     }
 

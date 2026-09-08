@@ -2,6 +2,7 @@ import type {
   AiPageBuilderTarget,
   AiPageBuilderWriteMode,
   AiAgentRunResult,
+  AiAgentRunCreated,
   AiAgentMessage,
   AiAgentTargetScope,
   AiPageGenerationResult,
@@ -22,6 +23,8 @@ export interface GenerateAiPageInput {
 }
 
 export interface CreateAiAgentRunInput {
+  currentComponents?: LowcodeComponentSchema[];
+  history?: AiAgentMessage[];
   prompt: string;
   targetScope?: AiAgentTargetScope;
   selectedComponentId?: number;
@@ -42,17 +45,23 @@ export async function generateAiPageForPage(pageId: number, input: GenerateAiPag
 }
 
 export async function createAiAgentRunForProject(projectId: number, input: CreateAiAgentRunInput) {
-  const { data } = await http.post<AiAgentRunResult>(`/projects/${projectId}/ai/agent-runs`, input);
+  const { data } = await http.post<AiAgentRunCreated>(`/projects/${projectId}/ai/agent-runs`, input);
   return data;
 }
 
 export async function createAiAgentRunForPage(pageId: number, input: CreateAiAgentRunInput) {
-  const { data } = await http.post<AiAgentRunResult>(`/pages/${pageId}/ai/agent-runs`, input);
+  const { data } = await http.post<AiAgentRunCreated>(`/pages/${pageId}/ai/agent-runs`, input);
   return data;
 }
 
-export async function getAiAgentRun(runId: string) {
-  const { data } = await http.get<AiAgentRunResult>(`/ai/agent-runs/${runId}`);
+export async function getAiAgentRun(runId: string, signal?: AbortSignal) {
+  const { data } = await http.get<AiAgentRunResult>(`/ai/agent-runs/${runId}`, { signal });
+  return data;
+}
+
+export async function listAiAgentRuns(pageId?: number, projectId?: number, signal?: AbortSignal) {
+  const path = pageId ? `/pages/${pageId}` : `/projects/${projectId}`;
+  const { data } = await http.get<{ id: string; status: AiAgentRunResult['status']; createdAt: string }[]>(`${path}/ai/agent-runs`, { signal });
   return data;
 }
 

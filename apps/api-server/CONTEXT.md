@@ -11,3 +11,15 @@ _Avoid_：页面草稿、当前页面
 **页面草稿**：
 创作者可持续保存和修改的页面 schema，不直接对匿名访客可见。
 _Avoid_：发布快照、公开页面
+
+**AI Agent run**：
+围绕一次页面搭建或修改请求形成的、可追踪的候选生成过程，关联项目或页面上下文、工具轨迹和待确认候选结果。
+_Avoid_：模型调用、已保存页面、发布快照
+
+**AI Agent candidate**：
+Agent run 产出的、等待创作者确认的页面 schema 或 schema patch；它描述建议修改，不等同于页面草稿或已保存版本。
+_Avoid_：自动写入、发布版本、模型原始输出
+
+## Agent 执行边界
+
+Agent 任务通过 PostgreSQL 持久化和 API 内带租约 worker 异步执行；创建接口只入队，GET 查询不依赖生成器的内存状态。数据库结构与部分唯一索引以 `prisma/schema.prisma` 和 migration 为准。M1 不包含服务端确认或 SSE，详见 `docs/01-产品/AI页面搭建.md`。

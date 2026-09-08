@@ -1,0 +1,19 @@
+name: lowcode-agent-test
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: agent_test
+      POSTGRES_PASSWORD: agent_test_local_only
+      POSTGRES_DB: lowcode_agent_test
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - agent_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agent_test -d lowcode_agent_test"]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+volumes:
+  agent_test_data:

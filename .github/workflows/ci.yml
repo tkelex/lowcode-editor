@@ -61,7 +61,11 @@ jobs:
       - name: Apply database migrations
         run: npm run prisma:deploy
 
-      - name: Start API server
+      - name: Run Agent PostgreSQL integration
+        # Agent tests run before the production worker starts claiming queue entries.
+        run: AGENT_TEST_DATABASE_URL="$DATABASE_URL" npm run test:agent:postgres
+
+      - name: Start API server process
         run: |
           npm run start --workspace @lowcode/api-server > server-ci.log 2>&1 &
           echo $! > server-ci.pid

@@ -1,0 +1,7 @@
+# 持久化 AI Agent run 并通过 SSE 推送进度
+
+决策状态：已确认，部分实现、待数据库验收。M1 已加入持久化任务、租约 worker、GET 和前端轮询；SSE、confirm/reject、完整预算与清理仍待实现。本文记录完整目标方案，不代表所有能力已交付。
+
+外部访问边界：Agent 使用用户提供的接口说明、响应示例、项目数据源模型和页面物料上下文生成声明式数据源或 HTTP action，不直接探测、调用或写入外部业务 API。实际业务请求由受宿主策略约束的页面 runtime 执行；后端模型网关调用已配置的模型服务不属于此处禁止的业务 API 访问。候选预览同样属于 runtime 执行场景，不能把“Agent 无外部 API 直连权限”等同于“预览不会发出请求”。
+
+AI 页面搭建的 Agent run 采用后端持久化的异步任务模型，保存上下文、工具轨迹、候选结果和审计状态；第一版使用 PostgreSQL 任务表和带租约恢复的 API 内 worker，不额外引入 Redis/BullMQ。任务主表结构化保存状态、关联对象、指纹和时间字段，候选、工具结果及事件扩展内容使用 JSONB，并由独立事件表保存有序轨迹。同一页面同时最多存在一个 `queued/running` Agent run，以避免不同 baseline 产生互相冲突的候选。状态流转为 `queued -> running -> awaiting_confirmation -> accepted/rejected/expired`，执行阶段也可进入 `cancelled/failed`；`completed` 不再作为主要业务状态，页面是否保存由普通页面版本链路决定。API 提供 `GET /ai/agent-runs/:runId/events` SSE 事件流、`POST /ai/agent-runs/:runId/confirm`、`POST /ai/agent-runs/:runId/reject` 和取消接口；确认只校验权限、有效期和候选归属并记录审计，不直接写页面。事件表按 run 保存递增 `sequence`，SSE 使用 sequence 作为事件 id，客户端以 `Last-Event-ID` 请求补发遗漏事件；终态发送最终状态事件后关闭连接，客户端可用 GET snapshot 做校准。SSE 客户端使用 `fetch` 流式读取并在 `Authorization` header 中携带 Bearer token，禁止把 JWT 放入 URL。创建接口立即返回 `runId`，前端以 SSE 接收实时事件，并以 GET 接口支持断线重连、刷新恢复和不支持 SSE 的环境。provider 网络错误或超时最多重试两次，模型非法 JSON 保留一次修复请求，业务校验失败不自动重试；worker 租约过期只重新入队一次，再次超时则失败，所有重试均进入事件和审计。候选确认后仍由编辑器 store 应用，用户显式保存页面，后端不通过 Agent 直接写入页面；候选默认 24 小时有效，过期后必须重新生成。候选至少保留其有效期，run 与事件保留 30 天；API key、Authorization、Cookie 和密码等敏感字段必须脱敏，响应示例与 schema 有大小上限，不保存模型隐藏推理。这样既能保留现有候选确认安全边界，也能避免进程内状态在重启或多实例部署时丢失；相比纯轮询，SSE 更适合展示已有的 plan、tool call、validation 和 candidate 事件。

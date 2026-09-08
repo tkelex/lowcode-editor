@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, UseGuards } from '@nestjs/common';
 import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
@@ -29,6 +29,7 @@ export class AiController {
   }
 
   @Post('projects/:projectId/ai/agent-runs')
+  @HttpCode(202)
   createAgentRunForProject(
     @CurrentUser() user: CurrentUserPayload,
     @Param('projectId', ParseIntPipe) projectId: number,
@@ -38,6 +39,7 @@ export class AiController {
   }
 
   @Post('pages/:pageId/ai/agent-runs')
+  @HttpCode(202)
   createAgentRunForPage(
     @CurrentUser() user: CurrentUserPayload,
     @Param('pageId', ParseIntPipe) pageId: number,
@@ -52,6 +54,16 @@ export class AiController {
     @Param('runId') runId: string,
   ) {
     return this.aiService.getAgentRun(runId, user.userId);
+  }
+
+  @Get('pages/:pageId/ai/agent-runs')
+  listPageRuns(@CurrentUser() user: CurrentUserPayload, @Param('pageId', ParseIntPipe) pageId: number) {
+    return this.aiService.listAgentRunsForPage(pageId, user.userId);
+  }
+
+  @Get('projects/:projectId/ai/agent-runs')
+  listProjectRuns(@CurrentUser() user: CurrentUserPayload, @Param('projectId', ParseIntPipe) projectId: number) {
+    return this.aiService.listAgentRunsForProject(projectId, user.userId);
   }
 
   @Post('ai/agent-runs/:runId/cancel')
