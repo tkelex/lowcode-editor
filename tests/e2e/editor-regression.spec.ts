@@ -463,6 +463,250 @@ test('editor setting panel stays readable and preview remains recoverable', asyn
   await expect(settingPanel).toBeVisible();
 });
 
+test('editor offers to restore an unsaved page-scoped local draft', async ({ page }) => {
+  await mockEditorApi(page);
+  const localComponents = JSON.parse(JSON.stringify(pageRecord.schema.components));
+  localComponents[0].children[0].children[0].props.text = '本地草稿按钮';
+  const storageKey = `lowcode-editor:draft:${user.id}:${project.id}:${pageRecord.id}`;
+
+  await page.addInitScript(({ key, envelope }) => {
+    window.localStorage.setItem(key, JSON.stringify(envelope));
+  }, {
+    key: storageKey,
+    envelope: {
+      storageVersion: 1,
+      userId: user.id,
+      projectId: project.id,
+      pageId: pageRecord.id,
+      components: localComponents,
+      baselineFingerprint: JSON.stringify(pageRecord.schema.components),
+      serverUpdatedAt: pageRecord.updatedAt,
+      localUpdatedAt: '2026-05-11T01:30:00.000Z',
+      dirty: true,
+    },
+  });
+
+  await page.goto('/');
+  await openMockEditor(page);
+
+  const dialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('本地修改时间')).toBeVisible();
+  await dialog.getByRole('button', { name: '恢复本地草稿' }).click();
+
+  await expect(page.locator('.editor-page')).toContainText('本地草稿按钮');
+});
+
+test('editor clears a local draft when the user chooses the server version', async ({ page }) => {
+  await mockEditorApi(page);
+  const localComponents = JSON.parse(JSON.stringify(pageRecord.schema.components));
+  localComponents[0].children[0].children[0].props.text = '准备放弃的本地草稿';
+  const storageKey = `lowcode-editor:draft:${user.id}:${project.id}:${pageRecord.id}`;
+
+  await page.addInitScript(({ key, envelope }) => {
+    const marker = `${key}:e2e-seeded`;
+    if (!window.sessionStorage.getItem(marker)) {
+      window.localStorage.setItem(key, JSON.stringify(envelope));
+      window.sessionStorage.setItem(marker, 'true');
+    }
+  }, {
+    key: storageKey,
+    envelope: {
+      storageVersion: 1,
+      userId: user.id,
+      projectId: project.id,
+      pageId: pageRecord.id,
+      components: localComponents,
+      baselineFingerprint: JSON.stringify(pageRecord.schema.components),
+      serverUpdatedAt: pageRecord.updatedAt,
+      localUpdatedAt: '2026-05-11T01:30:00.000Z',
+      dirty: true,
+    },
+  });
+
+  await page.goto('/');
+  await openMockEditor(page);
+  await page.getByRole('dialog', { name: '检测到未保存的本地草稿' })
+    .getByRole('button', { name: '使用服务端版本' })
+    .click();
+
+  await expect(page.locator('[data-component-id="1003"]').first()).toContainText(/按\s*钮/);
+  await page.reload();
+  await openMockEditor(page);
+  await expect(page.getByRole('dialog', { name: '检测到未保存的本地草稿' })).toHaveCount(0);
+});
+
+test('editor autosaves component changes and restores them after reopening the page', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  const settingPanel = settingPanelLocator(page);
+  await settingPanel.getByLabel('文本').fill('自动保存的本地草稿');
+  await expect(page.locator('.editor-page')).toContainText('自动保存的本地草稿');
+
+  await page.waitForTimeout(800);
+  await page.reload();
+  await openMockEditor(page);
+
+  const dialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '恢复本地草稿' }).click();
+  await expect(page.locator('.editor-page')).toContainText('自动保存的本地草稿');
+});
+
+test('editor no longer writes the legacy global persisted store', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('页面级草稿');
+  await page.waitForTimeout(800);
+
+  await expect.poll(() => page.evaluate(() => window.localStorage.getItem('xxx'))).toBeNull();
+});
+
+test('editor clears the local draft after a successful page save', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('已保存到服务端的内容');
+  await page.waitForTimeout(800);
+
+  await page.getByRole('button', { name: /^保\s*存$/ }).click();
+  await expect(page.getByText('页面已保存，并生成历史版本')).toBeVisible();
+  await page.reload();
+  await openMockEditor(page);
+
+  await expect(page.getByRole('dialog', { name: '检测到未保存的本地草稿' })).toHaveCount(0);
+  await expect(page.locator('.editor-page')).toContainText('已保存到服务端的内容');
+});
+
+test('editor keeps the local draft when the page save fails', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.route(`**/api/pages/${pageRecord.id}`, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ message: '保存失败' }) });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('保存失败后仍需恢复');
+  await page.waitForTimeout(800);
+
+  const failedSave = page.waitForResponse((response) =>
+    response.request().method() === 'PATCH' && response.url().endsWith(`/api/pages/${pageRecord.id}`));
+  await page.getByRole('button', { name: /^保\s*存$/ }).click();
+  expect((await failedSave).status()).toBe(500);
+  await page.reload();
+  await openMockEditor(page);
+
+  const recoveryDialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(recoveryDialog).toBeVisible();
+  await recoveryDialog.getByRole('button', { name: '恢复本地草稿' }).click();
+  await expect(page.locator('.editor-page')).toContainText('保存失败后仍需恢复');
+});
+
+test('editor keeps changes made while a page save is still in flight', async ({ page }) => {
+  await mockEditorApi(page);
+  let releaseSave: (() => void) | undefined;
+  const saveGate = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  await page.route(`**/api/pages/${pageRecord.id}`, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      const body = JSON.parse(route.request().postData() || '{}');
+      await saveGate;
+      await json(route, {
+        ...pageRecord,
+        schema: body.schema,
+        updatedAt: '2026-05-11T00:05:00.000Z',
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  const textInput = settingPanelLocator(page).getByLabel('文本');
+  await textInput.fill('正在保存的内容');
+  const saveRequest = page.waitForRequest((request) =>
+    request.method() === 'PATCH' && request.url().endsWith(`/api/pages/${pageRecord.id}`));
+  const saveResponse = page.waitForResponse((response) =>
+    response.request().method() === 'PATCH' && response.url().endsWith(`/api/pages/${pageRecord.id}`));
+  await page.getByRole('button', { name: /^保\s*存$/ }).click();
+  await saveRequest;
+
+  await textInput.fill('保存期间继续修改的内容');
+  await page.waitForTimeout(800);
+  releaseSave?.();
+  await saveResponse;
+  await expect(page.getByText('页面已保存，并生成历史版本')).toBeVisible();
+  await page.reload();
+  await openMockEditor(page);
+
+  const recoveryDialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(recoveryDialog).toBeVisible();
+  await recoveryDialog.getByRole('button', { name: '恢复本地草稿' }).click();
+  await expect(page.locator('.editor-page')).toContainText('保存期间继续修改的内容');
+});
+
+test('editor uses a rolled back page as the new local draft baseline', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.getByRole('button', { name: '版本历史' }).click();
+  const versionDrawer = page.getByRole('dialog', { name: '版本历史' });
+  await expect(versionDrawer.getByText('v1')).toBeVisible();
+  await versionDrawer.getByRole('button', { name: /^回\s*滚$/ }).click();
+  await page.locator('.ant-popconfirm').getByRole('button', { name: /^回\s*滚$/ }).click();
+  await expect(page.getByText('已回滚到 v1，并生成新版本')).toBeVisible();
+  await versionDrawer.getByRole('button', { name: 'Close' }).click();
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('回滚后的未保存修改');
+  await page.waitForTimeout(800);
+  await page.reload();
+  await openMockEditor(page);
+
+  const recoveryDialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(recoveryDialog).toBeVisible();
+  await expect(recoveryDialog.getByText('服务端页面在此草稿产生后可能已有更新')).toHaveCount(0);
+});
+
+test('editor uses the publish-time save as the new local draft baseline', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  const textInput = settingPanelLocator(page).getByLabel('文本');
+  await textInput.fill('发布时保存的内容');
+  await page.waitForTimeout(800);
+  await page.getByRole('button', { name: /^发\s*布$/ }).click();
+  await expect(page.getByText(/页面已保存并发布/)).toBeVisible();
+
+  await textInput.fill('发布后的未保存修改');
+  await page.waitForTimeout(800);
+  await page.reload();
+  await openMockEditor(page);
+
+  const recoveryDialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(recoveryDialog).toBeVisible();
+  await expect(recoveryDialog.getByText('服务端页面在此草稿产生后可能已有更新')).toHaveCount(0);
+});
+
 test('ai builder previews and applies generated page after confirmation', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
@@ -1049,9 +1293,24 @@ test('styled form and feedback materials apply visual styles to real controls', 
 
 async function mockEditorApi(page: Page, editorPage = pageRecord) {
   const dataSourceModels: any[] = [];
+  let currentEditorPage = JSON.parse(JSON.stringify(editorPage)) as typeof editorPage;
+  const rollbackSchema = JSON.parse(JSON.stringify(editorPage.schema)) as typeof editorPage.schema;
+  const rollbackButton = findSchemaComponent(rollbackSchema.components, 1003);
+  if (rollbackButton) {
+    rollbackButton.props = { ...rollbackButton.props, text: '回滚版本按钮' };
+  }
+  const pageVersions = [{
+    id: 101,
+    pageId: editorPage.id,
+    createdById: user.id,
+    versionNo: 1,
+    schema: rollbackSchema,
+    source: 'save',
+    message: '回滚测试版本',
+    createdAt: now,
+  }];
 
   await page.addInitScript(() => {
-    window.localStorage.removeItem('xxx');
     window.localStorage.setItem('lowcode_editor_token', 'mock-editor-token');
   });
 
@@ -1072,7 +1331,7 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
     }
 
     if (method === 'GET' && pathname === `/projects/${project.id}/pages`) {
-      await json(route, [editorPage]);
+      await json(route, [currentEditorPage]);
       return;
     }
 
@@ -1108,7 +1367,45 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
     }
 
     if (method === 'GET' && pathname === `/pages/${editorPage.id}`) {
-      await json(route, editorPage);
+      await json(route, currentEditorPage);
+      return;
+    }
+
+    if (method === 'PATCH' && pathname === `/pages/${editorPage.id}`) {
+      const body = JSON.parse(request.postData() || '{}');
+      currentEditorPage = {
+        ...currentEditorPage,
+        ...body,
+        updatedAt: '2026-05-11T00:05:00.000Z',
+      };
+      await json(route, currentEditorPage);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/pages/${editorPage.id}/publish`) {
+      currentEditorPage = {
+        ...currentEditorPage,
+        isPublished: true,
+        publicId: 'editor-regression-public-id',
+        publishedAt: '2026-05-11T00:06:00.000Z',
+        publishedVersionId: 102,
+      };
+      await json(route, currentEditorPage);
+      return;
+    }
+
+    if (method === 'GET' && pathname === `/pages/${editorPage.id}/versions`) {
+      await json(route, pageVersions);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/pages/${editorPage.id}/rollback`) {
+      currentEditorPage = {
+        ...currentEditorPage,
+        schema: rollbackSchema,
+        updatedAt: '2026-05-11T00:10:00.000Z',
+      };
+      await json(route, currentEditorPage);
       return;
     }
 
@@ -1229,6 +1526,15 @@ async function getBoundingBox(locator: ReturnType<Page['locator']>) {
 
 function settingPanelLocator(page: Page) {
   return page.locator('.setting-panel');
+}
+
+function findSchemaComponent(components: any[], componentId: number): any | undefined {
+  for (const component of components) {
+    if (component.id === componentId) return component;
+    const child = findSchemaComponent(component.children || [], componentId);
+    if (child) return child;
+  }
+  return undefined;
 }
 
 async function json(route: Route, data: unknown) {

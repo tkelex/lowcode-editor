@@ -43,9 +43,12 @@ export function AppViewOutlet({
   if (view.name === 'editor') {
     return <Suspense fallback={<AppLoading />}>
       <LowcodeEditor
+        userId={user?.id}
         pageId={view.pageId}
         projectId={view.projectId}
         projectRole={view.projectRole}
+        baselineFingerprint={view.baselineFingerprint}
+        serverUpdatedAt={view.serverUpdatedAt}
         onBack={onBackToDashboard}
       />
     </Suspense>;

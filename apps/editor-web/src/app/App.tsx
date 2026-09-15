@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { User } from '../features/auth';
-import type { ProjectRole } from '../features/projects';
 import { AppLoading } from './components/AppLoading';
 import { AppViewOutlet } from './components/AppViewOutlet';
 import { useAuthSession } from './hooks/useAuthSession';
 import { useEditorPageLoader } from './hooks/useEditorPageLoader';
+import type { LoadedEditorPageContext } from './hooks/useEditorPageLoader';
 import { getInitialAppView } from './routes/initialView';
 import type { AppView } from './routes/types';
 
@@ -12,10 +12,10 @@ function App() {
   const [view, setView] = useState<AppView>(getInitialAppView);
   const { user, status, initializing, authenticate, signOut } = useAuthSession();
 
-  const handlePageLoaded = useCallback((pageId: number, projectId?: number, projectRole?: ProjectRole) => {
-    setView({ name: 'editor', pageId, projectId, projectRole });
+  const handlePageLoaded = useCallback((context: LoadedEditorPageContext) => {
+    setView({ name: 'editor', ...context });
   }, []);
-  const { loadingPage, openPage } = useEditorPageLoader(handlePageLoaded);
+  const { loadingPage, openPage } = useEditorPageLoader(user?.id, handlePageLoaded);
 
   useEffect(() => {
     if (status === 'anonymous') {

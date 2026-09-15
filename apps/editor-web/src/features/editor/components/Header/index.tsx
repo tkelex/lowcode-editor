@@ -29,10 +29,11 @@ import { VersionDiffSummary } from './VersionDiffSummary';
 interface HeaderProps {
   pageId?: number;
   projectRole?: ProjectRole;
+  onPageSaved?: (components: Component[], serverUpdatedAt: string) => void;
   onBack?: () => void;
 }
 
-export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
+export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: HeaderProps) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [versionDrawerOpen, setVersionDrawerOpen] = useState(false);
@@ -99,7 +100,8 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
 
     setSaving(true);
     try {
-      await saveCurrentPage();
+      const page = await saveCurrentPage();
+      onPageSaved?.(components, page.updatedAt);
       message.success('页面已保存，并生成历史版本');
       if (versionDrawerOpen) {
         await loadVersions();
@@ -190,7 +192,8 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
 
     setPublishing(true);
     try {
-      await saveCurrentPage();
+      const savedPage = await saveCurrentPage();
+      onPageSaved?.(components, savedPage.updatedAt);
       const page = await publishPage(pageId);
       if (!page.publicId) {
         message.error('发布失败，未生成公开访问地址');
@@ -261,7 +264,9 @@ export function Header({ pageId, projectRole = 'owner', onBack }: HeaderProps) {
     try {
       const page = await rollbackPage(pageId, version.id);
       const schema = migratePageSchema(page.schema, { pageId: page.id });
-      setComponents(schema.components as Component[], { recordHistory: false });
+      const rolledBackComponents = schema.components as Component[];
+      setComponents(rolledBackComponents, { recordHistory: false });
+      onPageSaved?.(rolledBackComponents, page.updatedAt);
       message.success(`已回滚到 v${version.versionNo}，并生成新版本`);
       await loadVersions();
     } catch (error) {

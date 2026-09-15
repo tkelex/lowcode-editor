@@ -1,6 +1,5 @@
 import { CSSProperties } from 'react';
 import { create, StateCreator } from 'zustand';
-import { persist } from 'zustand/middleware';
 import { migratePageSchema } from '@lowcode/schema';
 import {
   cloneComponentWithFreshIds,
@@ -446,32 +445,6 @@ function createUniqueCopyDesc(desc: string, siblingNames: Set<string>) {
   return `${baseDesc} ${index}`;
 }
 
-export const useComponentsStore = create<State & Action>()(persist(creator, {
-  name: 'xxx',
-  version: 1,
-  migrate: (persistedState) => {
-    if (!persistedState || typeof persistedState !== 'object' || Array.isArray(persistedState)) {
-      return persistedState;
-    }
-
-    const state = persistedState as Partial<State>;
-
-    return {
-      ...state,
-      components: migrateComponents(state.components),
-      pastComponents: [],
-      futureComponents: [],
-      curComponentId: null,
-      curComponent: null,
-      mode: 'edit',
-    };
-  },
-  partialize: (state) => ({
-    components: state.components,
-    mode: state.mode,
-    curComponentId: state.curComponentId,
-    curComponent: state.curComponent,
-  }),
-}));
+export const useComponentsStore = create<State & Action>()(creator);
 
 export { getComponentById } from './component-tree';

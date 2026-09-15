@@ -13,6 +13,7 @@ import { MaterialWrapper } from "./components/MaterialWrapper";
 import { useComponentsStore } from "./stores/editor-store";
 import { Preview } from "./components/Preview";
 import type { ProjectRole } from '../projects';
+import { usePageDraftPersistence } from './drafts/use-page-draft-persistence';
 
 const LEFT_PANEL_MIN_SIZE = 320;
 const LEFT_PANEL_PREFERRED_SIZE = 340;
@@ -20,9 +21,12 @@ const RIGHT_PANEL_MIN_SIZE = 300;
 const RIGHT_PANEL_PREFERRED_SIZE = 320;
 
 export interface LowcodeEditorProps {
+    userId?: number;
     pageId?: number;
     projectId?: number;
     projectRole?: ProjectRole;
+    baselineFingerprint?: string;
+    serverUpdatedAt?: string;
     onBack?: () => void;
 }
 
@@ -73,13 +77,30 @@ class EditorBodyBoundary extends ReactComponent<EditorBodyBoundaryProps, EditorB
     }
 }
 
-export default function LowcodeEditor({ pageId, projectId, projectRole, onBack }: LowcodeEditorProps) {
+export default function LowcodeEditor({
+    userId,
+    pageId,
+    projectId,
+    projectRole,
+    baselineFingerprint,
+    serverUpdatedAt,
+    onBack,
+}: LowcodeEditorProps) {
     const mode = useComponentsStore((state) => state.mode);
     const setMode = useComponentsStore((state) => state.setMode);
     const [leftPanelVisible, setLeftPanelVisible] = useState(true);
     const [rightPanelVisible, setRightPanelVisible] = useState(true);
     const [leftPaneSize, setLeftPaneSize] = useState(LEFT_PANEL_PREFERRED_SIZE);
     const [rightPaneSize, setRightPaneSize] = useState(RIGHT_PANEL_PREFERRED_SIZE);
+
+    const { markSaved } = usePageDraftPersistence({
+        userId,
+        projectId,
+        pageId,
+        projectRole,
+        baselineFingerprint,
+        serverUpdatedAt,
+    });
 
     function exitPreview() {
         setMode('edit');
@@ -130,7 +151,7 @@ export default function LowcodeEditor({ pageId, projectId, projectRole, onBack }
 
     return <div className='editor-workbench relative h-[100vh] flex flex-col bg-[#eef2f7]'>
         <div className='editor-topbar h-[60px] flex items-center'>
-            <Header pageId={pageId} projectRole={projectRole} onBack={onBack} />
+            <Header pageId={pageId} projectRole={projectRole} onPageSaved={markSaved} onBack={onBack} />
         </div>
         <EditorBodyBoundary mode={mode} onExitPreview={exitPreview} onBack={onBack}>
             {
