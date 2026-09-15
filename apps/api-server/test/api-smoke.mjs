@@ -272,6 +272,13 @@ async function main() {
       currentComponents: savedPage.schema.components,
     },
   });
+  assertEqual(createdAgentRun.status, 'queued', 'AI agent should enqueue immediately');
+  let agentRun;
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    agentRun = await request(`/ai/agent-runs/${createdAgentRun.runId}`, { token: editor.token });
+    if (!['queued', 'running'].includes(agentRun.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
   assertEqual(agentRun.status, 'awaiting_confirmation', 'AI agent should return reviewable candidate');
   assertEqual(agentRun.candidate.kind, 'patch', 'AI agent should return patch candidate');
 
@@ -324,13 +331,6 @@ async function main() {
     method: 'POST',
     token: owner.token,
   });
-  assertEqual(createdAgentRun.status, 'queued', 'AI agent should enqueue immediately');
-  let agentRun;
-  for (let attempt = 0; attempt < 90; attempt += 1) {
-    agentRun = await request(`/ai/agent-runs/${createdAgentRun.runId}`, { token: editor.token });
-    if (!['queued', 'running'].includes(agentRun.status)) break;
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-  }
   assertEqual(unpublishedPage.publishedVersionId, null, 'unpublish should release the published snapshot');
 
   await request(`/pages/${page.id}/versions/${publishedPage.publishedVersionId}`, {
