@@ -32,6 +32,7 @@
     "test": "node scripts/test/run-tests.mjs",
     "check:architecture": "node scripts/architecture/check-boundaries.mjs",
     "check:editor-props": "node scripts/audit/editor-prop-contract.mjs",
+    "benchmark:editor-state": "node scripts/bench/editor-state-benchmark.mjs",
     "test:e2e": "playwright test",
     "test:e2e:editor": "playwright test tests/e2e/editor-regression.spec.ts",
     "smoke:api": "npm run smoke --workspace @lowcode/api-server",

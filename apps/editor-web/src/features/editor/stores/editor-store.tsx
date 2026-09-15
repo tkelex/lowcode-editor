@@ -9,12 +9,12 @@ import {
   getCopyDesc,
   getParentInfo,
   isComponentLocked,
-  isDescendantComponent,
   isSameComponentTree,
   MAX_HISTORY_COUNT,
-  normalizeInsertIndex,
+  moveComponentInTree,
   removeComponentById,
   setComponentParentIds,
+  updateComponentById,
 } from './component-tree';
 
 export interface Component {
@@ -63,13 +63,13 @@ function migrateComponents(components: unknown) {
 }
 
 function pushHistory(state: State & Action, nextComponents: Component[]) {
-  if (isSameComponentTree(state.components, nextComponents)) {
+  if (state.components === nextComponents || isSameComponentTree(state.components, nextComponents)) {
     return { components: nextComponents };
   }
 
   return {
     components: nextComponents,
-    pastComponents: [...state.pastComponents, cloneComponents(state.components)].slice(-MAX_HISTORY_COUNT),
+    pastComponents: [...state.pastComponents, state.components].slice(-MAX_HISTORY_COUNT),
     futureComponents: [],
   };
 }
@@ -161,61 +161,25 @@ const creator: StateCreator<State & Action> = (set, get) => ({
     if (!componentId || !parentId || componentId === parentId || componentId === 1) return;
 
     set((state) => {
-      const nextComponents = cloneComponents(state.components);
-      if (isDescendantComponent(nextComponents, componentId, parentId)) {
-        return state;
-      }
+      const result = moveComponentInTree(state.components, componentId, parentId);
+      if (!result.component) return state;
 
-      const component = removeComponentById(nextComponents, componentId);
-      const parentComponent = getComponentById(parentId, nextComponents);
-
-      if (!component || !parentComponent) {
-        return state;
-      }
-
-      if (isComponentLocked(component) || isComponentLocked(parentComponent)) {
-        return state;
-      }
-
-      component.parentId = parentId;
-      parentComponent.children = [...(parentComponent.children || []), component];
-
-      return pushHistory(state, nextComponents);
+      return {
+        ...pushHistory(state, result.components),
+        curComponent: state.curComponentId === componentId ? result.component : state.curComponent,
+      };
     });
   },
   moveComponentTo: (componentId, parentId, index) => {
     if (!componentId || !parentId || componentId === parentId || componentId === 1) return;
 
     set((state) => {
-      const nextComponents = cloneComponents(state.components);
-      if (isDescendantComponent(nextComponents, componentId, parentId)) {
-        return state;
-      }
-
-      const originalInfo = getParentInfo(componentId, nextComponents);
-      const component = removeComponentById(nextComponents, componentId);
-      const parentComponent = getComponentById(parentId, nextComponents);
-
-      if (!component || !parentComponent) {
-        return state;
-      }
-
-      if (isComponentLocked(component) || isComponentLocked(parentComponent)) {
-        return state;
-      }
-
-      const nextIndex = originalInfo?.parent?.id === parentId && index !== undefined && index > originalInfo.index
-        ? index - 1
-        : index;
-
-      component.parentId = parentId;
-      parentComponent.children = [...(parentComponent.children || [])];
-      parentComponent.children.splice(normalizeInsertIndex(nextIndex, parentComponent.children.length), 0, component);
-      setComponentParentIds(component, parentId);
+      const result = moveComponentInTree(state.components, componentId, parentId, index);
+      if (!result.component) return state;
 
       return {
-        ...pushHistory(state, nextComponents),
-        curComponent: state.curComponentId === componentId ? component : state.curComponent,
+        ...pushHistory(state, result.components),
+        curComponent: state.curComponentId === componentId ? result.component : state.curComponent,
       };
     });
   },
@@ -354,16 +318,17 @@ const creator: StateCreator<State & Action> = (set, get) => ({
   },
   updateComponentProps: (componentId, props) => {
     set((state) => {
-      const nextComponents = cloneComponents(state.components);
-      const component = getComponentById(componentId, nextComponents);
-      if (!component) return state;
-
-      component.props = { ...(component.props || {}), ...props };
-      Object.keys(props).forEach((key) => {
-        if (props[key] === undefined) {
-          delete component.props[key];
-        }
+      const nextComponents = updateComponentById(state.components, componentId, (component) => {
+        const nextProps = { ...(component.props || {}), ...props };
+        Object.keys(props).forEach((key) => {
+          if (props[key] === undefined) {
+            delete nextProps[key];
+          }
+        });
+        return { ...component, props: nextProps };
       });
+      if (nextComponents === state.components) return state;
+      const component = getComponentById(componentId, nextComponents);
 
       return {
         ...pushHistory(state, nextComponents),
@@ -373,17 +338,17 @@ const creator: StateCreator<State & Action> = (set, get) => ({
   },
   updateComponentStyles: (componentId, styles, replace) => {
     set((state) => {
-      const nextComponents = cloneComponents(state.components);
-      const component = getComponentById(componentId, nextComponents);
-      if (!component) return state;
-
-      const nextStyles = replace ? { ...styles } : { ...component.styles, ...styles };
-      Object.keys(nextStyles).forEach((key) => {
-        if (nextStyles[key as keyof CSSProperties] === undefined) {
-          delete nextStyles[key as keyof CSSProperties];
-        }
+      const nextComponents = updateComponentById(state.components, componentId, (component) => {
+        const nextStyles = replace ? { ...styles } : { ...component.styles, ...styles };
+        Object.keys(nextStyles).forEach((key) => {
+          if (nextStyles[key as keyof CSSProperties] === undefined) {
+            delete nextStyles[key as keyof CSSProperties];
+          }
+        });
+        return { ...component, styles: nextStyles };
       });
-      component.styles = nextStyles;
+      if (nextComponents === state.components) return state;
+      const component = getComponentById(componentId, nextComponents);
 
       return {
         ...pushHistory(state, nextComponents),
@@ -396,13 +361,13 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const previousComponents = state.pastComponents[state.pastComponents.length - 1];
       if (!previousComponents) return state;
 
-      const nextComponents = cloneComponents(previousComponents);
+      const nextComponents = previousComponents;
       const nextCurComponent = getComponentById(state.curComponentId || null, nextComponents);
 
       return {
         components: nextComponents,
         pastComponents: state.pastComponents.slice(0, -1),
-        futureComponents: [cloneComponents(state.components), ...state.futureComponents].slice(0, MAX_HISTORY_COUNT),
+        futureComponents: [state.components, ...state.futureComponents].slice(0, MAX_HISTORY_COUNT),
         curComponentId: nextCurComponent ? state.curComponentId : null,
         curComponent: nextCurComponent,
         mode: 'edit',
@@ -414,12 +379,12 @@ const creator: StateCreator<State & Action> = (set, get) => ({
       const nextHistoryComponents = state.futureComponents[0];
       if (!nextHistoryComponents) return state;
 
-      const nextComponents = cloneComponents(nextHistoryComponents);
+      const nextComponents = nextHistoryComponents;
       const nextCurComponent = getComponentById(state.curComponentId || null, nextComponents);
 
       return {
         components: nextComponents,
-        pastComponents: [...state.pastComponents, cloneComponents(state.components)].slice(-MAX_HISTORY_COUNT),
+        pastComponents: [...state.pastComponents, state.components].slice(-MAX_HISTORY_COUNT),
         futureComponents: state.futureComponents.slice(1),
         curComponentId: nextCurComponent ? state.curComponentId : null,
         curComponent: nextCurComponent,

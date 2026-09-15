@@ -14,6 +14,7 @@ import {
   ReloadOutlined,
 } from '@ant-design/icons';
 import { useEffect, useMemo, useState } from 'react';
+import { shallow } from 'zustand/shallow';
 import { LazyMonacoEditor, type LazyMonacoOnMount } from '../../../../shared/components/LazyMonacoEditor';
 import { assertValidComponentTree, validateComponentTree } from '../../schema/validateComponents';
 import { useComponentConfigStore } from '../../registry/component-registry-store';
@@ -23,7 +24,7 @@ export function Source() {
   const { components, setComponents } = useComponentsStore((state) => ({
     components: state.components,
     setComponents: state.setComponents,
-  }));
+  }), shallow);
   const componentConfig = useComponentConfigStore((state) => state.componentConfig);
   const latestSourceCode = useMemo(() => JSON.stringify(components, null, 2), [components]);
   const [sourceCode, setSourceCode] = useState(() => latestSourceCode);

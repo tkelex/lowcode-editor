@@ -31,6 +31,7 @@
 - 构建：`npm run build`、`npm run build:publisher`、`npm run build:server`
 - 检查：`npm run lint`、`npm run test`、`npm run check:architecture`、`npm run check`
 - 主链路：`npm run smoke:api`、`npm run test:e2e:editor`、`npm run preflight`
+- 编辑器状态性能：`npm run benchmark:editor-state -- --sizes 500,1000 --iterations 5 --assert`
 - Agent 数据库集成：`npm run test:agent:postgres`；先迁移独立测试库，显式设置 `AGENT_TEST_DATABASE_URL`（数据库名以 `_test` 或 `_ci` 结尾），不能复用个人开发库。
 
 ## Repository Boundaries
@@ -48,6 +49,7 @@
 
 - 页面根节点必须是 `Page`；写入前必须迁移并校验 schema。
 - 编辑器 store 是 `useComponentsStore`；历史栈只保存在内存，不持久化。
+- 编辑器组件树更新必须保留未变化分支的引用；画布节点按引用跳过无关渲染，store 返回对象 selector 使用 `shallow`，拖放判定按需读取最新组件树。
 - 未保存本地草稿只持久化组件树，必须按 `userId / projectId / pageId` 隔离；选中态和预览模式不得写入。
 - 页面 PATCH 必须用 `expectedRevision` 原子比较并递增 `Page.revision`；冲突不得覆盖草稿或创建版本，回滚成功递增 revision。
 - 公开页只读取 `publishedVersionId` 指向的快照。
@@ -76,5 +78,6 @@
 | 目录或依赖边界 | `npm run check:architecture` |
 | 权限、保存、发布 | `npm run smoke:api` |
 | 编辑器关键交互 | `npm run test:e2e:editor` |
+| 编辑器订阅、组件树更新或撤销重做 | `npm run benchmark:editor-state -- --sizes 500,1000 --iterations 5 --assert` |
 
 只评审当前任务产生的 diff。全量命令发现的既有问题，仅在阻塞当前验证时说明。

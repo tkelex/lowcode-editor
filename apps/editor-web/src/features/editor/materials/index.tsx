@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { useComponentConfigStore } from "../registry/component-registry-store";
 import { MaterialItem } from "../components/MaterialItem";
 export function Material() {
-    const { componentConfig } = useComponentConfigStore();
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
 
     const components = useMemo(() => {
         return Object.values(componentConfig);

@@ -288,7 +288,7 @@ export function ComponentStyle({ keyword = '' }: ComponentStyleProps) {
     curComponent: state.curComponent,
     updateComponentStyles: state.updateComponentStyles,
   }), shallow);
-  const { componentConfig } = useComponentConfigStore();
+  const componentConfig = useComponentConfigStore((state) => state.componentConfig);
   const [css, setCss] = useState<string>(toCSSStr({}));
   const setters = componentConfig[curComponent?.name || '']?.stylesSetter || [];
   const setterMap = useMemo(() => {

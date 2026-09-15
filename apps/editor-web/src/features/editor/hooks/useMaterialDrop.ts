@@ -1,4 +1,5 @@
 import { useDrop } from "react-dnd";
+import { shallow } from 'zustand/shallow';
 import { useComponentConfigStore } from "../registry/component-registry-store";
 import { getComponentById, useComponentsStore } from "../stores/editor-store";
 
@@ -9,10 +10,14 @@ export interface ItemType {
 }
 
 export function useMaterialDrop(accept: string[], id: number) {
-    const { addComponent, moveComponent, components } = useComponentsStore();
-    const { componentConfig } = useComponentConfigStore();
+    const { addComponent, moveComponent } = useComponentsStore((state) => ({
+      addComponent: state.addComponent,
+      moveComponent: state.moveComponent,
+    }), shallow);
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
 
-    const targetConfig = componentConfig[getComponentById(id, components)?.name || ''];
+    const targetName = getComponentById(id, useComponentsStore.getState().components)?.name || '';
+    const targetConfig = componentConfig[targetName];
     const registryAccept = targetConfig?.acceptsChildren;
     const allowedChildren = registryAccept === true ? accept : registryAccept || accept;
     const acceptsAllChildren = registryAccept === true;
@@ -20,6 +25,7 @@ export function useMaterialDrop(accept: string[], id: number) {
     const isDescendantOfDraggingComponent = (draggingComponentId?: number) => {
       if (!draggingComponentId) return false;
 
+      const components = useComponentsStore.getState().components;
       let current = getComponentById(id, components);
       while (current?.parentId) {
         if (current.parentId === draggingComponentId) {
@@ -71,7 +77,7 @@ export function useMaterialDrop(accept: string[], id: number) {
           isOverCurrent: monitor.isOver({ shallow: true }),
           canDropCurrent: monitor.canDrop() && monitor.isOver({ shallow: true }),
         }),
-    }), [allowedChildren, acceptsAllChildren, components, componentConfig, id]);
+    }), [allowedChildren, acceptsAllChildren, componentConfig, id]);
 
     return { canDrop, isOverCurrent, canDropCurrent, drop }
 }

@@ -41,7 +41,7 @@ export function EditArea() {
         moveComponentSibling: state.moveComponentSibling,
         wrapComponent: state.wrapComponent,
     }), shallow);
-    const { componentConfig } = useComponentConfigStore();
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
     const [hoverComponentId, setHoverComponentId] = useState<number>();
     const [viewportMode, setViewportMode] = useState<ViewportMode>('desktop');
     const [contextMenu, setContextMenu] = useState<{ componentId: number; x: number; y: number; key: number } | null>(null);
@@ -101,33 +101,6 @@ export function EditArea() {
     const scaledCanvasHeight = useMemo(() => {
         return Math.max(minCanvasHeight, canvasContentHeight) * canvasScale;
     }, [canvasContentHeight, canvasScale, minCanvasHeight]);
-
-    function renderComponents(components: Component[]): React.ReactNode {
-        return components.map((component: Component) => {
-            const config = componentConfig?.[component.name]
-
-            if (isHiddenComponent(component)) {
-                return null;
-            }
-
-            if (!config?.dev) {
-                return null;
-            }
-
-            return React.createElement(
-                config.dev,
-                {
-                    key: component.id,
-                    id: component.id,
-                    name: component.name,
-                    styles: component.styles,
-                    ...config.defaultProps,
-                    ...component.props,
-                },
-                renderComponents(component.children || [])
-            )
-        })
-    }
 
     function getEventComponentId(e: React.MouseEvent) {
         const path = e.nativeEvent.composedPath();
@@ -249,7 +222,7 @@ export function EditArea() {
                     transform: `scale(${canvasScale})`,
                 }}
             >
-                {renderComponents(components)}
+                <EditorCanvasTree />
             </div>
         </div>
         {hoverComponentId && hoverComponentId !== curComponentId && (
@@ -352,6 +325,52 @@ export function EditArea() {
         </Dropdown>
     </div>
 }
+
+const EditorCanvasTree = React.memo(function EditorCanvasTree() {
+    const components = useComponentsStore((state) => state.components);
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
+
+    return <>{components.map((component) => (
+        <EditorComponentNode
+            key={component.id}
+            component={component}
+            componentConfig={componentConfig}
+        />
+    ))}</>;
+});
+
+interface EditorComponentNodeProps {
+    component: Component;
+    componentConfig: ReturnType<typeof useComponentConfigStore.getState>['componentConfig'];
+}
+
+const EditorComponentNode = React.memo(function EditorComponentNodeView({
+    component,
+    componentConfig,
+}: EditorComponentNodeProps) {
+    const config = componentConfig[component.name];
+    if (isHiddenComponent(component) || !config?.dev) {
+        return null;
+    }
+
+    return React.createElement(
+        config.dev,
+        {
+            id: component.id,
+            name: component.name,
+            styles: component.styles,
+            ...config.defaultProps,
+            ...component.props,
+        },
+        component.children?.map((child) => (
+            <EditorComponentNode
+                key={child.id}
+                component={child}
+                componentConfig={componentConfig}
+            />
+        )),
+    );
+});
 
 function isHiddenComponent(component: Component) {
     return component.id !== 1 && Boolean(component.props?.hidden);

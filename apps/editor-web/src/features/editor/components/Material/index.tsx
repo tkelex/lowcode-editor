@@ -1,5 +1,6 @@
 import { Button, Empty, Form, Input, Modal, Segmented, Select, Space, Typography, message } from "antd";
 import { useEffect, useMemo, useState } from "react";
+import { shallow } from 'zustand/shallow';
 import { CURRENT_SCHEMA_VERSION } from '@lowcode/schema';
 import { createProjectTemplate, listProjectTemplates, type PageTemplate, type ProjectRole } from "../../../projects";
 import { ComponentCategory, ComponentConfig, useComponentConfigStore } from "../../registry/component-registry-store";
@@ -23,13 +24,13 @@ interface MaterialProps {
 }
 
 export function Material({ projectId, projectRole = 'owner' }: MaterialProps) {
-    const { componentConfig } = useComponentConfigStore();
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
     const { addComponent, components, curComponent, setCurComponentId } = useComponentsStore((state) => ({
         addComponent: state.addComponent,
         components: state.components,
         curComponent: state.curComponent,
         setCurComponentId: state.setCurComponentId,
-    }));
+    }), shallow);
     const [keyword, setKeyword] = useState('');
     const [view, setView] = useState<MaterialView>('all');
     const [projectTemplates, setProjectTemplates] = useState<PageTemplate[]>([]);

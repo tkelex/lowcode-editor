@@ -20,7 +20,7 @@ export function ComponentAttr({ keyword = '' }: ComponentAttrProps) {
     curComponent: state.curComponent,
     updateComponentProps: state.updateComponentProps,
   }), shallow);
-  const { componentConfig } = useComponentConfigStore();
+  const componentConfig = useComponentConfigStore((state) => state.componentConfig);
 
   const currentConfig = componentConfig[curComponent?.name || ''];
   const setters = currentConfig?.setter || [];

@@ -58,7 +58,7 @@ export function ActionModal(props: ActionModalProps) {
     const [commonControls, setCommonControls] = useState<ActionCommonControls>({});
     const [keyword, setKeyword] = useState('');
     const components = useComponentsStore((state) => state.components);
-    const { componentConfig } = useComponentConfigStore();
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
 
     const allowedActions = useMemo(() => defaultActionOrder.filter((actionType) => {
         return event?.allowedActions?.includes(actionType) ?? true;

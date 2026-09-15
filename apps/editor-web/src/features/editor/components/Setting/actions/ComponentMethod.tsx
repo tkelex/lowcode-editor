@@ -30,7 +30,7 @@ export function ComponentMethod(props: ComponentMethodProps) {
         components: state.components,
         curComponentId: state.curComponentId,
     }), shallow);
-    const { componentConfig } = useComponentConfigStore();
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
     const [selectedComponent, setSelectedComponent] = useState<Component | null>();
 
     const [curId, setCurId] = useState<number>();

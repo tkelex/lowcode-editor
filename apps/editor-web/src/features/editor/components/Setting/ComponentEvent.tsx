@@ -44,7 +44,7 @@ export function ComponentEvent({ keyword = '' }: ComponentEventProps) {
         curComponent: state.curComponent,
         updateComponentProps: state.updateComponentProps,
     }), shallow);
-    const { componentConfig } = useComponentConfigStore();
+    const componentConfig = useComponentConfigStore((state) => state.componentConfig);
     const [addPanelOpen, setAddPanelOpen] = useState(false);
     const [actionModalOpen, setActionModalOpen] = useState(false);
     const [curEvent, setCurEvent] = useState<ComponentEventConfig>();
