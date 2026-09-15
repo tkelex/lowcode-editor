@@ -64,8 +64,33 @@ export class PagesService {
     return this.pageLifecycleService.unpublish(id, userId, 'member');
   }
 
-  getPublished(publicId: string) {
-    return this.pageLifecycleService.getPublished(publicId);
+  async getPublished(publicId: string) {
+    const page = await this.prisma.page.findFirst({
+      where: {
+        publicId,
+        isPublished: true,
+        project: { status: PROJECT_STATUS_ACTIVE },
+      },
+    });
+    if (!page?.publishedVersionId) {
+      throw this.publishedPageNotFound();
+    }
+
+    const version = await this.prisma.pageVersion.findFirst({
+      where: { id: page.publishedVersionId, pageId: page.id },
+    });
+    if (!version) {
+      throw this.publishedPageNotFound();
+    }
+
+    return {
+      publicId: page.publicId,
+      name: page.name,
+      routePath: page.routePath,
+      schema: version.schema,
+      materialDependencies: version.materialDependencies,
+      publishedAt: page.publishedAt,
+    };
   }
 
   async listVersions(id: number, userId: number) {
@@ -116,4 +141,14 @@ export class PagesService {
       );
     }
   }
+
+  private publishedPageNotFound() {
+    return new BusinessException(
+      AppErrorCode.PUBLISHED_PAGE_NOT_FOUND,
+      'Published page not found',
+      HttpStatus.NOT_FOUND,
+    );
+  }
 }
+
+const PROJECT_STATUS_ACTIVE = 'ACTIVE';

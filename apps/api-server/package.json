@@ -14,7 +14,8 @@
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "admin:grant": "node scripts/grant-admin.mjs",
-    "smoke": "node test/api-smoke.mjs"
+    "smoke": "node test/api-smoke.mjs",
+    "smoke:remote-material": "node test/remote-material-api-smoke.mjs"
   },
   "dependencies": {
     "@lowcode/schema": "0.1.0",

@@ -31,20 +31,21 @@ model User {
 }
 
 model Project {
-  aiAgentRuns AiAgentRun[]
-  id          Int             @id @default(autoincrement())
-  ownerId     Int
-  owner       User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  status      ProjectStatus   @default(ACTIVE)
-  pages       Page[]
-  members     ProjectMember[]
-  templates   PageTemplate[]
-  assets      Asset[]
+  aiAgentRuns      AiAgentRun[]
+  id               Int                      @id @default(autoincrement())
+  ownerId          Int
+  owner            User                     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name             String
+  description      String?
+  status           ProjectStatus            @default(ACTIVE)
+  pages            Page[]
+  members          ProjectMember[]
+  templates        PageTemplate[]
+  assets           Asset[]
   dataSourceModels ProjectDataSourceModel[]
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  remoteMaterials  ProjectRemoteMaterial[]
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   @@index([ownerId])
   @@index([status])
@@ -66,23 +67,24 @@ model ProjectMember {
 }
 
 model Page {
-  aiAgentRuns        AiAgentRun[]
-  id                 Int           @id @default(autoincrement())
-  projectId          Int
-  project            Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  createdById        Int
-  createdBy          User          @relation("PageCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  name               String
-  routePath          String
-  schema             Json
-  revision           Int           @default(1)
-  publicId           String?       @unique @default(cuid())
-  isPublished        Boolean       @default(false)
-  publishedAt        DateTime?
-  publishedVersionId Int?
-  versions           PageVersion[]
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  aiAgentRuns          AiAgentRun[]
+  id                   Int           @id @default(autoincrement())
+  projectId            Int
+  project              Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdById          Int
+  createdBy            User          @relation("PageCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  name                 String
+  routePath            String
+  schema               Json
+  materialDependencies Json          @default("[]")
+  revision             Int           @default(1)
+  publicId             String?       @unique @default(cuid())
+  isPublished          Boolean       @default(false)
+  publishedAt          DateTime?
+  publishedVersionId   Int?
+  versions             PageVersion[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   @@unique([projectId, routePath])
   @@index([projectId])
@@ -90,16 +92,17 @@ model Page {
 }
 
 model PageVersion {
-  id          Int      @id @default(autoincrement())
-  pageId      Int
-  page        Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  createdById Int
-  createdBy   User     @relation("PageVersionCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  versionNo   Int
-  schema      Json
-  source      String   @default("save")
-  message     String?
-  createdAt   DateTime @default(now())
+  id                   Int      @id @default(autoincrement())
+  pageId               Int
+  page                 Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdById          Int
+  createdBy            User     @relation("PageVersionCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  versionNo            Int
+  schema               Json
+  materialDependencies Json     @default("[]")
+  source               String   @default("save")
+  message              String?
+  createdAt            DateTime @default(now())
 
   @@unique([pageId, versionNo])
   @@index([pageId, createdAt])
@@ -186,35 +189,61 @@ model ProjectDataSourceModel {
   @@index([projectId, updatedAt])
 }
 
+model ProjectRemoteMaterial {
+  id              Int                  @id @default(autoincrement())
+  projectId       Int
+  project         Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  packageName     String
+  version         String
+  protocolVersion String
+  schemaVersion   String
+  manifestUrl     String
+  entry           String
+  integrity       String?
+  dependencies    Json
+  materials       Json
+  status          RemoteMaterialStatus @default(ENABLED)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@unique([projectId, packageName, version])
+  @@index([projectId, status, updatedAt])
+}
+
 enum ProjectMemberRole {
   OWNER
   EDITOR
   VIEWER
 }
 
+enum RemoteMaterialStatus {
+  ENABLED  @map("enabled")
+  DISABLED @map("disabled")
+}
+
 model AiAgentRun {
-  id                   String   @id
-  actorId              Int
-  actor                User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
-  projectId            Int
-  project              Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  pageId               Int?
-  page                 Page?    @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  status               String   @default("queued")
-  input                Json
-  snapshot             Json
-  baselineFingerprint  String?
-  savedVersionId       Int?
-  lastSequence         Int      @default(0)
-  leaseToken           String?
-  leaseExpiresAt       DateTime?
-  recoveryCount        Int      @default(0)
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-  startedAt            DateTime?
-  finishedAt           DateTime?
-  candidateExpiresAt   DateTime?
-  events               AiAgentRunEvent[]
+  id                  String            @id
+  actorId             Int
+  actor               User              @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  projectId           Int
+  project             Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pageId              Int?
+  page                Page?             @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  status              String            @default("queued")
+  input               Json
+  snapshot            Json
+  baselineFingerprint String?
+  savedVersionId      Int?
+  lastSequence        Int               @default(0)
+  leaseToken          String?
+  leaseExpiresAt      DateTime?
+  recoveryCount       Int               @default(0)
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  candidateExpiresAt  DateTime?
+  events              AiAgentRunEvent[]
 
   @@index([status, createdAt])
   @@index([pageId, actorId, createdAt])
@@ -227,7 +256,7 @@ model AiAgentRunEvent {
   sequence  Int
   type      String
   payload   Json
-  createdAt DateTime @default(now())
+  createdAt DateTime   @default(now())
 
   @@id([runId, sequence])
 }

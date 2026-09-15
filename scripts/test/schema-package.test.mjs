@@ -23,4 +23,6 @@ function assertSchemaInterface(schema) {
     assert.equal(typeof schema.validateComponentTree, 'function');
     assert.equal(typeof schema.runLowcodeActions, 'function');
     assert.equal(typeof schema.generateCrudPageSchema, 'function');
+    assert.equal(typeof schema.validateRemoteMaterialManifest, 'function');
+    assert.equal(typeof schema.createPageMaterialValidationContext, 'function');
 }

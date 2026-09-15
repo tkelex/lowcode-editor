@@ -31,6 +31,7 @@
 - 构建：`npm run build`、`npm run build:publisher`、`npm run build:server`
 - 检查：`npm run lint`、`npm run test`、`npm run check:architecture`、`npm run check`
 - 主链路：`npm run smoke:api`、`npm run test:e2e:editor`、`npm run preflight`
+- 远程物料 PostgreSQL/API：`npm run smoke:remote-material`；需要已迁移并运行中的本地 API 与 PostgreSQL。
 - 编辑器状态性能：`npm run benchmark:editor-state -- --sizes 500,1000 --iterations 5 --assert`
 - Agent 数据库集成：`npm run test:agent:postgres`；先迁移独立测试库，显式设置 `AGENT_TEST_DATABASE_URL`（数据库名以 `_test` 或 `_ci` 结尾），不能复用个人开发库。
 
@@ -57,6 +58,9 @@
 - 后端权限由 guard/service 执行，不能只隐藏前端按钮。
 - Prisma model 变化必须提交 migration，并同步 DTO、类型和接口文档。
 - 物料变化要同时检查 editor dev 实现、runtime prod 实现、registry、schema 与测试。
+- 远程物料只保存和校验可信 manifest 元数据，API 与 Next.js 服务端不得执行远程 JavaScript；同一项目同一包只能启用一个固定版本。
+- `Page.materialDependencies` 与 `PageVersion.materialDependencies` 只包含页面实际使用的规范化依赖；发布、回滚前必须校验固定版本仍启用，公开读取始终返回发布版本自己的依赖快照。
+- 远程物料宿主注册必须校验协议、schema、共享 React/ReactDOM/Ant Design 版本和组件名冲突，并保持同包同版本幂等。
 
 ## AI Page Builder
 

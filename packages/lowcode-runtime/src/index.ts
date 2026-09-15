@@ -3,6 +3,7 @@ export * from './PageRuntime';
 export * from './public/PublishedPageRuntime';
 export * from './public/snapshot';
 export * from './registry';
+export * from './remote-material-host';
 export * from './runtimeData';
 export * from './types';
 export { splitControlStyles } from './materials/style';

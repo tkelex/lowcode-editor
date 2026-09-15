@@ -16,6 +16,7 @@ export * from './event-data';
 export * from './http-action';
 export * from './migrate';
 export * from './registry';
+export * from './remote-material';
 export * from './safe-expression';
 export * from './types';
 export * from './url';

@@ -6,6 +6,7 @@ import path from 'node:path';
 import { build } from 'esbuild';
 
 const require = createRequire(import.meta.url);
+const { createPageMaterialDependency } = require('@lowcode/schema');
 
 describe('Next.js publisher runtime helpers', () => {
   it('builds published page urls with publisher site fallback', async () => {
@@ -140,6 +141,55 @@ describe('Next.js publisher runtime helpers', () => {
         return true;
       },
     );
+  });
+
+  it('prepares a remote component using only the immutable published dependency metadata', async () => {
+    const { preparePublishedPageSnapshot } = await loadModule('packages/lowcode-runtime/src/index.ts');
+    const dependency = createPageMaterialDependency({
+      protocolVersion: '1',
+      name: '@portfolio/customer-materials',
+      version: '1.2.0',
+      entry: './customer-materials.iife.js',
+      integrity: 'sha384-YWJjZA==',
+      schemaVersion: '1.0.0',
+      dependencies: {
+        react: '^18.3.1',
+        reactDom: '^18.3.1',
+        antd: '^5.20.0',
+      },
+      materials: [{
+        name: 'CustomerSummary',
+        displayName: '客户摘要',
+        category: 'data',
+        allowedParents: ['Page'],
+      }],
+    }, 'https://cdn.example.com/customer/1.2.0/manifest.json');
+
+    const prepared = preparePublishedPageSnapshot({
+      publicId: 'pub-remote',
+      name: '远程物料页面',
+      routePath: '/remote',
+      materialDependencies: [dependency],
+      schema: {
+        schemaVersion: '1.0.0',
+        components: [{
+          id: 1,
+          name: 'Page',
+          desc: '页面',
+          props: {},
+          children: [{
+            id: 2,
+            parentId: 1,
+            name: 'CustomerSummary',
+            desc: '客户摘要',
+            props: {},
+          }],
+        }],
+      },
+    });
+
+    assert.deepEqual(prepared.materialDependencies, [dependency]);
+    assert.equal(prepared.schema.components[0].children[0].name, 'CustomerSummary');
   });
 
   it('keeps the Next publisher adapter on the public runtime interface', async () => {

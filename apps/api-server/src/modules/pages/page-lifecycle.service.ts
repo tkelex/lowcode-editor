@@ -1,17 +1,14 @@
 import { randomUUID } from 'crypto';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import {
-  builtinComponentSchemaRegistry,
-  migratePageSchema,
-  validateComponentTree,
-} from '@lowcode/schema';
+import type { PageMaterialDependency } from '@lowcode/schema';
 import { BusinessException } from '../../common/errors/business.exception';
 import { AppErrorCode } from '../../common/errors/error-codes';
 import { PrismaService } from '../../infrastructure/database/prisma.service';
 import { AuditLogsService } from '../audit/audit-logs.service';
 import { CreatePageDto } from './dto/create-page.dto';
 import { UpdatePageDto } from './dto/update-page.dto';
+import { PageMaterialSchemaService } from './page-material-schema.service';
 import { PublishedPageRevalidateService } from './published-page-revalidate.service';
 
 type UnpublishOrigin = 'member' | 'admin';
@@ -30,19 +27,25 @@ export class PageLifecycleService {
     private readonly prisma: PrismaService,
     private readonly publishedPageRevalidateService: PublishedPageRevalidateService,
     private readonly auditLogsService: AuditLogsService,
+    private readonly pageMaterialSchemaService: PageMaterialSchemaService,
   ) {}
 
   create(projectId: number, actorId: number, dto: CreatePageDto) {
-    const schema = this.normalizeSchema(dto.schema, undefined);
-
     return this.prisma.$transaction(async (tx) => {
+      const normalized = await this.pageMaterialSchemaService.prepareDraft(
+        projectId,
+        undefined,
+        dto.schema,
+        tx,
+      );
       const page = await tx.page.create({
         data: {
           projectId,
           createdById: actorId,
           name: dto.name,
           routePath: dto.routePath,
-          schema,
+          schema: normalized.schema,
+          materialDependencies: normalized.materialDependencies as unknown as Prisma.InputJsonValue,
         },
       });
 
@@ -112,10 +115,14 @@ export class PageLifecycleService {
       });
     }
 
-    const schema = this.normalizeSchema(dto.schema, page.id);
-
     return this.prisma.$transaction(async (tx) => {
       await this.lockPage(tx, page.id);
+      const normalized = await this.pageMaterialSchemaService.prepareDraft(
+        page.projectId,
+        page.id,
+        dto.schema,
+        tx,
+      );
       const updateResult = await tx.page.updateMany({
         where: {
           id: page.id,
@@ -124,7 +131,8 @@ export class PageLifecycleService {
         data: {
           name: dto.name,
           routePath: dto.routePath,
-          schema,
+          schema: normalized.schema,
+          materialDependencies: normalized.materialDependencies as unknown as Prisma.InputJsonValue,
           revision: { increment: 1 },
         },
       });
@@ -139,7 +147,8 @@ export class PageLifecycleService {
       const version = await this.createVersion(tx, {
         pageId: page.id,
         createdById: actorId,
-        schema,
+        schema: normalized.schema,
+        materialDependencies: normalized.materialDependencies,
         source: 'save',
       });
 
@@ -175,11 +184,18 @@ export class PageLifecycleService {
         throw this.pageNotFound();
       }
 
-      const schema = this.normalizeSchema(page.schema as Record<string, unknown>, page.id);
+      const normalized = await this.pageMaterialSchemaService.prepareFixed(
+        page.projectId,
+        page.id,
+        page.schema as Record<string, unknown>,
+        page.materialDependencies,
+        tx,
+      );
       const version = await this.createVersion(tx, {
         pageId,
         createdById: actorId,
-        schema,
+        schema: normalized.schema,
+        materialDependencies: normalized.materialDependencies,
         source: 'publish',
         message: 'Publish page',
       });
@@ -303,18 +319,26 @@ export class PageLifecycleService {
         throw this.versionNotFound();
       }
 
-      const schema = this.normalizeSchema(version.schema as Record<string, unknown>, pageId);
+      const normalized = await this.pageMaterialSchemaService.prepareFixed(
+        page.projectId,
+        pageId,
+        version.schema as Record<string, unknown>,
+        version.materialDependencies,
+        tx,
+      );
       const updatedPage = await tx.page.update({
         where: { id: pageId },
         data: {
-          schema,
+          schema: normalized.schema,
+          materialDependencies: normalized.materialDependencies as unknown as Prisma.InputJsonValue,
           revision: { increment: 1 },
         },
       });
       const rollbackVersion = await this.createVersion(tx, {
         pageId,
         createdById: actorId,
-        schema,
+        schema: normalized.schema,
+        materialDependencies: normalized.materialDependencies,
         source: 'rollback',
         message: `Rollback from version ${version.versionNo}`,
       });
@@ -406,67 +430,13 @@ export class PageLifecycleService {
     return result;
   }
 
-  async getPublished(publicId: string) {
-    const page = await this.prisma.page.findFirst({
-      where: {
-        publicId,
-        isPublished: true,
-        project: { status: PROJECT_STATUS_ACTIVE },
-      },
-    });
-    if (!page || !page.publishedVersionId) {
-      throw this.publishedPageNotFound();
-    }
-
-    const version = await this.prisma.pageVersion.findFirst({
-      where: { id: page.publishedVersionId, pageId: page.id },
-    });
-    if (!version) {
-      throw this.publishedPageNotFound();
-    }
-
-    return {
-      publicId: page.publicId,
-      name: page.name,
-      routePath: page.routePath,
-      schema: version.schema,
-      publishedAt: page.publishedAt,
-    };
-  }
-
-  private normalizeSchema(
-    schema: Record<string, unknown> | undefined,
-    pageId: number | undefined,
-  ): Prisma.InputJsonValue {
-    const now = new Date().toISOString();
-    const nextSchema = migratePageSchema(schema, { pageId: pageId ?? null, now });
-    const validation = validateComponentTree(nextSchema.components, builtinComponentSchemaRegistry);
-
-    if (!validation.valid || !validation.components) {
-      throw new BusinessException(
-        AppErrorCode.PAGE_SCHEMA_INVALID,
-        validation.errors[0] || 'Page schema is invalid',
-        HttpStatus.BAD_REQUEST,
-        { errors: validation.errors },
-      );
-    }
-
-    return {
-      ...nextSchema,
-      components: validation.components,
-      metadata: {
-        ...(typeof nextSchema.metadata === 'object' && nextSchema.metadata !== null ? nextSchema.metadata : {}),
-        updatedAt: now,
-      },
-    } as unknown as Prisma.InputJsonValue;
-  }
-
   private createVersion(
     tx: Prisma.TransactionClient,
     input: {
       pageId: number;
       createdById: number;
       schema: Prisma.InputJsonValue;
+      materialDependencies: PageMaterialDependency[];
       source: string;
       message?: string;
     },
@@ -474,6 +444,7 @@ export class PageLifecycleService {
     return this.getNextVersionNo(tx, input.pageId).then((versionNo) => tx.pageVersion.create({
       data: {
         ...input,
+        materialDependencies: input.materialDependencies as unknown as Prisma.InputJsonValue,
         versionNo,
       },
     }));
@@ -518,13 +489,4 @@ export class PageLifecycleService {
     );
   }
 
-  private publishedPageNotFound() {
-    return new BusinessException(
-      AppErrorCode.PUBLISHED_PAGE_NOT_FOUND,
-      'Published page not found',
-      HttpStatus.NOT_FOUND,
-    );
-  }
 }
-
-const PROJECT_STATUS_ACTIVE = 'ACTIVE';

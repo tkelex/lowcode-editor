@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 
 const require = createRequire(import.meta.url);
 const { PageLifecycleService } = require('../../apps/api-server/dist/modules/pages/page-lifecycle.service.js');
+const { PageMaterialSchemaService } = require('../../apps/api-server/dist/modules/pages/page-material-schema.service.js');
 
 describe('page lifecycle', () => {
   it('rejects a stale page save without creating another version', async () => {
@@ -52,7 +53,7 @@ describe('page lifecycle', () => {
         return callback(tx);
       },
     };
-    const service = new PageLifecycleService(prisma, {}, { record: async () => {} });
+    const service = new PageLifecycleService(prisma, {}, { record: async () => {} }, noRemotePageSchemas);
     const accessiblePage = {
       id: page.id,
       projectId: page.projectId,
@@ -122,7 +123,7 @@ describe('page lifecycle', () => {
         return callback(tx);
       },
     };
-    const service = new PageLifecycleService(prisma, {}, { record: async () => {} });
+    const service = new PageLifecycleService(prisma, {}, { record: async () => {} }, noRemotePageSchemas);
     const accessiblePage = {
       id: page.id,
       projectId: page.projectId,
@@ -169,6 +170,7 @@ describe('page lifecycle', () => {
       pageId: page.id,
       versionNo: 2,
       schema: pageSchema('历史内容'),
+      materialDependencies: [],
     };
     const createdVersions = [];
     const tx = {
@@ -204,7 +206,7 @@ describe('page lifecycle', () => {
         return callback(tx);
       },
     };
-    const service = new PageLifecycleService(prisma, {}, { record: async () => {} });
+    const service = new PageLifecycleService(prisma, {}, { record: async () => {} }, noRemotePageSchemas);
 
     const rolledBackPage = await service.rollback(page.id, targetVersion.id, 3);
 
@@ -241,7 +243,7 @@ describe('page lifecycle', () => {
         events.push(`revalidate:${publicId}`);
       },
     };
-    const service = new PageLifecycleService(prisma, revalidate, auditLogs);
+    const service = new PageLifecycleService(prisma, revalidate, auditLogs, noRemotePageSchemas);
 
     const result = await service.delete({
       id: 1,
@@ -273,7 +275,7 @@ describe('page lifecycle', () => {
         },
       },
     };
-    const service = new PageLifecycleService({}, {}, {});
+    const service = new PageLifecycleService({}, {}, {}, noRemotePageSchemas);
 
     const publicIds = await service.unpublishProjectPages(tx, 9);
 
@@ -320,3 +322,14 @@ function applyPageData(page, data) {
     revision,
   };
 }
+
+const noRemoteMaterials = {
+  async listEnabledDependencies() {
+    return [];
+  },
+  async assertDependenciesEnabled() {
+    return [];
+  },
+};
+
+const noRemotePageSchemas = new PageMaterialSchemaService(noRemoteMaterials);

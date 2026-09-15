@@ -1,4 +1,4 @@
-import type { LowcodePageSchema } from '@lowcode/schema';
+import type { LowcodePageSchema, PageMaterialDependency } from '@lowcode/schema';
 import type { User } from '../auth';
 
 export type ProjectRole = 'owner' | 'editor' | 'viewer';
@@ -76,6 +76,7 @@ export interface EditorPage {
   name: string;
   routePath: string;
   schema: PageSchema;
+  materialDependencies: PageMaterialDependency[];
   revision: number;
   publicId?: string | null;
   isPublished: boolean;
@@ -91,6 +92,7 @@ export interface PageVersion {
   createdById: number;
   versionNo: number;
   schema: PageSchema;
+  materialDependencies: PageMaterialDependency[];
   source: 'save' | 'rollback' | string;
   message?: string | null;
   createdAt: string;

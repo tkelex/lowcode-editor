@@ -8,6 +8,7 @@ import { DataSourceModelsModule } from './modules/data-source-models/data-source
 import { HealthModule } from './modules/health/health.module';
 import { PagesModule } from './modules/pages/pages.module';
 import { ProjectsModule } from './modules/projects/projects.module';
+import { RemoteMaterialsModule } from './modules/remote-materials/remote-materials.module';
 import { TemplatesModule } from './modules/templates/templates.module';
 import { UsersModule } from './modules/users/users.module';
 import { PrismaModule } from './infrastructure/database/prisma.module';
@@ -22,6 +23,7 @@ import { validateEnv } from './config/env.validation';
     AuthModule,
     ProjectsModule,
     PagesModule,
+    RemoteMaterialsModule,
     DataSourceModelsModule,
     TemplatesModule,
     AssetsModule,

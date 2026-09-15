@@ -36,6 +36,7 @@
     "test:e2e": "playwright test",
     "test:e2e:editor": "playwright test tests/e2e/editor-regression.spec.ts",
     "smoke:api": "npm run smoke --workspace @lowcode/api-server",
+    "smoke:remote-material": "npm run smoke:remote-material --workspace @lowcode/api-server",
     "test:agent:postgres": "npm run build:server && node apps/api-server/test/ai-agent-postgres.mjs",
     "check": "npm run lint && npm run check:architecture && npm run build && npm run test",
     "start:publisher": "npm run start --workspace @lowcode/publisher-web",
