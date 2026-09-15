@@ -22,4 +22,4 @@ _Avoid_：自动写入、发布版本、模型原始输出
 
 ## Agent 执行边界
 
-Agent 任务通过 PostgreSQL 持久化和 API 内带租约 worker 异步执行；创建接口只入队，GET 查询不依赖生成器的内存状态。数据库结构与部分唯一索引以 `prisma/schema.prisma` 和 migration 为准。M1 不包含服务端确认或 SSE，详见 `docs/01-产品/AI页面搭建.md`。
+Agent 任务通过 PostgreSQL 持久化和 API 内带租约 worker 异步执行；创建接口只入队，GET 查询不依赖生成器的内存状态。数据库结构与部分唯一索引以 `prisma/schema.prisma` 和 migration 为准。候选确认/拒绝由服务端行锁事务执行，只允许任务发起者或项目 owner 决策；确认不保存页面或创建版本。SSE 仍未实现，详见 `docs/01-产品/AI页面搭建.md`。

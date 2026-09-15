@@ -64,7 +64,100 @@ try {
   assert.equal(ready.status, 'awaiting_confirmation');
   assert.equal(ready.candidate.kind, 'components');
   assert.ok(Date.parse(ready.candidateExpiresAt) > Date.now() + 23 * 60 * 60 * 1000);
+  const accepted = await store.confirm(successful.runId, actor.id, ready.candidate.id);
+  assert.equal(accepted.status, 'accepted');
+  assert.equal(accepted.decision.type, 'accepted');
+  assert.equal(accepted.decision.candidateId, ready.candidate.id);
+  assert.equal((await store.confirm(successful.runId, actor.id, ready.candidate.id)).status, 'accepted',
+    'repeated confirmation is idempotent');
   await assert.rejects(() => store.cancel(successful.runId, actor.id), /当前状态不能取消/);
+
+  const rejectable = await store.enqueue(input, actor.id);
+  const rejectableLease = await store.claim();
+  const rejectablePending = await store.get(rejectable.runId, actor.id);
+  const rejectableCandidateId = randomUUID();
+  assert.equal(await store.finish(rejectableLease, {
+    ...rejectablePending,
+    status: 'awaiting_confirmation',
+    events: [],
+    candidate: {
+      id: rejectableCandidateId,
+      kind: 'components',
+      summary: '待拒绝候选',
+      impactScope: 'page',
+      components,
+      baselineFingerprint: rejectablePending.context.pageFingerprint,
+      warnings: [],
+      assumptions: [],
+      validationErrors: [],
+      validationWarnings: [],
+    },
+  }), true);
+  const rejected = await store.reject(rejectable.runId, actor.id, rejectableCandidateId, '不符合当前布局');
+  assert.equal(rejected.status, 'rejected');
+  assert.equal(rejected.decision.type, 'rejected');
+  assert.equal(rejected.decision.reason, '不符合当前布局');
+  assert.equal((await store.reject(rejectable.runId, actor.id, rejectableCandidateId, '重复提交')).status, 'rejected',
+    'repeated rejection is idempotent');
+  await assert.rejects(() => store.confirm(rejectable.runId, actor.id, rejectableCandidateId), /当前状态不能确认候选/);
+
+  const expiring = await store.enqueue(input, actor.id);
+  const expiringLease = await store.claim();
+  const expiringPending = await store.get(expiring.runId, actor.id);
+  const expiringCandidateId = randomUUID();
+  assert.equal(await store.finish(expiringLease, {
+    ...expiringPending,
+    status: 'awaiting_confirmation',
+    events: [],
+    candidate: {
+      id: expiringCandidateId,
+      kind: 'components',
+      summary: '即将过期候选',
+      impactScope: 'page',
+      components,
+      baselineFingerprint: expiringPending.context.pageFingerprint,
+      warnings: [],
+      assumptions: [],
+      validationErrors: [],
+      validationWarnings: [],
+    },
+  }), true);
+  await assert.rejects(() => store.confirm(expiring.runId, actor.id, randomUUID()), /候选已更新/);
+  assert.equal((await store.get(expiring.runId, actor.id)).status, 'awaiting_confirmation');
+  await prisma.aiAgentRun.update({ where: { id: expiring.runId }, data: { candidateExpiresAt: new Date(0) } });
+  await assert.rejects(() => store.confirm(expiring.runId, actor.id, expiringCandidateId), /候选已过期/);
+  assert.equal((await store.get(expiring.runId, actor.id)).status, 'expired');
+
+  const expiringRejectable = await store.enqueue(input, actor.id);
+  const expiringRejectableLease = await store.claim();
+  const expiringRejectablePending = await store.get(expiringRejectable.runId, actor.id);
+  const expiringRejectableCandidateId = randomUUID();
+  assert.equal(await store.finish(expiringRejectableLease, {
+    ...expiringRejectablePending,
+    status: 'awaiting_confirmation',
+    events: [],
+    candidate: {
+      id: expiringRejectableCandidateId,
+      kind: 'components',
+      summary: '即将过期的待拒绝候选',
+      impactScope: 'page',
+      components,
+      baselineFingerprint: expiringRejectablePending.context.pageFingerprint,
+      warnings: [],
+      assumptions: [],
+      validationErrors: [],
+      validationWarnings: [],
+    },
+  }), true);
+  await prisma.aiAgentRun.update({
+    where: { id: expiringRejectable.runId },
+    data: { candidateExpiresAt: new Date(0) },
+  });
+  await assert.rejects(
+    () => store.reject(expiringRejectable.runId, actor.id, expiringRejectableCandidateId),
+    /候选已过期/,
+  );
+  assert.equal((await store.get(expiringRejectable.runId, actor.id)).status, 'expired');
   assert.equal(await prisma.pageVersion.count({ where: { pageId: page.id } }), 0, 'Agent never saves a page');
   console.log('Agent PostgreSQL integration checks passed');
 } finally {

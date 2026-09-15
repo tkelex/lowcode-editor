@@ -1,4 +1,4 @@
-import { Alert, Button, Divider, Empty, Form, Input, Radio, Select, Space, Spin, Typography, message } from 'antd';
+import { Alert, Button, Divider, Empty, Form, Input, Modal, Radio, Select, Space, Spin, Tag, Typography, message } from 'antd';
 import { useMemo, useState } from 'react';
 import type {
   AiAgentMessage,
@@ -56,8 +56,11 @@ const DEFAULT_FORM_VALUES: Partial<AiBuilderFormValues> = {
 export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiBuilderPanelProps) {
   const [form] = Form.useForm<AiBuilderFormValues>();
   const [generating, setGenerating] = useState(false);
-  const { run: agentRun, busy: agentRunning, error: agentError, setError: setAgentError,
-    reset: clearAgentRun, submit: submitAgentRun } = useAgentRun(pageId, projectId);
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
+  const { run: agentRun, busy: agentRunning, decisionBusy: agentDecisionBusy, error: agentError,
+    setError: setAgentError, reset: clearAgentRun, submit: submitAgentRun,
+    confirm: confirmAgentCandidate, reject: rejectAgentCandidate } = useAgentRun(pageId, projectId);
   const [result, setResult] = useState<AiPageGenerationResult | null>(null);
   const [agentMessages, setAgentMessages] = useState<AiAgentMessage[]>([]);
   const [error, setError] = useState('');
@@ -233,36 +236,60 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
     applyReplacePage();
   }
 
-  function applyAgentCandidate() {
+  function prepareAgentCandidate() {
+    const candidate = agentRun?.candidate;
+    if (!candidate) throw new Error('当前任务没有可应用的候选');
+
+    if (agentRun.candidateExpiresAt && Date.now() >= Date.parse(agentRun.candidateExpiresAt)) {
+      throw new Error('候选已过期，请重新生成');
+    }
+    const latest = useComponentsStore.getState().components as LowcodeComponentSchema[];
+    if (candidate.baselineFingerprint && createAiComponentTreeFingerprint(latest) !== candidate.baselineFingerprint) {
+      throw new Error('页面草稿已变化，请重新生成候选，避免覆盖当前修改');
+    }
+    const nextComponents = candidate.kind === 'patch'
+      ? applyAiComponentPatch(latest, candidate.patch, {
+        expectedBaselineFingerprint: candidate.baselineFingerprint,
+        scopeRootId: candidate.impactScope === 'page' ? undefined : agentRun.context.selectedComponentId,
+      }).components
+      : candidate.components;
+
+    if (!nextComponents) {
+      throw new Error('候选修改未通过校验，无法应用');
+    }
+
+    assertValidComponentTree(nextComponents, componentConfig);
+    return nextComponents as Component[];
+  }
+
+  async function confirmAndApplyAgentCandidate() {
     const candidate = agentRun?.candidate;
     if (!candidate) return;
 
     try {
-      if (agentRun.candidateExpiresAt && Date.now() >= Date.parse(agentRun.candidateExpiresAt)) {
-        throw new Error('候选已过期，请重新生成');
-      }
-      const latest = useComponentsStore.getState().components as LowcodeComponentSchema[];
-      if (candidate.baselineFingerprint && createAiComponentTreeFingerprint(latest) !== candidate.baselineFingerprint) {
-        throw new Error('页面草稿已变化，请重新生成候选，避免覆盖当前修改');
-      }
-      const nextComponents = candidate.kind === 'patch'
-        ? applyAiComponentPatch(latest, candidate.patch, {
-          expectedBaselineFingerprint: candidate.baselineFingerprint,
-          scopeRootId: candidate.impactScope === 'page' ? undefined : agentRun.context.selectedComponentId,
-        }).components
-        : candidate.components;
-
-      if (!nextComponents) {
-        throw new Error('候选修改未通过校验，无法应用');
-      }
-
-      assertValidComponentTree(nextComponents, componentConfig);
+      const nextComponents = prepareAgentCandidate();
+      const confirmed = await confirmAgentCandidate(candidate.id);
+      if (confirmed.status !== 'accepted') throw new Error('服务端未接受当前候选');
       setComponents(nextComponents as Component[]);
       setCurComponentId(null);
-      clearAgentRun();
-      message.success('AI Agent 候选修改已应用，尚未保存');
+      message.success('AI Agent 候选已确认并应用，尚未保存');
     } catch (applyError) {
-      message.error(applyError instanceof Error ? applyError.message : 'AI Agent 候选修改无法应用');
+      message.error(applyError instanceof Error ? applyError.message : 'AI Agent 候选无法确认并应用');
+    }
+  }
+
+  async function rejectCurrentAgentCandidate() {
+    const candidate = agentRun?.candidate;
+    if (!candidate) return;
+
+    try {
+      const rejected = await rejectAgentCandidate(candidate.id, rejectReason);
+      if (rejected.status !== 'rejected') throw new Error('服务端未拒绝当前候选');
+      setRejectDialogOpen(false);
+      setRejectReason('');
+      message.success('AI Agent 候选已拒绝，页面草稿未修改');
+    } catch (rejectError) {
+      message.error(rejectError instanceof Error ? rejectError.message : 'AI Agent 候选无法拒绝');
     }
   }
 
@@ -411,7 +438,11 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
       </div>}
 
       {agentRun && <div className="mt-[16px]">
-        <Typography.Text type="secondary">任务状态：{agentRun.status} · 进度每 1.5 秒刷新</Typography.Text>
+        <div className="flex flex-wrap items-center gap-[6px] text-[12px]">
+          <Typography.Text type="secondary">任务状态</Typography.Text>
+          <Tag color={toAgentStatusColor(agentRun.status)} className="!m-0">{toAgentStatusLabel(agentRun.status)}</Tag>
+          {(agentRun.status === 'queued' || agentRun.status === 'running') && <Typography.Text type="secondary">进度每 1.5 秒刷新</Typography.Text>}
+        </div>
         <Divider className="!my-[12px]" />
         {agentRouteDecision && <div className="mb-[12px] rounded-[6px] border border-[#dbeafe] bg-[#eff6ff] px-[10px] py-[8px] text-[12px] leading-[20px]">
           <div className="font-medium text-[#1e40af]">Agent 理解</div>
@@ -487,15 +518,55 @@ export function AiBuilderPanel({ pageId, projectId, projectRole = 'owner' }: AiB
             <Preview components={agentPreviewComponents as Component[]} allowCustomJS={false} />
           </div>}
 
-          <Space className="mt-[12px]">
-            <Button type="primary" onClick={applyAgentCandidate} disabled={!canWritePage}>
-              应用 Agent 修改
-            </Button>
+          <Space className="mt-[12px]" wrap>
+            {agentRun.status === 'awaiting_confirmation' && <Button
+              type="primary"
+              onClick={confirmAndApplyAgentCandidate}
+              loading={agentDecisionBusy === 'confirm'}
+              disabled={!canWritePage}
+            >
+              确认并应用
+            </Button>}
+            {agentRun.status === 'awaiting_confirmation' && <Button
+              danger
+              onClick={() => setRejectDialogOpen(true)}
+              disabled={!canWritePage || Boolean(agentDecisionBusy)}
+            >
+              拒绝候选
+            </Button>}
             <Button onClick={() => clearAgentRun()}>隐藏结果</Button>
           </Space>
         </div>}
       </div>}
     </div>
+    <Modal
+      title="拒绝候选"
+      open={rejectDialogOpen}
+      okText="确认拒绝"
+      cancelText="取消"
+      okButtonProps={{ danger: true, loading: agentDecisionBusy === 'reject' }}
+      cancelButtonProps={{ disabled: agentDecisionBusy === 'reject' }}
+      closable={agentDecisionBusy !== 'reject'}
+      maskClosable={agentDecisionBusy !== 'reject'}
+      onOk={() => void rejectCurrentAgentCandidate()}
+      onCancel={() => {
+        setRejectDialogOpen(false);
+        setRejectReason('');
+      }}
+    >
+      <Typography.Paragraph type="secondary" className="!mb-[10px] !text-[13px]">
+        拒绝只会记录本次决策，不会修改或保存当前页面草稿。
+      </Typography.Paragraph>
+      <Input.TextArea
+        aria-label="拒绝原因（可选）"
+        value={rejectReason}
+        rows={4}
+        maxLength={500}
+        showCount
+        placeholder="可选：说明不接受该候选的原因"
+        onChange={(event) => setRejectReason(event.target.value)}
+      />
+    </Modal>
   </div>;
 }
 
@@ -556,4 +627,32 @@ function toTargetScopeLabel(scope: string) {
     component: '组件',
   };
   return labels[scope] || scope;
+}
+
+function toAgentStatusLabel(status: string) {
+  const labels: Record<string, string> = {
+    queued: '排队中',
+    running: '执行中',
+    awaiting_confirmation: '待确认',
+    accepted: '已接受',
+    rejected: '已拒绝',
+    expired: '已过期',
+    failed: '已失败',
+    cancelled: '已取消',
+  };
+  return labels[status] || status;
+}
+
+function toAgentStatusColor(status: string) {
+  const colors: Record<string, string> = {
+    queued: 'default',
+    running: 'processing',
+    awaiting_confirmation: 'warning',
+    accepted: 'success',
+    rejected: 'error',
+    expired: 'default',
+    failed: 'error',
+    cancelled: 'default',
+  };
+  return colors[status] || 'default';
 }

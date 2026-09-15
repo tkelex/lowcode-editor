@@ -3,6 +3,7 @@ import { CurrentUser, CurrentUserPayload } from '../../common/decorators/current
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AiService } from './ai.service';
 import { CreateAiAgentRunDto } from './dto/create-ai-agent-run.dto';
+import { ConfirmAiAgentRunDto, RejectAiAgentRunDto } from './dto/decide-ai-agent-run.dto';
 import { GenerateAiPageDto } from './dto/generate-ai-page.dto';
 
 @UseGuards(JwtAuthGuard)
@@ -72,5 +73,23 @@ export class AiController {
     @Param('runId') runId: string,
   ) {
     return this.aiService.cancelAgentRun(runId, user.userId);
+  }
+
+  @Post('ai/agent-runs/:runId/confirm')
+  confirmAgentRun(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('runId') runId: string,
+    @Body() dto: ConfirmAiAgentRunDto,
+  ) {
+    return this.aiService.confirmAgentRun(runId, user.userId, dto.candidateId);
+  }
+
+  @Post('ai/agent-runs/:runId/reject')
+  rejectAgentRun(
+    @CurrentUser() user: CurrentUserPayload,
+    @Param('runId') runId: string,
+    @Body() dto: RejectAiAgentRunDto,
+  ) {
+    return this.aiService.rejectAgentRun(runId, user.userId, dto.candidateId, dto.reason);
   }
 }

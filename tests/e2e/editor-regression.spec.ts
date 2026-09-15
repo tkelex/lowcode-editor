@@ -480,7 +480,7 @@ test('ai builder previews and applies generated page after confirmation', async 
   await expect(page.locator('[data-component-id="3002"]')).toContainText('AI 测试页面');
 });
 
-test('ai agent shows run details and applies candidate patch after confirmation', async ({ page }) => {
+test('ai agent confirms on the server before applying the candidate patch', async ({ page }) => {
   await mockEditorApi(page);
   await page.goto('/');
 
@@ -494,9 +494,41 @@ test('ai agent shows run details and applies candidate patch after confirmation'
   await expect(page.getByText('候选修改已准备好')).toBeVisible();
   await expect(page.getByText('给当前容器添加一段 Agent 说明文本。').first()).toBeVisible();
   await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
+  await expect(page.locator('.editor-page')).not.toContainText('Agent 修改已应用');
 
-  await page.getByRole('button', { name: '应用 Agent 修改' }).click();
-  await expect(page.getByText('Agent 修改已应用', { exact: true })).toBeVisible();
+  const confirmation = page.waitForRequest((request) =>
+    request.method() === 'POST' && request.url().endsWith(`/ai/agent-runs/${aiAgentRunResult.runId}/confirm`));
+  await page.getByRole('button', { name: '确认并应用' }).click();
+  expect((await confirmation).postDataJSON()).toEqual({ candidateId: aiAgentRunResult.candidate.id });
+  await expect(page.locator('.editor-page')).toContainText('Agent 修改已应用');
+  await expect(page.getByText('已接受', { exact: true })).toBeVisible();
+});
+
+test('ai agent rejects a candidate with an optional reason without changing the draft', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.goto('/');
+
+  await openMockEditor(page);
+  await page.locator('[data-component-id="1001"]').first().click();
+  await page.getByText('AI', { exact: true }).click();
+  await page.locator('.ant-form textarea').first().fill('给当前容器添加说明文本');
+  await page.getByRole('button').filter({ hasText: 'Agent' }).click();
+  await expect(page.getByRole('button', { name: '确认并应用' })).toBeVisible();
+
+  await page.getByRole('button', { name: '拒绝候选' }).click();
+  const dialog = page.getByRole('dialog', { name: '拒绝候选' });
+  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('拒绝原因（可选）').fill('当前布局不需要新增文本');
+  const rejection = page.waitForRequest((request) =>
+    request.method() === 'POST' && request.url().endsWith(`/ai/agent-runs/${aiAgentRunResult.runId}/reject`));
+  await dialog.getByRole('button', { name: '确认拒绝' }).click();
+  expect((await rejection).postDataJSON()).toEqual({
+    candidateId: aiAgentRunResult.candidate.id,
+    reason: '当前布局不需要新增文本',
+  });
+  await expect(dialog).not.toBeVisible();
+  await expect(page.getByText('已拒绝', { exact: true })).toBeVisible();
+  await expect(page.locator('.editor-page')).not.toContainText('Agent 修改已应用');
 });
 
 test('ai agent recovers a queued task after refresh without applying it', async ({ page }) => {
@@ -516,7 +548,7 @@ test('ai agent recovers a queued task after refresh without applying it', async 
   await page.reload();
   await openMockEditor(page);
   await page.getByText('AI', { exact: true }).click();
-  await expect(page.getByRole('button', { name: '应用 Agent 修改' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '确认并应用' })).toBeVisible();
   await expect(page.locator('.editor-page')).not.toContainText('Agent 修改已应用');
 });
 
@@ -1092,6 +1124,32 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
 
     if (method === 'GET' && pathname.startsWith('/ai/agent-runs/')) {
       await json(route, pathname.endsWith(aiAgentCrudRunResult.runId) ? aiAgentCrudRunResult : aiAgentRunResult);
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/ai/agent-runs/${aiAgentRunResult.runId}/confirm`) {
+      const body = JSON.parse(request.postData() || '{}');
+      await json(route, {
+        ...aiAgentRunResult,
+        status: 'accepted',
+        decision: { type: 'accepted', candidateId: body.candidateId, actorId: user.id, decidedAt: now },
+      });
+      return;
+    }
+
+    if (method === 'POST' && pathname === `/ai/agent-runs/${aiAgentRunResult.runId}/reject`) {
+      const body = JSON.parse(request.postData() || '{}');
+      await json(route, {
+        ...aiAgentRunResult,
+        status: 'rejected',
+        decision: {
+          type: 'rejected',
+          candidateId: body.candidateId,
+          actorId: user.id,
+          decidedAt: now,
+          ...(body.reason ? { reason: body.reason } : {}),
+        },
+      });
       return;
     }
 

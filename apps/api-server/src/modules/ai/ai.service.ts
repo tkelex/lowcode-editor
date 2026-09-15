@@ -106,6 +106,14 @@ export class AiService {
     return this.agentRuns.cancel(runId, userId);
   }
 
+  async confirmAgentRun(runId: string, userId: number, candidateId: string) {
+    return this.agentRuns.confirm(runId, userId, candidateId);
+  }
+
+  async rejectAgentRun(runId: string, userId: number, candidateId: string, reason?: string) {
+    return this.agentRuns.reject(runId, userId, candidateId, reason);
+  }
+
   async listAgentRunsForProject(projectId: number, userId: number) {
     return this.agentRuns.list(projectId, userId);
   }

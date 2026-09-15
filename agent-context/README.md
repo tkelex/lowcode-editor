@@ -59,7 +59,8 @@
 - AI 只生成低代码 schema 或 schema patch，不生成任意应用源码。
 - 模型调用只通过后端 AI 网关，前端不得保存模型 API key。
 - AI 结果写入前必须经过物料、组件树、事件、stale baseline 和 custom JS 校验。
-- AI 结果先展示摘要、warnings、assumptions、执行轨迹和预览，用户确认后才写入 store。
+- AI 结果先展示摘要、warnings、assumptions、执行轨迹和预览；前端校验候选后请求服务端确认，只有 `accepted` 才写入 store。
+- 候选确认/拒绝只允许任务发起者或项目 owner；确认不保存页面、不创建 `PageVersion`。
 - Agent 创建返回 202 + runId；任务持久化与 worker 在 API 的 `ai-agent-run-store.service.ts` / `ai-agent-worker.service.ts`，不要重新把 HTTP 查询接到生成器进程内 Map。当前阶段边界见 `docs/01-产品/AI页面搭建.md`。
 
 ## Validation

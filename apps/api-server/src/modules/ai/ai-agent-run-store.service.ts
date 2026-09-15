@@ -86,6 +86,145 @@ export class AiAgentRunStore {
     return this.get(runId, actorId);
   }
 
+  async confirm(runId: string, actorId: number, candidateId: string) {
+    const expired = await this.prisma.$transaction(async (tx) => {
+      const row = await this.lock(tx, runId);
+      const ownerId = await this.assertAccess(tx, row.projectId, actorId, true, row.pageId ?? undefined);
+      if (row.actorId !== actorId && ownerId !== actorId) {
+        throw new ForbiddenException('仅发起者或项目所有者可确认候选');
+      }
+
+      const snapshot = row.snapshot as unknown as AiAgentRunResult;
+      if (row.status === 'expired') return true;
+      if (row.status === 'accepted') {
+        if (snapshot.decision?.candidateId !== candidateId) {
+          throw new ConflictException('候选与已确认记录不一致');
+        }
+        return false;
+      }
+      if (row.status !== 'awaiting_confirmation') {
+        throw new ConflictException('当前状态不能确认候选');
+      }
+      if (!snapshot.candidate || snapshot.candidate.id !== candidateId) {
+        throw new ConflictException('候选已更新，请刷新后重试');
+      }
+
+      const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
+      if (!row.candidateExpiresAt || row.candidateExpiresAt <= clock.now) {
+        await tx.aiAgentRun.update({ where: { id: runId }, data: {
+          status: 'expired',
+          snapshot: agentJson({ ...snapshot, status: 'expired' }),
+        } });
+        await this.event(tx, runId, 'error', '候选已过期');
+        await tx.auditLog.create({ data: {
+          actorId,
+          projectId: row.projectId,
+          pageId: row.pageId,
+          action: 'ai.agent.expire',
+          targetType: 'aiAgentRun',
+          targetId: row.id,
+          summary: 'Agent candidate expired',
+          metadata: { runId: row.id, candidateId, status: 'expired' },
+        } });
+        return true;
+      }
+      const decision = {
+        type: 'accepted' as const,
+        candidateId,
+        actorId,
+        decidedAt: clock.now.toISOString(),
+      };
+      await tx.aiAgentRun.update({ where: { id: runId }, data: {
+        status: 'accepted',
+        snapshot: agentJson({ ...snapshot, status: 'accepted', decision }),
+      } });
+      await this.event(tx, runId, 'message', '候选已确认');
+      await tx.auditLog.create({ data: {
+        actorId,
+        projectId: row.projectId,
+        pageId: row.pageId,
+        action: 'ai.agent.confirm',
+        targetType: 'aiAgentRun',
+        targetId: row.id,
+        summary: 'Agent candidate confirmed',
+        metadata: { runId: row.id, candidateId, status: 'accepted' },
+      } });
+      return false;
+    });
+    if (expired) throw new ConflictException('候选已过期，请重新生成');
+    return this.get(runId, actorId);
+  }
+
+  async reject(runId: string, actorId: number, candidateId: string, reason?: string) {
+    const expired = await this.prisma.$transaction(async (tx) => {
+      const row = await this.lock(tx, runId);
+      const ownerId = await this.assertAccess(tx, row.projectId, actorId, true, row.pageId ?? undefined);
+      if (row.actorId !== actorId && ownerId !== actorId) {
+        throw new ForbiddenException('仅发起者或项目所有者可拒绝候选');
+      }
+
+      const snapshot = row.snapshot as unknown as AiAgentRunResult;
+      if (row.status === 'expired') return true;
+      if (row.status === 'rejected') {
+        if (snapshot.decision?.candidateId !== candidateId) {
+          throw new ConflictException('候选与已拒绝记录不一致');
+        }
+        return false;
+      }
+      if (row.status !== 'awaiting_confirmation') {
+        throw new ConflictException('当前状态不能拒绝候选');
+      }
+      if (!snapshot.candidate || snapshot.candidate.id !== candidateId) {
+        throw new ConflictException('候选已更新，请刷新后重试');
+      }
+
+      const [clock] = await tx.$queryRaw<{ now: Date }[]>`SELECT clock_timestamp() AS now`;
+      if (!row.candidateExpiresAt || row.candidateExpiresAt <= clock.now) {
+        await tx.aiAgentRun.update({ where: { id: runId }, data: {
+          status: 'expired',
+          snapshot: agentJson({ ...snapshot, status: 'expired' }),
+        } });
+        await this.event(tx, runId, 'error', '候选已过期');
+        await tx.auditLog.create({ data: {
+          actorId,
+          projectId: row.projectId,
+          pageId: row.pageId,
+          action: 'ai.agent.expire',
+          targetType: 'aiAgentRun',
+          targetId: row.id,
+          summary: 'Agent candidate expired',
+          metadata: { runId: row.id, candidateId, status: 'expired' },
+        } });
+        return true;
+      }
+      const decision = {
+        type: 'rejected' as const,
+        candidateId,
+        actorId,
+        decidedAt: clock.now.toISOString(),
+        ...(reason ? { reason } : {}),
+      };
+      await tx.aiAgentRun.update({ where: { id: runId }, data: {
+        status: 'rejected',
+        snapshot: agentJson({ ...snapshot, status: 'rejected', decision }),
+      } });
+      await this.event(tx, runId, 'message', '候选已拒绝', reason);
+      await tx.auditLog.create({ data: {
+        actorId,
+        projectId: row.projectId,
+        pageId: row.pageId,
+        action: 'ai.agent.reject',
+        targetType: 'aiAgentRun',
+        targetId: row.id,
+        summary: 'Agent candidate rejected',
+        metadata: { runId: row.id, candidateId, status: 'rejected', ...(reason ? { reason } : {}) },
+      } });
+      return false;
+    });
+    if (expired) throw new ConflictException('候选已过期，请重新生成');
+    return this.get(runId, actorId);
+  }
+
   async claim(): Promise<AiAgentRun | null> {
     return this.prisma.$transaction(async (tx) => {
       // SKIP LOCKED allows multiple API workers without waiting on another claim.

@@ -282,6 +282,54 @@ async function main() {
   assertEqual(agentRun.status, 'awaiting_confirmation', 'AI agent should return reviewable candidate');
   assertEqual(agentRun.candidate.kind, 'patch', 'AI agent should return patch candidate');
 
+  const confirmedAgentRun = await request(`/ai/agent-runs/${createdAgentRun.runId}/confirm`, {
+    method: 'POST',
+    token: editor.token,
+    body: {
+      candidateId: agentRun.candidate.id,
+    },
+  });
+  assertEqual(confirmedAgentRun.status, 'accepted', 'AI agent candidate should be confirmed');
+  assertEqual(confirmedAgentRun.decision.type, 'accepted', 'confirmed run should persist its decision');
+
+  const viewerConfirmDenied = await request(`/ai/agent-runs/${createdAgentRun.runId}/confirm`, {
+    method: 'POST',
+    token: viewer.token,
+    body: {
+      candidateId: agentRun.candidate.id,
+    },
+    expectedStatus: 403,
+  });
+  assertEqual(viewerConfirmDenied.code, 'FORBIDDEN', 'viewer should not confirm AI agent candidates');
+
+  const rejectableAgentRun = await request(`/pages/${page.id}/ai/agent-runs`, {
+    method: 'POST',
+    expectedStatus: 202,
+    token: editor.token,
+    body: {
+      prompt: '生成一个稍后会被拒绝的说明区块',
+      targetScope: 'selection',
+      selectedComponentId: 1,
+      currentComponents: savedPage.schema.components,
+    },
+  });
+  let rejectableAgentSnapshot;
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    rejectableAgentSnapshot = await request(`/ai/agent-runs/${rejectableAgentRun.runId}`, { token: editor.token });
+    if (!['queued', 'running'].includes(rejectableAgentSnapshot.status)) break;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  }
+  const rejectedAgentRun = await request(`/ai/agent-runs/${rejectableAgentRun.runId}/reject`, {
+    method: 'POST',
+    token: editor.token,
+    body: {
+      candidateId: rejectableAgentSnapshot.candidate.id,
+      reason: '不符合当前页面布局',
+    },
+  });
+  assertEqual(rejectedAgentRun.status, 'rejected', 'AI agent candidate should be rejected');
+  assertEqual(rejectedAgentRun.decision.reason, '不符合当前页面布局', 'rejection reason should be persisted');
+
   const viewerAgentDenied = await request(`/pages/${page.id}/ai/agent-runs`, {
     method: 'POST',
     token: viewer.token,
@@ -449,6 +497,8 @@ async function main() {
   assertIncludes(actions, 'page.update', 'audit logs should include page save');
   assertIncludes(actions, 'ai.page.generate', 'audit logs should include AI page generation');
   assertIncludes(actions, 'ai.agent.run', 'audit logs should include AI agent run');
+  assertIncludes(actions, 'ai.agent.confirm', 'audit logs should include AI agent confirmation');
+  assertIncludes(actions, 'ai.agent.reject', 'audit logs should include AI agent rejection');
   assertIncludes(actions, 'page.publish', 'audit logs should include publish');
   assertIncludes(actions, 'dataSourceModel.create', 'audit logs should include data source model create');
   assertIncludes(actions, 'dataSourceModel.update', 'audit logs should include data source model update');

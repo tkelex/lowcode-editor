@@ -169,6 +169,14 @@ export interface AiAgentComponentsCandidate extends AiAgentCandidateBase {
 
 export type AiAgentCandidate = AiAgentPatchCandidate | AiAgentComponentsCandidate;
 
+export interface AiAgentRunDecision {
+  type: 'accepted' | 'rejected';
+  candidateId: string;
+  actorId: number;
+  decidedAt: string;
+  reason?: string;
+}
+
 export interface AiAgentRunResult {
   lastSequence?: number;
   candidateExpiresAt?: string;
@@ -184,6 +192,7 @@ export interface AiAgentRunResult {
   generation?: AiPageGenerationResult;
   error?: string;
   audit?: AiAgentRunAuditSummary;
+  decision?: AiAgentRunDecision;
 }
 
 export interface AiAgentRunAuditSummary {

@@ -69,3 +69,16 @@ export async function cancelAiAgentRun(runId: string) {
   const { data } = await http.post<AiAgentRunResult>(`/ai/agent-runs/${runId}/cancel`);
   return data;
 }
+
+export async function confirmAiAgentRun(runId: string, candidateId: string) {
+  const { data } = await http.post<AiAgentRunResult>(`/ai/agent-runs/${runId}/confirm`, { candidateId });
+  return data;
+}
+
+export async function rejectAiAgentRun(runId: string, candidateId: string, reason?: string) {
+  const { data } = await http.post<AiAgentRunResult>(`/ai/agent-runs/${runId}/reject`, {
+    candidateId,
+    ...(reason?.trim() ? { reason: reason.trim() } : {}),
+  });
+  return data;
+}

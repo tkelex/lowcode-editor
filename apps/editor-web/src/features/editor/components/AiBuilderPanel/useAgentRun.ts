@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AiAgentRunResult } from '@lowcode/schema';
 import {
-  createAiAgentRunForPage, createAiAgentRunForProject, getAiAgentRun, listAiAgentRuns,
+  confirmAiAgentRun, createAiAgentRunForPage, createAiAgentRunForProject, getAiAgentRun, listAiAgentRuns,
+  rejectAiAgentRun,
   type CreateAiAgentRunInput,
 } from '../../api/ai';
 
@@ -9,6 +10,7 @@ import {
 export function useAgentRun(pageId?: number, projectId?: number) {
   const [run, setRun] = useState<AiAgentRunResult | null>(null);
   const [busy, setBusy] = useState(false);
+  const [decisionBusy, setDecisionBusy] = useState<'confirm' | 'reject' | null>(null);
   const [error, setError] = useState('');
   const session = useRef<{ controller: AbortController; timer?: ReturnType<typeof setTimeout> }>();
 
@@ -18,6 +20,7 @@ export function useAgentRun(pageId?: number, projectId?: number) {
     session.current = { controller: new AbortController() };
     setRun(null);
     setBusy(false);
+    setDecisionBusy(null);
     setError('');
     return session.current;
   }, []);
@@ -77,5 +80,37 @@ export function useAgentRun(pageId?: number, projectId?: number) {
     }
   }
 
-  return { run, busy, error, setError, reset, submit };
+  async function confirm(candidateId: string) {
+    if (!run) throw new Error('Agent 任务不存在');
+    setDecisionBusy('confirm');
+    setError('');
+    try {
+      const next = await confirmAiAgentRun(run.runId, candidateId);
+      setRun(next);
+      return next;
+    } catch (requestError) {
+      setError('候选确认失败，请刷新任务状态后重试');
+      throw requestError;
+    } finally {
+      setDecisionBusy(null);
+    }
+  }
+
+  async function reject(candidateId: string, reason?: string) {
+    if (!run) throw new Error('Agent 任务不存在');
+    setDecisionBusy('reject');
+    setError('');
+    try {
+      const next = await rejectAiAgentRun(run.runId, candidateId, reason);
+      setRun(next);
+      return next;
+    } catch (requestError) {
+      setError('候选拒绝失败，请刷新任务状态后重试');
+      throw requestError;
+    } finally {
+      setDecisionBusy(null);
+    }
+  }
+
+  return { run, busy, decisionBusy, error, setError, reset, submit, confirm, reject };
 }
