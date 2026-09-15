@@ -16,6 +16,7 @@ export interface LoadedEditorPageContext {
   projectRole?: ProjectRole;
   baselineFingerprint: string;
   serverUpdatedAt: string;
+  serverRevision: number;
 }
 
 export function useEditorPageLoader(
@@ -41,6 +42,7 @@ export function useEditorPageLoader(
           scope,
           serverComponents,
           serverUpdatedAt: page.updatedAt,
+          serverRevision: page.revision,
         });
 
         if (draft.status === 'invalid') {
@@ -62,6 +64,7 @@ export function useEditorPageLoader(
         projectRole,
         baselineFingerprint: createAiComponentTreeFingerprint(serverComponents),
         serverUpdatedAt: page.updatedAt,
+        serverRevision: page.revision,
       });
     } catch {
       message.error('页面加载失败');

@@ -24,6 +24,7 @@ const pageRecord = {
   createdById: user.id,
   name: '编辑器回归页面',
   routePath: '/editor-regression',
+  revision: 1,
   isPublished: false,
   publicId: null,
   publishedAt: null,
@@ -474,13 +475,14 @@ test('editor offers to restore an unsaved page-scoped local draft', async ({ pag
   }, {
     key: storageKey,
     envelope: {
-      storageVersion: 1,
+      storageVersion: 2,
       userId: user.id,
       projectId: project.id,
       pageId: pageRecord.id,
       components: localComponents,
       baselineFingerprint: JSON.stringify(pageRecord.schema.components),
       serverUpdatedAt: pageRecord.updatedAt,
+      serverRevision: pageRecord.revision,
       localUpdatedAt: '2026-05-11T01:30:00.000Z',
       dirty: true,
     },
@@ -512,13 +514,14 @@ test('editor clears a local draft when the user chooses the server version', asy
   }, {
     key: storageKey,
     envelope: {
-      storageVersion: 1,
+      storageVersion: 2,
       userId: user.id,
       projectId: project.id,
       pageId: pageRecord.id,
       components: localComponents,
       baselineFingerprint: JSON.stringify(pageRecord.schema.components),
       serverUpdatedAt: pageRecord.updatedAt,
+      serverRevision: pageRecord.revision,
       localUpdatedAt: '2026-05-11T01:30:00.000Z',
       dirty: true,
     },
@@ -613,6 +616,147 @@ test('editor keeps the local draft when the page save fails', async ({ page }) =
   await expect(recoveryDialog).toBeVisible();
   await recoveryDialog.getByRole('button', { name: '恢复本地草稿' }).click();
   await expect(page.locator('.editor-page')).toContainText('保存失败后仍需恢复');
+});
+
+test('editor keeps the local draft after a page revision conflict', async ({ page }) => {
+  await mockEditorApi(page);
+  await page.route(`**/api/pages/${pageRecord.id}`, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 409,
+          code: 'PAGE_DRAFT_CONFLICT',
+          message: 'Page draft has changed since it was loaded',
+        }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('冲突后保留的本地草稿');
+  await page.getByRole('button', { name: /^保\s*存$/ }).click();
+
+  const conflictDialog = page.getByRole('dialog', { name: '页面已在其他位置更新' });
+  await expect(conflictDialog).toBeVisible();
+  await conflictDialog.getByRole('button', { name: '保留本地草稿' }).click();
+
+  await page.reload();
+  await openMockEditor(page);
+  const recoveryDialog = page.getByRole('dialog', { name: '检测到未保存的本地草稿' });
+  await expect(recoveryDialog).toBeVisible();
+  await recoveryDialog.getByRole('button', { name: '恢复本地草稿' }).click();
+  await expect(page.locator('.editor-page')).toContainText('冲突后保留的本地草稿');
+});
+
+test('editor reloads the latest server page and revision after a conflict', async ({ page }) => {
+  await mockEditorApi(page);
+  let latestPage = JSON.parse(JSON.stringify(pageRecord)) as typeof pageRecord;
+  latestPage.revision = 2;
+  latestPage.updatedAt = '2026-05-11T00:07:00.000Z';
+  const latestButton = findSchemaComponent(latestPage.schema.components, 1003);
+  if (latestButton) {
+    latestButton.props = { ...latestButton.props, text: '其他编辑者保存的内容' };
+  }
+  let saveAttempts = 0;
+
+  await page.route(`**/api/pages/${pageRecord.id}`, async (route) => {
+    const request = route.request();
+    if (request.method() === 'PATCH') {
+      saveAttempts += 1;
+      if (saveAttempts === 1) {
+        await route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            statusCode: 409,
+            code: 'PAGE_DRAFT_CONFLICT',
+            message: 'Page draft has changed since it was loaded',
+          }),
+        });
+        return;
+      }
+
+      const body = JSON.parse(request.postData() || '{}');
+      latestPage = {
+        ...latestPage,
+        schema: body.schema,
+        revision: latestPage.revision + 1,
+        updatedAt: '2026-05-11T00:08:00.000Z',
+      };
+      await json(route, latestPage);
+      return;
+    }
+
+    if (request.method() === 'GET' && saveAttempts > 0) {
+      await json(route, latestPage);
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('准备被服务端版本替换');
+  await page.getByRole('button', { name: /^保\s*存$/ }).click();
+
+  const conflictDialog = page.getByRole('dialog', { name: '页面已在其他位置更新' });
+  await expect(conflictDialog).toBeVisible();
+  await conflictDialog.getByRole('button', { name: '重新加载服务端版本' }).click();
+
+  await expect(page.locator('.editor-page')).toContainText('其他编辑者保存的内容');
+  const storageKey = `lowcode-editor:draft:${user.id}:${project.id}:${pageRecord.id}`;
+  await expect.poll(() => page.evaluate((key) => window.localStorage.getItem(key), storageKey)).toBeNull();
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('基于最新版本继续修改');
+  const nextSaveRequest = page.waitForRequest((request) =>
+    request.method() === 'PATCH' && request.url().endsWith(`/api/pages/${pageRecord.id}`));
+  await page.getByRole('button', { name: /^保\s*存$/ }).click();
+  expect((await nextSaveRequest).postDataJSON().expectedRevision).toBe(2);
+});
+
+test('editor does not publish when the publish-time save has a revision conflict', async ({ page }) => {
+  await mockEditorApi(page);
+  let publishRequests = 0;
+  page.on('request', (request) => {
+    if (request.method() === 'POST' && request.url().endsWith(`/api/pages/${pageRecord.id}/publish`)) {
+      publishRequests += 1;
+    }
+  });
+  await page.route(`**/api/pages/${pageRecord.id}`, async (route) => {
+    if (route.request().method() === 'PATCH') {
+      await route.fulfill({
+        status: 409,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          statusCode: 409,
+          code: 'PAGE_DRAFT_CONFLICT',
+          message: 'Page draft has changed since it was loaded',
+        }),
+      });
+      return;
+    }
+    await route.fallback();
+  });
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await page.locator('[data-component-id="1003"]').first().click();
+  await settingPanelLocator(page).getByLabel('文本').fill('发布前发生冲突');
+  await page.getByRole('button', { name: /^发\s*布$/ }).click();
+
+  const conflictDialog = page.getByRole('dialog', { name: '页面已在其他位置更新' });
+  await expect(conflictDialog).toBeVisible();
+  expect(publishRequests).toBe(0);
+  await conflictDialog.getByRole('button', { name: '保留本地草稿' }).click();
+  expect(publishRequests).toBe(0);
 });
 
 test('editor keeps changes made while a page save is still in flight', async ({ page }) => {
@@ -1373,9 +1517,24 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
 
     if (method === 'PATCH' && pathname === `/pages/${editorPage.id}`) {
       const body = JSON.parse(request.postData() || '{}');
+      if (body.expectedRevision !== currentEditorPage.revision) {
+        await route.fulfill({
+          status: 409,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            statusCode: 409,
+            code: 'PAGE_DRAFT_CONFLICT',
+            message: 'Page draft has changed since it was loaded',
+          }),
+        });
+        return;
+      }
+      const changes = { ...body };
+      delete changes.expectedRevision;
       currentEditorPage = {
         ...currentEditorPage,
-        ...body,
+        ...changes,
+        revision: currentEditorPage.revision + 1,
         updatedAt: '2026-05-11T00:05:00.000Z',
       };
       await json(route, currentEditorPage);
@@ -1403,6 +1562,7 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
       currentEditorPage = {
         ...currentEditorPage,
         schema: rollbackSchema,
+        revision: currentEditorPage.revision + 1,
         updatedAt: '2026-05-11T00:10:00.000Z',
       };
       await json(route, currentEditorPage);

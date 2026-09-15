@@ -49,6 +49,7 @@
 - 页面根节点必须是 `Page`；写入前必须迁移并校验 schema。
 - 编辑器 store 是 `useComponentsStore`；历史栈只保存在内存，不持久化。
 - 未保存本地草稿只持久化组件树，必须按 `userId / projectId / pageId` 隔离；选中态和预览模式不得写入。
+- 页面 PATCH 必须用 `expectedRevision` 原子比较并递增 `Page.revision`；冲突不得覆盖草稿或创建版本，回滚成功递增 revision。
 - 公开页只读取 `publishedVersionId` 指向的快照。
 - 发布运行时必须禁用 custom JS，且不得注入当前用户 token。
 - 后端权限由 guard/service 执行，不能只隐藏前端按钮。

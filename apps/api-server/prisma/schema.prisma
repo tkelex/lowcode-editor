@@ -75,6 +75,7 @@ model Page {
   name               String
   routePath          String
   schema             Json
+  revision           Int           @default(1)
   publicId           String?       @unique @default(cuid())
   isPublished        Boolean       @default(false)
   publishedAt        DateTime?

@@ -169,6 +169,7 @@ async function main() {
     },
   });
   assertEqual(page.createdById, editor.user.id, 'editor should create page as actor');
+  assertEqual(page.revision, 1, 'new page should start at revision 1');
 
   const generatedPage = await request(`/projects/${project.id}/pages`, {
     method: 'POST',
@@ -190,6 +191,7 @@ async function main() {
     token: viewer.token,
     body: {
       name: 'Viewer Cannot Save',
+      expectedRevision: page.revision,
     },
     expectedStatus: 403,
   });
@@ -199,6 +201,7 @@ async function main() {
     method: 'PATCH',
     token: editor.token,
     body: {
+      expectedRevision: page.revision,
       schema: {
         schemaVersion: '1.0.0',
         pageId: page.id,
@@ -229,6 +232,32 @@ async function main() {
   });
 
   assertEqual(savedPage.schema.components[0].children[0].name, 'Text', 'saved schema should keep Text component');
+  assertEqual(savedPage.revision, 2, 'saving page should increment revision');
+
+  const versionsAfterSave = await request(`/pages/${page.id}/versions`, { token: viewer.token });
+  const staleSave = await request(`/pages/${page.id}`, {
+    method: 'PATCH',
+    token: editor.token,
+    body: {
+      expectedRevision: page.revision,
+      schema: savedPage.schema,
+    },
+    expectedStatus: 409,
+  });
+  assertEqual(staleSave.code, 'PAGE_DRAFT_CONFLICT', 'stale page save should report revision conflict');
+
+  const versionsAfterConflict = await request(`/pages/${page.id}/versions`, { token: viewer.token });
+  assertEqual(
+    versionsAfterConflict.length,
+    versionsAfterSave.length,
+    'stale page save should not create another version',
+  );
+  const pageAfterConflict = await request(`/pages/${page.id}`, { token: viewer.token });
+  assertEqual(
+    pageAfterConflict.schema.components[0].children[0].props.text,
+    'Smoke Test',
+    'stale page save should not overwrite the accepted draft',
+  );
 
   const aiDraft = await request(`/pages/${page.id}/ai/page-generation`, {
     method: 'POST',

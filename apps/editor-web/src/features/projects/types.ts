@@ -76,6 +76,7 @@ export interface EditorPage {
   name: string;
   routePath: string;
   schema: PageSchema;
+  revision: number;
   publicId?: string | null;
   isPublished: boolean;
   publishedAt?: string | null;

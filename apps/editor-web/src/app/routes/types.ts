@@ -11,4 +11,5 @@ export type AppView =
     projectRole?: ProjectRole;
     baselineFingerprint: string;
     serverUpdatedAt: string;
+    serverRevision: number;
   };

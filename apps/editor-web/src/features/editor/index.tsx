@@ -1,4 +1,4 @@
-import { Component as ReactComponent, ReactNode, useState } from 'react';
+import { Component as ReactComponent, ReactNode, useEffect, useState } from 'react';
 import { Button, Space } from 'antd';
 import {
     DoubleLeftOutlined,
@@ -27,6 +27,7 @@ export interface LowcodeEditorProps {
     projectRole?: ProjectRole;
     baselineFingerprint?: string;
     serverUpdatedAt?: string;
+    serverRevision?: number;
     onBack?: () => void;
 }
 
@@ -84,6 +85,7 @@ export default function LowcodeEditor({
     projectRole,
     baselineFingerprint,
     serverUpdatedAt,
+    serverRevision,
     onBack,
 }: LowcodeEditorProps) {
     const mode = useComponentsStore((state) => state.mode);
@@ -92,15 +94,26 @@ export default function LowcodeEditor({
     const [rightPanelVisible, setRightPanelVisible] = useState(true);
     const [leftPaneSize, setLeftPaneSize] = useState(LEFT_PANEL_PREFERRED_SIZE);
     const [rightPaneSize, setRightPaneSize] = useState(RIGHT_PANEL_PREFERRED_SIZE);
+    const [currentRevision, setCurrentRevision] = useState(serverRevision);
 
-    const { markSaved } = usePageDraftPersistence({
+    useEffect(() => {
+        setCurrentRevision(serverRevision);
+    }, [pageId, serverRevision]);
+
+    const { markSaved, preserveCurrentDraft } = usePageDraftPersistence({
         userId,
         projectId,
         pageId,
         projectRole,
         baselineFingerprint,
         serverUpdatedAt,
+        serverRevision,
     });
+
+    function handlePageSaved(components: Parameters<typeof markSaved>[0], updatedAt: string, revision: number) {
+        markSaved(components, updatedAt, revision);
+        setCurrentRevision(revision);
+    }
 
     function exitPreview() {
         setMode('edit');
@@ -151,7 +164,14 @@ export default function LowcodeEditor({
 
     return <div className='editor-workbench relative h-[100vh] flex flex-col bg-[#eef2f7]'>
         <div className='editor-topbar h-[60px] flex items-center'>
-            <Header pageId={pageId} projectRole={projectRole} onPageSaved={markSaved} onBack={onBack} />
+            <Header
+                pageId={pageId}
+                projectRole={projectRole}
+                revision={currentRevision}
+                onPageSaved={handlePageSaved}
+                onPageConflict={preserveCurrentDraft}
+                onBack={onBack}
+            />
         </div>
         <EditorBodyBoundary mode={mode} onExitPreview={exitPreview} onBack={onBack}>
             {

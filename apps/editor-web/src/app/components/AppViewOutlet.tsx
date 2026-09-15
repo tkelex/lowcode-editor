@@ -49,6 +49,7 @@ export function AppViewOutlet({
         projectRole={view.projectRole}
         baselineFingerprint={view.baselineFingerprint}
         serverUpdatedAt={view.serverUpdatedAt}
+        serverRevision={view.serverRevision}
         onBack={onBackToDashboard}
       />
     </Suspense>;

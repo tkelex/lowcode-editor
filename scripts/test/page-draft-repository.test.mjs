@@ -23,6 +23,7 @@ describe('page draft repository', () => {
       components: localComponents,
       baselineFingerprint: '[{"children":[{"desc":"按钮","id":2,"name":"Button","parentId":1,"props":{"text":"服务端内容"}}],"desc":"页面","id":1,"name":"Page","props":{}}]',
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       componentConfig: componentConfig(),
     });
 
@@ -30,6 +31,7 @@ describe('page draft repository', () => {
       scope,
       serverComponents,
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       componentConfig: componentConfig(),
     });
 
@@ -37,6 +39,36 @@ describe('page draft repository', () => {
     assert.deepEqual(result.components, localComponents);
     assert.equal(result.localUpdatedAt, '2026-09-15T10:00:00.000Z');
     assert.equal(result.serverChanged, false);
+  });
+
+  it('detects a newer server revision even when the timestamp did not change', async () => {
+    const { createPageDraftRepository } = await loadModule(
+      'apps/editor-web/src/features/editor/drafts/page-draft-repository.ts',
+    );
+    const storage = new MemoryStorage();
+    const repository = createPageDraftRepository({ storage, now: () => '2026-09-15T10:00:00.000Z' });
+    const scope = { userId: 7, projectId: 11, pageId: 13 };
+    const serverComponents = pageWithText('服务端内容');
+
+    repository.save({
+      scope,
+      components: pageWithText('未保存内容'),
+      baselineFingerprint: '[{"children":[{"desc":"按钮","id":2,"name":"Button","parentId":1,"props":{"text":"服务端内容"}}],"desc":"页面","id":1,"name":"Page","props":{}}]',
+      serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 3,
+      componentConfig: componentConfig(),
+    });
+
+    const result = repository.load({
+      scope,
+      serverComponents,
+      serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 4,
+      componentConfig: componentConfig(),
+    });
+
+    assert.equal(result.status, 'recoverable');
+    assert.equal(result.serverChanged, true);
   });
 
   it('rejects a draft without a Page root before writing it', async () => {
@@ -51,6 +83,7 @@ describe('page draft repository', () => {
       components: [{ id: 2, name: 'Button', desc: '按钮', props: {} }],
       baselineFingerprint: 'server-baseline',
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       componentConfig: componentConfig(),
     }), /Page 根节点/);
   });
@@ -68,6 +101,7 @@ describe('page draft repository', () => {
       components: pageWithText('当前页面草稿'),
       baselineFingerprint: 'server-baseline',
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       componentConfig: componentConfig(),
     });
 
@@ -80,6 +114,7 @@ describe('page draft repository', () => {
         scope: otherScope,
         serverComponents: pageWithText('服务端内容'),
         serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+        serverRevision: 1,
         componentConfig: componentConfig(),
       }), { status: 'none' });
     }
@@ -88,6 +123,7 @@ describe('page draft repository', () => {
       scope,
       serverComponents: pageWithText('服务端内容'),
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       componentConfig: componentConfig(),
     }).status, 'recoverable');
   });
@@ -101,11 +137,12 @@ describe('page draft repository', () => {
     const scope = { userId: 7, projectId: 11, pageId: 13 };
     const key = createPageDraftStorageKey(scope);
     storage.setItem(key, JSON.stringify({
-      storageVersion: 0,
+      storageVersion: 1,
       ...scope,
       components: pageWithText('旧版草稿'),
       baselineFingerprint: 'server-baseline',
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       localUpdatedAt: '2026-09-15T10:00:00.000Z',
       dirty: true,
     }));
@@ -114,6 +151,7 @@ describe('page draft repository', () => {
       scope,
       serverComponents: pageWithText('服务端内容'),
       serverUpdatedAt: '2026-09-15T09:00:00.000Z',
+      serverRevision: 1,
       componentConfig: componentConfig(),
     });
 

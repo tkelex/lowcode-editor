@@ -10,6 +10,7 @@ interface LoadBrowserPageDraftInput {
   scope: PageDraftScope;
   serverComponents: LowcodeComponentSchema[];
   serverUpdatedAt: string;
+  serverRevision: number;
 }
 
 interface SaveBrowserPageDraftInput {
@@ -17,6 +18,7 @@ interface SaveBrowserPageDraftInput {
   components: LowcodeComponentSchema[];
   baselineFingerprint: string;
   serverUpdatedAt: string;
+  serverRevision: number;
 }
 
 export function saveBrowserPageDraft(input: SaveBrowserPageDraftInput) {

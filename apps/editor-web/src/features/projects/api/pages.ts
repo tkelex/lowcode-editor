@@ -16,7 +16,12 @@ export async function getPage(pageId: number) {
   return data;
 }
 
-export async function updatePage(pageId: number, input: { name?: string; routePath?: string; schema?: PageSchema }) {
+export async function updatePage(pageId: number, input: {
+  expectedRevision: number;
+  name?: string;
+  routePath?: string;
+  schema?: PageSchema;
+}) {
   const { data } = await http.patch<EditorPage>(`/pages/${pageId}`, input);
   return data;
 }

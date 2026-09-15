@@ -1,6 +1,10 @@
-import { IsObject, IsOptional, IsString, Length, Matches } from 'class-validator';
+import { IsInt, IsObject, IsOptional, IsString, Length, Matches, Min } from 'class-validator';
 
 export class UpdatePageDto {
+  @IsInt()
+  @Min(1)
+  expectedRevision!: number;
+
   @IsOptional()
   @IsString()
   @Length(1, 60)

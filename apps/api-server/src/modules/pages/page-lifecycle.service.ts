@@ -70,13 +70,25 @@ export class PageLifecycleService {
   update(page: AccessiblePage, actorId: number, dto: UpdatePageDto) {
     if (!dto.schema) {
       return this.prisma.$transaction(async (tx) => {
-        const updatedPage = await tx.page.update({
-          where: { id: page.id },
+        const updateResult = await tx.page.updateMany({
+          where: {
+            id: page.id,
+            revision: dto.expectedRevision,
+          },
           data: {
             name: dto.name,
             routePath: dto.routePath,
+            revision: { increment: 1 },
           },
         });
+        if (updateResult.count === 0) {
+          throw this.pageDraftConflict();
+        }
+
+        const updatedPage = await tx.page.findUnique({ where: { id: page.id } });
+        if (!updatedPage) {
+          throw this.pageNotFound();
+        }
 
         await this.auditLogsService.record(
           {
@@ -104,14 +116,26 @@ export class PageLifecycleService {
 
     return this.prisma.$transaction(async (tx) => {
       await this.lockPage(tx, page.id);
-      const updatedPage = await tx.page.update({
-        where: { id: page.id },
+      const updateResult = await tx.page.updateMany({
+        where: {
+          id: page.id,
+          revision: dto.expectedRevision,
+        },
         data: {
           name: dto.name,
           routePath: dto.routePath,
           schema,
+          revision: { increment: 1 },
         },
       });
+      if (updateResult.count === 0) {
+        throw this.pageDraftConflict();
+      }
+
+      const updatedPage = await tx.page.findUnique({ where: { id: page.id } });
+      if (!updatedPage) {
+        throw this.pageNotFound();
+      }
       const version = await this.createVersion(tx, {
         pageId: page.id,
         createdById: actorId,
@@ -282,7 +306,10 @@ export class PageLifecycleService {
       const schema = this.normalizeSchema(version.schema as Record<string, unknown>, pageId);
       const updatedPage = await tx.page.update({
         where: { id: pageId },
-        data: { schema },
+        data: {
+          schema,
+          revision: { increment: 1 },
+        },
       });
       const rollbackVersion = await this.createVersion(tx, {
         pageId,
@@ -480,6 +507,14 @@ export class PageLifecycleService {
       AppErrorCode.PAGE_VERSION_NOT_FOUND,
       'Page version not found',
       HttpStatus.NOT_FOUND,
+    );
+  }
+
+  private pageDraftConflict() {
+    return new BusinessException(
+      AppErrorCode.PAGE_DRAFT_CONFLICT,
+      'Page draft has changed since it was loaded',
+      HttpStatus.CONFLICT,
     );
   }
 

@@ -7,6 +7,7 @@ import type { LowcodeComponentSchema } from '@lowcode/schema';
 import {
   buildPublishedPageUrl,
   deletePageVersion,
+  getPage,
   getConfiguredPublisherSiteUrl,
   listPageVersions,
   publishPage,
@@ -19,6 +20,7 @@ import { assertValidComponentTree } from '../../schema/validateComponents';
 import { ComponentDiffSummary, diffComponentTrees } from '../../schema/diffComponents';
 import { useComponentConfigStore } from '../../registry/component-registry-store';
 import { Component, useComponentsStore } from '../../stores/editor-store';
+import { requestPageDraftConflictResolution } from '../../drafts/page-draft-conflict';
 import { useRuntimeLogsStore } from '../../stores/runtime-log-store';
 import { RuntimeLogDrawer } from './RuntimeLogDrawer';
 import { buildPageSchema } from './schema';
@@ -29,11 +31,20 @@ import { VersionDiffSummary } from './VersionDiffSummary';
 interface HeaderProps {
   pageId?: number;
   projectRole?: ProjectRole;
-  onPageSaved?: (components: Component[], serverUpdatedAt: string) => void;
+  revision?: number;
+  onPageSaved?: (components: Component[], serverUpdatedAt: string, revision: number) => void;
+  onPageConflict?: () => void;
   onBack?: () => void;
 }
 
-export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: HeaderProps) {
+export function Header({
+  pageId,
+  projectRole = 'owner',
+  revision,
+  onPageSaved,
+  onPageConflict,
+  onBack,
+}: HeaderProps) {
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [versionDrawerOpen, setVersionDrawerOpen] = useState(false);
@@ -80,12 +91,39 @@ export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: H
     if (!pageId) {
       throw new Error('Page id is required');
     }
+    if (!revision) {
+      throw new Error('Page revision is required');
+    }
 
     assertValidComponentTree(components, componentConfig);
 
     return updatePage(pageId, {
+      expectedRevision: revision,
       schema: buildPageSchema(components, pageId),
     });
+  }
+
+  async function handlePageDraftConflict(error: unknown) {
+    if (!pageId || !isPageDraftConflict(error)) return false;
+
+    onPageConflict?.();
+    const decision = await requestPageDraftConflictResolution();
+    if (decision === 'keep') {
+      message.warning('已保留本地草稿，未覆盖服务端页面');
+      return true;
+    }
+
+    try {
+      const page = await getPage(pageId);
+      const schema = migratePageSchema(page.schema, { pageId: page.id });
+      const serverComponents = schema.components as Component[];
+      setComponents(serverComponents, { recordHistory: false });
+      onPageSaved?.(serverComponents, page.updatedAt, page.revision);
+      message.success('已重新加载最新服务端版本');
+    } catch {
+      message.error('重新加载服务端版本失败，本地草稿仍已保留');
+    }
+    return true;
   }
 
   async function handleSave() {
@@ -101,12 +139,13 @@ export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: H
     setSaving(true);
     try {
       const page = await saveCurrentPage();
-      onPageSaved?.(components, page.updatedAt);
+      onPageSaved?.(components, page.updatedAt, page.revision);
       message.success('页面已保存，并生成历史版本');
       if (versionDrawerOpen) {
         await loadVersions();
       }
     } catch (error) {
+      if (await handlePageDraftConflict(error)) return;
       message.error(error instanceof Error ? error.message : '保存失败，请稍后重试');
     } finally {
       setSaving(false);
@@ -193,7 +232,7 @@ export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: H
     setPublishing(true);
     try {
       const savedPage = await saveCurrentPage();
-      onPageSaved?.(components, savedPage.updatedAt);
+      onPageSaved?.(components, savedPage.updatedAt, savedPage.revision);
       const page = await publishPage(pageId);
       if (!page.publicId) {
         message.error('发布失败，未生成公开访问地址');
@@ -219,6 +258,7 @@ export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: H
 
       message.success(`页面已保存并发布：${publishUrl}`);
     } catch (error) {
+      if (await handlePageDraftConflict(error)) return;
       message.error(error instanceof Error ? error.message : '发布失败，请稍后重试');
     } finally {
       setPublishing(false);
@@ -266,7 +306,7 @@ export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: H
       const schema = migratePageSchema(page.schema, { pageId: page.id });
       const rolledBackComponents = schema.components as Component[];
       setComponents(rolledBackComponents, { recordHistory: false });
-      onPageSaved?.(rolledBackComponents, page.updatedAt);
+      onPageSaved?.(rolledBackComponents, page.updatedAt, page.revision);
       message.success(`已回滚到 v${version.versionNo}，并生成新版本`);
       await loadVersions();
     } catch (error) {
@@ -418,4 +458,16 @@ export function Header({ pageId, projectRole = 'owner', onPageSaved, onBack }: H
       </Drawer>
     </div>
   )
+}
+
+function isPageDraftConflict(error: unknown) {
+  if (!error || typeof error !== 'object' || !('response' in error)) return false;
+  const response = (error as { response?: { data?: unknown } }).response;
+  const data = response?.data;
+  return Boolean(
+    data
+    && typeof data === 'object'
+    && 'code' in data
+    && data.code === 'PAGE_DRAFT_CONFLICT',
+  );
 }

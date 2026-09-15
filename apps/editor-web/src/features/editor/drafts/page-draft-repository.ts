@@ -8,7 +8,7 @@ import type {
   LowcodeComponentSchema,
 } from '@lowcode/schema';
 
-const PAGE_DRAFT_STORAGE_VERSION = 1;
+const PAGE_DRAFT_STORAGE_VERSION = 2;
 const PAGE_DRAFT_STORAGE_PREFIX = 'lowcode-editor:draft';
 
 export interface PageDraftScope {
@@ -28,6 +28,7 @@ interface LocalPageDraftEnvelope extends PageDraftScope {
   components: LowcodeComponentSchema[];
   baselineFingerprint: string;
   serverUpdatedAt: string;
+  serverRevision: number;
   localUpdatedAt: string;
   dirty: true;
 }
@@ -42,6 +43,7 @@ interface SavePageDraftInput {
   components: LowcodeComponentSchema[];
   baselineFingerprint: string;
   serverUpdatedAt: string;
+  serverRevision: number;
   componentConfig: LowcodeComponentConfigMap;
 }
 
@@ -49,6 +51,7 @@ interface LoadPageDraftInput {
   scope: PageDraftScope;
   serverComponents: LowcodeComponentSchema[];
   serverUpdatedAt: string;
+  serverRevision: number;
   componentConfig: LowcodeComponentConfigMap;
 }
 
@@ -78,6 +81,7 @@ export function createPageDraftRepository(options: CreatePageDraftRepositoryOpti
         components: cloneComponents(validation.components),
         baselineFingerprint: input.baselineFingerprint,
         serverUpdatedAt: input.serverUpdatedAt,
+        serverRevision: input.serverRevision,
         localUpdatedAt: now(),
         dirty: true,
       };
@@ -113,7 +117,8 @@ export function createPageDraftRepository(options: CreatePageDraftRepositoryOpti
           components,
           localUpdatedAt: envelope.localUpdatedAt,
           serverChanged: envelope.baselineFingerprint !== serverFingerprint
-            || envelope.serverUpdatedAt !== input.serverUpdatedAt,
+            || envelope.serverUpdatedAt !== input.serverUpdatedAt
+            || envelope.serverRevision !== input.serverRevision,
         };
       } catch (error) {
         options.storage.removeItem(key);
@@ -147,6 +152,8 @@ function parseEnvelope(raw: string, scope: PageDraftScope): LocalPageDraftEnvelo
     || !value.components.some((component) => component?.name === 'Page')
     || typeof value.baselineFingerprint !== 'string'
     || typeof value.serverUpdatedAt !== 'string'
+    || !Number.isInteger(value.serverRevision)
+    || Number(value.serverRevision) < 1
     || typeof value.localUpdatedAt !== 'string'
     || value.dirty !== true
   ) {
