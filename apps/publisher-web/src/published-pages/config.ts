@@ -2,6 +2,7 @@ export interface PublisherRuntimeConfig {
   apiBaseUrl: string;
   siteUrl: string;
   lowcodeHttpAllowedOrigins: string[];
+  remoteMaterialAllowedOrigins: string[];
   revalidateSecret: string;
 }
 
@@ -13,6 +14,7 @@ export function getPublisherRuntimeConfig(): PublisherRuntimeConfig {
     apiBaseUrl: trimTrailingSlash(process.env.PUBLISHER_API_BASE_URL || DEFAULT_API_BASE_URL),
     siteUrl: trimTrailingSlash(process.env.PUBLISHER_SITE_URL || DEFAULT_SITE_URL),
     lowcodeHttpAllowedOrigins: parseCsv(process.env.PUBLISHER_LOWCODE_HTTP_ALLOWED_ORIGINS),
+    remoteMaterialAllowedOrigins: parseCsv(process.env.PUBLISHER_REMOTE_MATERIAL_ALLOWED_ORIGINS),
     revalidateSecret: process.env.PUBLISHER_REVALIDATE_SECRET || '',
   };
 }

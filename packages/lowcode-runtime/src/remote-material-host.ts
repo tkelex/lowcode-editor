@@ -19,6 +19,24 @@ export interface RemoteMaterialBundle {
   version: string;
   schemaVersion: string;
   materials: Record<string, ComponentType<any>>;
+  editorMaterials?: Record<string, RemoteEditorMaterialDefinition>;
+}
+
+export interface RemoteEditorMaterialDefinition {
+  name: string;
+  desc: string;
+  category?: string;
+  icon?: string;
+  keywords?: string[];
+  sort?: number;
+  defaultProps: Record<string, unknown>;
+  acceptsChildren?: string[] | true;
+  setter?: Array<Record<string, unknown>>;
+  stylesSetter?: Array<Record<string, unknown>>;
+  events?: Array<Record<string, unknown>>;
+  methods?: Array<Record<string, unknown>>;
+  dev: ComponentType<any>;
+  prod: ComponentType<any>;
 }
 
 export interface RemoteMaterialRegistrationResult {
@@ -27,12 +45,19 @@ export interface RemoteMaterialRegistrationResult {
   materialNames: string[];
 }
 
+export interface RemoteMaterialRegistration {
+  key: string;
+  materialNames: string[];
+  editorMaterials?: Record<string, RemoteEditorMaterialDefinition>;
+}
+
 export interface LowcodeMaterialHost {
   protocolVersion: typeof REMOTE_MATERIAL_PROTOCOL_VERSION;
   shared: RemoteMaterialHostShared;
   sharedVersions: Required<RemoteMaterialDependencies>;
   register(bundle: RemoteMaterialBundle): RemoteMaterialRegistrationResult;
   getRegistry(): RuntimeComponentRegistry;
+  getRegistration(name: string, version: string): RemoteMaterialRegistration | undefined;
 }
 
 export interface CreateRemoteMaterialHostOptions {
@@ -69,7 +94,7 @@ export function createRemoteMaterialHost({
     context.dependencies.map((dependency) => [materialKey(dependency.packageName, dependency.version), dependency]),
   );
   const registry: RuntimeComponentRegistry = { ...initialRegistry };
-  const registered = new Map<string, string[]>();
+  const registered = new Map<string, RemoteMaterialRegistration>();
 
   return {
     protocolVersion: REMOTE_MATERIAL_PROTOCOL_VERSION,
@@ -77,12 +102,12 @@ export function createRemoteMaterialHost({
     sharedVersions,
     register(bundle) {
       const key = materialKey(bundle.name, bundle.version);
-      const existingMaterialNames = registered.get(key);
-      if (existingMaterialNames) {
+      const existingRegistration = registered.get(key);
+      if (existingRegistration) {
         return {
           status: 'already_registered',
           key,
-          materialNames: [...existingMaterialNames],
+          materialNames: [...existingRegistration.materialNames],
         };
       }
 
@@ -113,6 +138,16 @@ export function createRemoteMaterialHost({
         );
       }
 
+      const editorMaterialNames = bundle.editorMaterials
+        ? Object.keys(bundle.editorMaterials).sort()
+        : [];
+      if (bundle.editorMaterials && !sameStrings(declaredMaterialNames, editorMaterialNames)) {
+        throw new RemoteMaterialHostError(
+          'BUNDLE_DECLARATION_MISMATCH',
+          `远程物料编辑态定义与 manifest 声明不一致：${key}`,
+        );
+      }
+
       for (const name of declaredMaterialNames) {
         if (registry[name]) {
           throw new RemoteMaterialHostError('COMPONENT_CONFLICT', `运行时组件名冲突：${name}`);
@@ -124,6 +159,17 @@ export function createRemoteMaterialHost({
             `远程物料 ${name} 未提供有效 React 组件`,
           );
         }
+        const editorMaterial = bundle.editorMaterials?.[name];
+        if (editorMaterial && (
+          editorMaterial.name !== name
+          || !isReactComponent(editorMaterial.dev)
+          || !isReactComponent(editorMaterial.prod)
+        )) {
+          throw new RemoteMaterialHostError(
+            'BUNDLE_DECLARATION_MISMATCH',
+            `远程物料 ${name} 的编辑态定义不合法`,
+          );
+        }
       }
 
       for (const material of dependency.materials) {
@@ -132,7 +178,13 @@ export function createRemoteMaterialHost({
           acceptsChildren: Boolean(material.acceptsChildren),
         };
       }
-      registered.set(key, declaredMaterialNames);
+      registered.set(key, {
+        key,
+        materialNames: declaredMaterialNames,
+        ...(bundle.editorMaterials
+          ? { editorMaterials: { ...bundle.editorMaterials } }
+          : {}),
+      });
 
       return {
         status: 'registered',
@@ -142,6 +194,17 @@ export function createRemoteMaterialHost({
     },
     getRegistry() {
       return { ...registry };
+    },
+    getRegistration(name, version) {
+      const registration = registered.get(materialKey(name, version));
+      if (!registration) return undefined;
+      return {
+        key: registration.key,
+        materialNames: [...registration.materialNames],
+        ...(registration.editorMaterials
+          ? { editorMaterials: { ...registration.editorMaterials } }
+          : {}),
+      };
     },
   };
 }
@@ -158,6 +221,15 @@ export function installRemoteMaterialHost(
   }
   target.__LOWCODE_MATERIAL_HOST__ = host;
   return host;
+}
+
+export function uninstallRemoteMaterialHost(
+  target: Pick<Window, '__LOWCODE_MATERIAL_HOST__'>,
+  host: LowcodeMaterialHost,
+) {
+  if (target.__LOWCODE_MATERIAL_HOST__ !== host) return false;
+  target.__LOWCODE_MATERIAL_HOST__ = undefined;
+  return true;
 }
 
 function assertSharedDependencies(

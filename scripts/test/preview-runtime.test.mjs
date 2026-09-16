@@ -80,6 +80,63 @@ describe('page runtime rendering', () => {
 
     assert.match(html, /公开按钮/);
   });
+
+  it('keeps a published remote page in a loading state until its fixed dependencies are ready', async () => {
+    const { PublishedPageRuntime } = await loadRuntimeModule(
+      'packages/lowcode-runtime/src/public/PublishedPageRuntime.tsx',
+    );
+    const dependency = {
+      protocolVersion: '1',
+      packageName: '@portfolio/customer-materials',
+      version: '1.2.0',
+      manifestUrl: 'https://cdn.example.com/customer/1.2.0/manifest.json',
+      entry: 'https://cdn.example.com/customer/1.2.0/customer-materials.iife.js',
+      integrity: 'sha384-YWJjZA==',
+      schemaVersion: '1.0.0',
+      dependencies: {
+        react: '^18.3.1',
+        reactDom: '^18.3.1',
+        antd: '^5.20.0',
+      },
+      materials: [{
+        name: 'CustomerSummary',
+        displayName: '客户摘要',
+        category: 'data',
+        allowedParents: ['Page'],
+      }],
+    };
+
+    const html = renderToString(React.createElement(PublishedPageRuntime, {
+      snapshot: {
+        publicId: 'pub-remote',
+        name: '远程页面',
+        routePath: '/remote',
+        materialDependencies: [dependency],
+        schema: {
+          schemaVersion: '1.0.0',
+          components: [{
+            id: 1,
+            name: 'Page',
+            desc: '页面',
+            props: {},
+            children: [{
+              id: 2,
+              parentId: 1,
+              name: 'CustomerSummary',
+              desc: '客户摘要',
+              props: {},
+            }],
+          }],
+        },
+      },
+      apiBaseUrl: 'https://api.example.com',
+      allowedOrigins: [],
+      remoteMaterialAllowedOrigins: ['https://cdn.example.com'],
+    }));
+
+    assert.match(html, /正在加载页面物料/);
+    assert.doesNotMatch(html, /未找到 CustomerSummary/);
+  });
 });
 
 async function loadRuntimeModule(entryPoint) {

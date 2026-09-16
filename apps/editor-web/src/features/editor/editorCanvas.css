@@ -434,6 +434,114 @@
   text-align: center;
 }
 
+.editor-remote-material-status {
+  z-index: 4;
+  min-height: 30px;
+  border-bottom: 1px solid #dbeafe;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  line-height: 20px;
+  padding: 5px 16px;
+}
+
+.editor-remote-material-status.is-ready {
+  border-bottom-color: #bbf7d0;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.editor-remote-material-status.is-error {
+  border-bottom-color: #fecaca;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.editor-remote-material-runtime-state {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  background: #eef2f7;
+  padding: 24px;
+}
+
+.editor-remote-material-runtime-card {
+  width: min(100%, 480px);
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+  padding: 24px;
+}
+
+.editor-remote-material-runtime-card.is-error {
+  border-color: #fecaca;
+}
+
+.editor-remote-material-runtime-title {
+  color: #0f172a;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
+}
+
+.editor-remote-material-runtime-card.is-error .editor-remote-material-runtime-title {
+  color: #991b1b;
+}
+
+.editor-remote-material-runtime-detail {
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.editor-remote-material-placeholder {
+  min-height: 96px;
+  margin: 8px 0;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 14px;
+}
+
+.editor-remote-material-placeholder.is-loading {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.editor-remote-material-placeholder.is-error {
+  border-color: #fca5a5;
+  background: #fff7f7;
+}
+
+.editor-remote-material-placeholder-title {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 20px;
+}
+
+.editor-remote-material-placeholder.is-error .editor-remote-material-placeholder-title {
+  color: #991b1b;
+}
+
+.editor-remote-material-placeholder-detail {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+.editor-remote-material-placeholder-children {
+  margin-top: 12px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 12px;
+}
+
 .editor-component {
   position: relative;
   border-radius: 6px;

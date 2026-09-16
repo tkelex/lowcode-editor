@@ -8,6 +8,7 @@ export {
   updatePage,
 } from './api/pages';
 export { createProjectTemplate, listProjectTemplates } from './api/templates';
+export { listProjectRemoteMaterials } from './api/remote-materials';
 export { buildPublishedPageUrl, getConfiguredPublisherSiteUrl } from './publish-url';
 export type {
   Asset,
@@ -18,5 +19,6 @@ export type {
   PageVersion,
   Project,
   ProjectMember,
+  ProjectRemoteMaterial,
   ProjectRole,
 } from './types';

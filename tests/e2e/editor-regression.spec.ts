@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from '@playwright/test';
+import { createHash } from 'node:crypto';
 
 const now = '2026-05-11T00:00:00.000Z';
 const user = {
@@ -25,6 +26,7 @@ const pageRecord = {
   name: '编辑器回归页面',
   routePath: '/editor-regression',
   revision: 1,
+  materialDependencies: [],
   isPublished: false,
   publicId: null,
   publishedAt: null,
@@ -334,6 +336,109 @@ const aiAgentRunResult = {
   },
 };
 
+const remoteMaterialEntrySource = `(() => {
+  const host = window.__LOWCODE_MATERIAL_HOST__;
+  if (!host) throw new Error('远程物料宿主尚未安装');
+  const React = host.shared.React;
+  function CustomerSummary(props) {
+    return React.createElement('div', {
+      'data-testid': 'remote-customer-summary',
+      style: { border: '1px solid #bfdbfe', borderRadius: 8, padding: 16 },
+    }, props.title || '远程客户摘要');
+  }
+  function CustomerSummaryDev(props) {
+    return React.createElement('div', {
+      'data-component-id': props.id,
+      'data-component-name': 'CustomerSummary',
+      style: { minHeight: 80, background: '#f8fafc', padding: 4 },
+    }, React.createElement(CustomerSummary, props));
+  }
+  host.register({
+    protocolVersion: '1',
+    name: '@portfolio/e2e-customer-materials',
+    version: '1.0.0',
+    schemaVersion: '1.0.0',
+    materials: { CustomerSummary },
+    editorMaterials: {
+      CustomerSummary: {
+        name: 'CustomerSummary',
+        desc: '远程客户摘要',
+        category: 'data',
+        icon: '№',
+        keywords: ['remote', 'customer'],
+        sort: 81,
+        defaultProps: { title: '远程客户摘要' },
+        setter: [{ name: 'title', label: '标题', type: 'input' }],
+        events: [{ name: 'action', label: '操作事件', propName: 'onAction' }],
+        methods: [{ name: 'reset', label: '重置' }],
+        dev: CustomerSummaryDev,
+        prod: CustomerSummary,
+      },
+    },
+  });
+})();`;
+const remoteMaterialIntegrity = `sha384-${createHash('sha384').update(remoteMaterialEntrySource).digest('base64')}`;
+const remoteMaterialManifest = {
+  protocolVersion: '1',
+  name: '@portfolio/e2e-customer-materials',
+  version: '1.0.0',
+  entry: './customer-summary.iife.js',
+  integrity: remoteMaterialIntegrity,
+  schemaVersion: '1.0.0',
+  dependencies: {
+    react: '^18.3.1',
+    reactDom: '^18.3.1',
+    antd: '^5.20.0',
+  },
+  materials: [{
+    name: 'CustomerSummary',
+    displayName: '远程客户摘要',
+    category: 'data',
+    allowedParents: ['Page'],
+  }],
+};
+const remoteMaterialDependency = {
+  protocolVersion: '1',
+  packageName: remoteMaterialManifest.name,
+  version: remoteMaterialManifest.version,
+  manifestUrl: 'http://127.0.0.1:5173/remote-material-test/manifest.json',
+  entry: 'http://127.0.0.1:5173/remote-material-test/customer-summary.iife.js',
+  integrity: remoteMaterialIntegrity,
+  schemaVersion: remoteMaterialManifest.schemaVersion,
+  dependencies: remoteMaterialManifest.dependencies,
+  materials: remoteMaterialManifest.materials,
+};
+const remoteMaterialRecord = {
+  id: 301,
+  projectId: project.id,
+  ...remoteMaterialDependency,
+  status: 'enabled',
+  createdAt: now,
+  updatedAt: now,
+};
+const remoteMaterialPageRecord = {
+  ...pageRecord,
+  id: 22,
+  name: '远程物料页面',
+  routePath: '/remote-material',
+  materialDependencies: [remoteMaterialDependency],
+  schema: {
+    components: [{
+      id: 1,
+      name: 'Page',
+      props: {},
+      desc: '页面',
+      children: [{
+        id: 2201,
+        name: 'CustomerSummary',
+        desc: '远程客户摘要',
+        parentId: 1,
+        props: { title: '浏览器远程物料已渲染' },
+      }],
+    }],
+  },
+};
+
 const aiAgentCrudRunResult = {
   runId: 'agent-crud-e2e',
   status: 'awaiting_confirmation',
@@ -423,6 +528,32 @@ const aiAgentCrudRunResult = {
     ],
   },
 };
+
+test('editor loads a fixed remote IIFE into canvas, material panel and preview', async ({ page }) => {
+  await mockRemoteMaterialAssets(page);
+  await mockEditorApi(page, remoteMaterialPageRecord, [remoteMaterialRecord]);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await expect(page.getByRole('status')).toContainText('远程物料已就绪：1/1');
+  await expect(page.locator('[data-component-id="2201"]')).toContainText('浏览器远程物料已渲染');
+  await expect(page.locator('.editor-material-panel').getByText('远程客户摘要', { exact: true })).toBeVisible();
+
+  await page.getByRole('button', { name: '预览' }).click();
+  await expect(page.getByTestId('remote-customer-summary')).toContainText('浏览器远程物料已渲染');
+});
+
+test('editor reports a browser SRI rejection and keeps the remote node as a stable placeholder', async ({ page }) => {
+  await mockRemoteMaterialAssets(page, { tamperScriptResponse: true });
+  await mockEditorApi(page, remoteMaterialPageRecord, [remoteMaterialRecord]);
+  await page.goto('/');
+  await openMockEditor(page);
+
+  await expect(page.getByRole('alert')).toContainText('integrity');
+  const placeholder = page.locator('[data-component-id="2201"]');
+  await expect(placeholder).toContainText('远程物料 CustomerSummary 加载失败');
+  await expect(placeholder).toBeVisible();
+});
 
 test('editor setting panel stays readable and preview remains recoverable', async ({ page }) => {
   await mockEditorApi(page);
@@ -1435,7 +1566,7 @@ test('styled form and feedback materials apply visual styles to real controls', 
   await expect(notificationShell.locator('button')).toHaveCSS('color', 'rgb(22, 163, 74)');
 });
 
-async function mockEditorApi(page: Page, editorPage = pageRecord) {
+async function mockEditorApi(page: Page, editorPage: any = pageRecord, remoteMaterials: any[] = []) {
   const dataSourceModels: any[] = [];
   let currentEditorPage = JSON.parse(JSON.stringify(editorPage)) as typeof editorPage;
   const rollbackSchema = JSON.parse(JSON.stringify(editorPage.schema)) as typeof editorPage.schema;
@@ -1493,6 +1624,11 @@ async function mockEditorApi(page: Page, editorPage = pageRecord) {
 
     if (method === 'GET' && pathname === `/projects/${project.id}/data-source-models`) {
       await json(route, dataSourceModels);
+      return;
+    }
+
+    if (method === 'GET' && pathname === `/projects/${project.id}/remote-materials`) {
+      await json(route, remoteMaterials);
       return;
     }
 
@@ -1686,6 +1822,36 @@ async function getBoundingBox(locator: ReturnType<Page['locator']>) {
 
 function settingPanelLocator(page: Page) {
   return page.locator('.setting-panel');
+}
+
+async function mockRemoteMaterialAssets(
+  page: Page,
+  options: { tamperScriptResponse?: boolean } = {},
+) {
+  await page.route('http://127.0.0.1:5173/remote-material-test/**', async (route) => {
+    const url = new URL(route.request().url());
+
+    if (url.pathname.endsWith('/manifest.json')) {
+      await json(route, remoteMaterialManifest);
+      return;
+    }
+
+    if (url.pathname.endsWith('/customer-summary.iife.js')) {
+      const shouldTamper = options.tamperScriptResponse
+        && route.request().resourceType() === 'script';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/javascript',
+        headers: { 'access-control-allow-origin': '*' },
+        body: shouldTamper
+          ? `${remoteMaterialEntrySource}\n// tampered after integrity preflight`
+          : remoteMaterialEntrySource,
+      });
+      return;
+    }
+
+    await route.fulfill({ status: 404, body: 'not found' });
+  });
 }
 
 function findSchemaComponent(components: any[], componentId: number): any | undefined {

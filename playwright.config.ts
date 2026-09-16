@@ -19,6 +19,7 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       VITE_PUBLISHER_SITE_URL: 'http://127.0.0.1:5174',
+      VITE_REMOTE_MATERIAL_ALLOWED_ORIGINS: 'http://127.0.0.1:5173',
     },
   },
   projects: [

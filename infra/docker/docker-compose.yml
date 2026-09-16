@@ -54,6 +54,7 @@ services:
       args:
         VITE_API_BASE_URL: /api
         VITE_PUBLISHER_SITE_URL: http://localhost:5174
+        VITE_REMOTE_MATERIAL_ALLOWED_ORIGINS: http://127.0.0.1:4174,http://localhost:4174
     container_name: lowcode-editor-web
     restart: unless-stopped
     depends_on:
@@ -70,12 +71,14 @@ services:
         PUBLISHER_API_BASE_URL: http://server:3000/api
         PUBLISHER_SITE_URL: http://localhost:5174
         PUBLISHER_REVALIDATE_SECRET: local-docker-revalidate-secret
+        PUBLISHER_REMOTE_MATERIAL_ALLOWED_ORIGINS: http://127.0.0.1:4174,http://localhost:4174
     container_name: lowcode-editor-publisher
     restart: unless-stopped
     environment:
       PUBLISHER_API_BASE_URL: http://server:3000/api
       PUBLISHER_SITE_URL: http://localhost:5174
       PUBLISHER_REVALIDATE_SECRET: local-docker-revalidate-secret
+      PUBLISHER_REMOTE_MATERIAL_ALLOWED_ORIGINS: http://127.0.0.1:4174,http://localhost:4174
     depends_on:
       server:
         condition: service_healthy

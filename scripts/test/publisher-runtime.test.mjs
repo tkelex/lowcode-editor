@@ -65,10 +65,20 @@ describe('Next.js publisher runtime helpers', () => {
   });
 
   it('creates stable cache tags for public ids', async () => {
-    const { createPublishedPageTag, parseCsv } = await loadModule('apps/publisher-web/src/published-pages/config.ts');
+    const {
+      createPublishedPageTag,
+      getPublisherRuntimeConfig,
+      parseCsv,
+    } = await loadModule('apps/publisher-web/src/published-pages/config.ts');
 
     assert.equal(createPublishedPageTag('abc'), 'published-page:abc');
     assert.deepEqual(parseCsv(' https://a.com, ,https://b.com '), ['https://a.com', 'https://b.com']);
+    process.env.PUBLISHER_REMOTE_MATERIAL_ALLOWED_ORIGINS = 'https://materials.example.com,https://backup.example.com';
+    assert.deepEqual(getPublisherRuntimeConfig().remoteMaterialAllowedOrigins, [
+      'https://materials.example.com',
+      'https://backup.example.com',
+    ]);
+    delete process.env.PUBLISHER_REMOTE_MATERIAL_ALLOWED_ORIGINS;
   });
 
   it('prepares only valid published snapshots through the public runtime interface', async () => {
@@ -196,6 +206,7 @@ describe('Next.js publisher runtime helpers', () => {
     const source = await readFile('apps/publisher-web/src/app/publish/[publicId]/page.tsx', 'utf8');
 
     assert.match(source, /@lowcode\/runtime\/client['"]/);
+    assert.match(source, /remoteMaterialAllowedOrigins=\{config\.remoteMaterialAllowedOrigins\}/);
     assert.doesNotMatch(source, /runtime\/public\/PublishedPageRuntime/);
     assert.doesNotMatch(source, /src\/editor\/stores/);
   });

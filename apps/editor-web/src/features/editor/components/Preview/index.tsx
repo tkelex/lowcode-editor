@@ -2,6 +2,7 @@ import {
   PageRuntime,
   type ActionType,
   type RuntimeComponent,
+  type RuntimeComponentRegistry,
   type RuntimeErrorContext,
 } from '@lowcode/runtime';
 import { useComponentsStore } from '../../stores/editor-store';
@@ -16,6 +17,7 @@ interface PreviewProps {
   components?: Component[];
   allowCustomJS?: boolean;
   runtimeConfig?: PreviewRuntimeConfig;
+  registry?: RuntimeComponentRegistry;
 }
 
 export interface PreviewRuntimeConfig {
@@ -24,12 +26,13 @@ export interface PreviewRuntimeConfig {
   getAuthToken?: () => string | undefined;
 }
 
-export function Preview({ components, allowCustomJS = true, runtimeConfig }: PreviewProps) {
+export function Preview({ components, allowCustomJS = true, runtimeConfig, registry }: PreviewProps) {
   const storeComponents = useComponentsStore((state) => state.components);
   const sourceComponents = components ?? storeComponents;
 
   return <PageRuntime
     components={sourceComponents as RuntimeComponent[]}
+    registry={registry}
     policy={{
       apiBaseUrl: runtimeConfig?.apiBaseUrl ?? import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000/api',
       allowedOrigins: runtimeConfig?.allowedOrigins ?? parseAllowedOrigins(import.meta.env.VITE_LOWCODE_HTTP_ALLOWED_ORIGINS),

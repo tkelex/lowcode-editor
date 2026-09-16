@@ -97,3 +97,11 @@ export interface PageVersion {
   message?: string | null;
   createdAt: string;
 }
+
+export interface ProjectRemoteMaterial extends PageMaterialDependency {
+  id: number;
+  projectId: number;
+  status: 'enabled' | 'disabled';
+  createdAt: string;
+  updatedAt: string;
+}

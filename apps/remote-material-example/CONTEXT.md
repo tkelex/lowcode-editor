@@ -9,7 +9,7 @@
 _Avoid_：编辑器主 bundle、服务端模块、运行时 `latest`
 
 **编辑态定义**：
-远程包随 bundle 提供的 dev/prod 映射、默认属性、setter、事件、方法和子节点能力描述；M5 只生成和验证该定义，编辑器注册由后续 loader 完成。
+远程包随 bundle 提供的 dev/prod 映射、默认属性、setter、事件、方法和子节点能力描述；M6 的编辑器 loader 会读取宿主注册结果并合并该定义。
 _Avoid_：当前编辑器 registry、已安装远程物料
 
 **宿主共享依赖**：
@@ -20,4 +20,4 @@ _Avoid_：第二份 React、包内 Ant Design 副本
 
 - `src/index.ts` 只在浏览器执行，通过全局宿主注册，不访问 NestJS、Next.js 或数据库。
 - `scripts/serve.mjs` 只用于本地模拟 OSS/CDN，提供静态文件和 CORS，不是生产 loader。
-- 当前包不负责下载远程脚本、浏览器 SRI 校验、CSP/allowlist 或失败降级。
+- 当前包不负责下载远程脚本、浏览器 SRI 校验、CSP/allowlist 或失败降级；这些职责属于宿主客户端 loader 和部署环境。

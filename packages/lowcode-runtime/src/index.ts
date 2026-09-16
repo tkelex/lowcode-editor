@@ -4,6 +4,7 @@ export * from './public/PublishedPageRuntime';
 export * from './public/snapshot';
 export * from './registry';
 export * from './remote-material-host';
+export * from './remote-material-loader';
 export * from './runtimeData';
 export * from './types';
 export { splitControlStyles } from './materials/style';

@@ -26,6 +26,7 @@ export default async function PublishedPage({ params }: PublishedPageRouteProps)
       snapshot={page}
       apiBaseUrl={config.apiBaseUrl}
       allowedOrigins={config.lowcodeHttpAllowedOrigins}
+      remoteMaterialAllowedOrigins={config.remoteMaterialAllowedOrigins}
     />
   );
 }

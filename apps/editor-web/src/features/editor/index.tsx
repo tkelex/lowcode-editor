@@ -14,6 +14,10 @@ import { useComponentsStore } from "./stores/editor-store";
 import { Preview } from "./components/Preview";
 import type { ProjectRole } from '../projects';
 import { usePageDraftPersistence } from './drafts/use-page-draft-persistence';
+import {
+    useEditorRemoteMaterials,
+    type EditorRemoteMaterialState,
+} from './remote-materials/useEditorRemoteMaterials';
 
 const LEFT_PANEL_MIN_SIZE = 320;
 const LEFT_PANEL_PREFERRED_SIZE = 340;
@@ -95,6 +99,7 @@ export default function LowcodeEditor({
     const [leftPaneSize, setLeftPaneSize] = useState(LEFT_PANEL_PREFERRED_SIZE);
     const [rightPaneSize, setRightPaneSize] = useState(RIGHT_PANEL_PREFERRED_SIZE);
     const [currentRevision, setCurrentRevision] = useState(serverRevision);
+    const remoteMaterials = useEditorRemoteMaterials(projectId);
 
     useEffect(() => {
         setCurrentRevision(serverRevision);
@@ -173,6 +178,7 @@ export default function LowcodeEditor({
                 onBack={onBack}
             />
         </div>
+        <RemoteMaterialStatusBar state={remoteMaterials} />
         <EditorBodyBoundary mode={mode} onExitPreview={exitPreview} onBack={onBack}>
             {
                 mode === 'edit'
@@ -189,7 +195,10 @@ export default function LowcodeEditor({
                                 </Allotment.Pane>
                             )}
                             <Allotment.Pane key="canvas-panel">
-                                <EditArea />
+                                <EditArea
+                                    remoteMaterialStatus={remoteMaterials.status}
+                                    remoteMaterialError={remoteMaterials.error}
+                                />
                             </Allotment.Pane>
                             {rightPanelVisible && (
                                 <Allotment.Pane key="right-panel" preferredSize={rightPaneSize} maxSize={520} minSize={RIGHT_PANEL_MIN_SIZE}>
@@ -201,8 +210,60 @@ export default function LowcodeEditor({
                             )}
                         </Allotment>
                     </div>
-                    : <Preview/>
+                    : <RemoteMaterialPreview
+                        state={remoteMaterials}
+                        onExitPreview={exitPreview}
+                    />
             }
         </EditorBodyBoundary>
     </div>
+}
+
+function RemoteMaterialStatusBar({ state }: { state: EditorRemoteMaterialState }) {
+    if (state.status === 'ready' && state.totalCount === 0) return null;
+
+    const tone = state.status === 'error'
+        ? 'is-error'
+        : state.status === 'ready'
+            ? 'is-ready'
+            : 'is-loading';
+    const message = state.status === 'loading'
+        ? '正在校验并加载项目远程物料…'
+        : state.status === 'error'
+            ? `远程物料加载失败：${state.error || '未知错误'}`
+            : `远程物料已就绪：${state.loadedCount}/${state.totalCount}`;
+
+    return <div className={`editor-remote-material-status ${tone}`} role={state.status === 'error' ? 'alert' : 'status'}>
+        {message}
+    </div>;
+}
+
+function RemoteMaterialPreview({
+    state,
+    onExitPreview,
+}: {
+    state: EditorRemoteMaterialState;
+    onExitPreview: () => void;
+}) {
+    if (state.status === 'loading') {
+        return <div className="editor-remote-material-runtime-state">
+            <div className="editor-remote-material-runtime-card">
+                <div className="editor-remote-material-runtime-title">正在准备预览</div>
+                <div className="editor-remote-material-runtime-detail">远程物料完成校验和注册后再渲染页面。</div>
+                <Button className="mt-[16px]" onClick={onExitPreview}>退出预览</Button>
+            </div>
+        </div>;
+    }
+
+    if (state.status === 'error') {
+        return <div className="editor-remote-material-runtime-state">
+            <div className="editor-remote-material-runtime-card is-error">
+                <div className="editor-remote-material-runtime-title">预览所需物料加载失败</div>
+                <div className="editor-remote-material-runtime-detail">{state.error}</div>
+                <Button className="mt-[16px]" type="primary" onClick={onExitPreview}>返回编辑</Button>
+            </div>
+        </div>;
+    }
+
+    return <Preview registry={state.runtimeRegistry} />;
 }

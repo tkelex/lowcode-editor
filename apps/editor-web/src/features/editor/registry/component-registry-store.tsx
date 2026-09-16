@@ -21,16 +21,22 @@ interface State {
 
 interface Action {
     registerComponent: (name: string, componentConfig: ComponentConfig) => void
+    replaceRemoteComponents: (
+        componentConfig: Record<string, ComponentConfig>,
+        acceptedChildrenByParent?: Record<string, string[]>,
+    ) => void
 }
 
+const builtinComponentConfig: Record<string, ComponentConfig> = {
+    ...layoutComponentConfigs,
+    ...basicComponentConfigs,
+    ...formComponentConfigs,
+    ...dataComponentConfigs,
+    ...feedbackComponentConfigs,
+};
+
 export const useComponentConfigStore = create<State & Action>((set) => ({
-    componentConfig: {
-        ...layoutComponentConfigs,
-        ...basicComponentConfigs,
-        ...formComponentConfigs,
-        ...dataComponentConfigs,
-        ...feedbackComponentConfigs,
-    },
+    componentConfig: { ...builtinComponentConfig },
     registerComponent: (name, componentConfig) => set((state) => {
         return {
             ...state,
@@ -39,5 +45,35 @@ export const useComponentConfigStore = create<State & Action>((set) => ({
                 [name]: componentConfig
             }
         }
-    })
+    }),
+    replaceRemoteComponents: (remoteComponentConfig, acceptedChildrenByParent = {}) => set({
+        componentConfig: extendAcceptedChildren({
+            ...remoteComponentConfig,
+            ...builtinComponentConfig,
+        }, acceptedChildrenByParent),
+    }),
 }));
+
+function extendAcceptedChildren(
+    componentConfig: Record<string, ComponentConfig>,
+    acceptedChildrenByParent: Record<string, string[]>,
+) {
+    return Object.fromEntries(Object.entries(componentConfig).map(([name, config]) => {
+        const remoteChildren = acceptedChildrenByParent[name] || [];
+        if (remoteChildren.length === 0 || config.acceptsChildren === true) {
+            return [name, config];
+        }
+
+        const builtinAcceptedChildren = Array.isArray(config.acceptsChildren)
+            ? config.acceptsChildren
+            : [];
+
+        return [name, {
+            ...config,
+            acceptsChildren: [
+                ...builtinAcceptedChildren,
+                ...remoteChildren.filter((childName) => !builtinAcceptedChildren.includes(childName)),
+            ],
+        }];
+    }));
+}

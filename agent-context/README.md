@@ -63,6 +63,8 @@
 - 远程物料只保存和校验可信 manifest 元数据，API 与 Next.js 服务端不得执行远程 JavaScript；同一项目同一包只能启用一个固定版本。
 - `Page.materialDependencies` 与 `PageVersion.materialDependencies` 只包含页面实际使用的规范化依赖；发布、回滚前必须校验固定版本仍启用，公开读取始终返回发布版本自己的依赖快照。
 - 远程物料宿主注册必须校验协议、schema、共享 React/ReactDOM/Ant Design 版本和组件名冲突，并保持同包同版本幂等。
+- 远程物料网络加载只能发生在编辑器或 publisher 浏览器客户端：manifest 与 entry origin 必须进入各自 allowlist，非本地来源必须使用 HTTPS，manifest 必须与页面/项目固定依赖逐字段一致，entry 必须通过字节级 SRI 预检并继续设置浏览器 `integrity` 与 `crossOrigin="anonymous"`。
+- 编辑器加载项目当前启用物料并批量替换远程 registry；publisher 只加载发布版本自己的固定依赖，依赖全部注册成功前不得渲染页面运行时。加载失败必须保留组件树并显示稳定占位或访客错误页。
 - 示例远程物料的 React、ReactDOM 和 Ant Design 必须保持 peer dependency；IIFE 只从宿主共享实例取用，manifest integrity 必须按最终 entry 字节生成。
 
 ## AI Page Builder
@@ -81,6 +83,7 @@
 | 编辑器或样式 | `npm run lint`、`npm run build` |
 | schema、事件、URL、HTTP action | `npm run test` |
 | 示例远程物料 | `npm run build:remote-material-example`、`node --test scripts/test/remote-material-example.test.mjs` |
+| 远程物料客户端 loader | `node --test scripts/test/remote-material-loader.test.mjs scripts/test/remote-material-editor-adapter.test.mjs scripts/test/remote-material-host.test.mjs` |
 | 发布站 | `npm run build:publisher` |
 | API | `npm run build:server` |
 | 目录或依赖边界 | `npm run check:architecture` |

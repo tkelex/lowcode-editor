@@ -112,6 +112,81 @@ describe('remote material host protocol', () => {
       },
     );
   });
+
+  it('exposes the registered package and its editor material definitions', async () => {
+    const { createRemoteMaterialHost } = await loadHostModule();
+    const dependency = createPageMaterialDependency(
+      validManifest(),
+      'https://cdn.example.com/customer/1.2.0/manifest.json',
+    );
+    const CustomerSummary = () => null;
+    const CustomerSummaryDev = () => null;
+    const editorDefinition = {
+      name: 'CustomerSummary',
+      desc: '客户摘要',
+      category: 'data',
+      defaultProps: { title: '客户摘要' },
+      setter: [{ name: 'title', label: '标题', type: 'input' }],
+      events: [{ name: 'action', label: '操作事件', propName: 'onAction' }],
+      methods: [{ name: 'reset', label: '重置' }],
+      dev: CustomerSummaryDev,
+      prod: CustomerSummary,
+    };
+    const host = createRemoteMaterialHost({
+      trustedDependencies: [dependency],
+      shared: { React: {}, ReactDOM: {}, antd: {} },
+      sharedVersions: {
+        react: '18.3.1',
+        reactDom: '18.3.1',
+        antd: '5.20.0',
+      },
+    });
+
+    host.register({
+      protocolVersion: '1',
+      name: dependency.packageName,
+      version: dependency.version,
+      schemaVersion: dependency.schemaVersion,
+      materials: { CustomerSummary },
+      editorMaterials: { CustomerSummary: editorDefinition },
+    });
+
+    assert.deepEqual(host.getRegistration(dependency.packageName, dependency.version), {
+      key: '@portfolio/customer-materials@1.2.0',
+      materialNames: ['CustomerSummary'],
+      editorMaterials: { CustomerSummary: editorDefinition },
+    });
+  });
+
+  it('uninstalls only the same global host instance', async () => {
+    const {
+      createRemoteMaterialHost,
+      installRemoteMaterialHost,
+      uninstallRemoteMaterialHost,
+    } = await loadHostModule();
+    const dependency = createPageMaterialDependency(
+      validManifest(),
+      'https://cdn.example.com/customer/1.2.0/manifest.json',
+    );
+    const createHost = () => createRemoteMaterialHost({
+      trustedDependencies: [dependency],
+      shared: { React: {}, ReactDOM: {}, antd: {} },
+      sharedVersions: {
+        react: '18.3.1',
+        reactDom: '18.3.1',
+        antd: '5.20.0',
+      },
+    });
+    const host = createHost();
+    const otherHost = createHost();
+    const target = {};
+
+    installRemoteMaterialHost(target, host);
+    assert.equal(uninstallRemoteMaterialHost(target, otherHost), false);
+    assert.equal(target.__LOWCODE_MATERIAL_HOST__, host);
+    assert.equal(uninstallRemoteMaterialHost(target, host), true);
+    assert.equal(target.__LOWCODE_MATERIAL_HOST__, undefined);
+  });
 });
 
 async function loadHostModule() {

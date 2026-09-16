@@ -16,6 +16,10 @@ _Avoid_：编辑器物料面板、设计态注册表
 宿主页面提供的全局注册接口和唯一 React、ReactDOM、Ant Design 实例；只接受发布快照或项目上下文中已信任且版本固定的物料包。
 _Avoid_：第二份 React、任意脚本执行器、服务端远程模块加载
 
+**远程物料加载器**：
+浏览器客户端按固定依赖获取并复核 manifest，执行协议/origin/SRI/超时检查，通过 `<script>` 加载 IIFE，并把注册结果作为运行时或编辑态 registry 输入；同一 `name@version + entry` 共享加载 Promise，失败后允许重试。
+_Avoid_：服务端 import、latest 解析、绕过 allowlist 的脚本标签
+
 **宿主策略**：
 编辑器或发布站注入页面运行时的能力边界，包括身份令牌、custom JS、请求域名和错误报告方式。
 _Avoid_：全局环境变量、隐式默认权限

@@ -16,6 +16,12 @@ import SelectedMask from "../SelectedMask";
 import "../../editorCanvas.css";
 
 type ViewportMode = 'desktop' | 'tablet' | 'mobile';
+type RemoteMaterialStatus = 'loading' | 'ready' | 'error';
+
+interface EditAreaProps {
+    remoteMaterialStatus?: RemoteMaterialStatus;
+    remoteMaterialError?: string;
+}
 
 const viewportOptions: Array<{ label: string; value: ViewportMode; width: number }> = [
     { label: '桌面', value: 'desktop', width: 1080 },
@@ -23,7 +29,10 @@ const viewportOptions: Array<{ label: string; value: ViewportMode; width: number
     { label: '手机', value: 'mobile', width: 390 },
 ];
 
-export function EditArea() {
+export function EditArea({
+    remoteMaterialStatus = 'ready',
+    remoteMaterialError,
+}: EditAreaProps) {
     const {
         components,
         curComponentId,
@@ -222,7 +231,10 @@ export function EditArea() {
                     transform: `scale(${canvasScale})`,
                 }}
             >
-                <EditorCanvasTree />
+                <EditorCanvasTree
+                    remoteMaterialStatus={remoteMaterialStatus}
+                    remoteMaterialError={remoteMaterialError}
+                />
             </div>
         </div>
         {hoverComponentId && hoverComponentId !== curComponentId && (
@@ -326,7 +338,10 @@ export function EditArea() {
     </div>
 }
 
-const EditorCanvasTree = React.memo(function EditorCanvasTree() {
+const EditorCanvasTree = React.memo(function EditorCanvasTree({
+    remoteMaterialStatus,
+    remoteMaterialError,
+}: Required<Pick<EditAreaProps, 'remoteMaterialStatus'>> & Pick<EditAreaProps, 'remoteMaterialError'>) {
     const components = useComponentsStore((state) => state.components);
     const componentConfig = useComponentConfigStore((state) => state.componentConfig);
 
@@ -335,6 +350,8 @@ const EditorCanvasTree = React.memo(function EditorCanvasTree() {
             key={component.id}
             component={component}
             componentConfig={componentConfig}
+            remoteMaterialStatus={remoteMaterialStatus}
+            remoteMaterialError={remoteMaterialError}
         />
     ))}</>;
 });
@@ -342,15 +359,28 @@ const EditorCanvasTree = React.memo(function EditorCanvasTree() {
 interface EditorComponentNodeProps {
     component: Component;
     componentConfig: ReturnType<typeof useComponentConfigStore.getState>['componentConfig'];
+    remoteMaterialStatus: RemoteMaterialStatus;
+    remoteMaterialError?: string;
 }
 
 const EditorComponentNode = React.memo(function EditorComponentNodeView({
     component,
     componentConfig,
+    remoteMaterialStatus,
+    remoteMaterialError,
 }: EditorComponentNodeProps) {
     const config = componentConfig[component.name];
-    if (isHiddenComponent(component) || !config?.dev) {
+    if (isHiddenComponent(component)) {
         return null;
+    }
+
+    if (!config?.dev) {
+        return <RemoteMaterialPlaceholder
+            component={component}
+            componentConfig={componentConfig}
+            remoteMaterialStatus={remoteMaterialStatus}
+            remoteMaterialError={remoteMaterialError}
+        />;
     }
 
     return React.createElement(
@@ -367,10 +397,51 @@ const EditorComponentNode = React.memo(function EditorComponentNodeView({
                 key={child.id}
                 component={child}
                 componentConfig={componentConfig}
+                remoteMaterialStatus={remoteMaterialStatus}
+                remoteMaterialError={remoteMaterialError}
             />
         )),
     );
 });
+
+function RemoteMaterialPlaceholder({
+    component,
+    componentConfig,
+    remoteMaterialStatus,
+    remoteMaterialError,
+}: EditorComponentNodeProps) {
+    const title = remoteMaterialStatus === 'loading'
+        ? `正在加载远程物料 ${component.name}`
+        : remoteMaterialStatus === 'error'
+            ? `远程物料 ${component.name} 加载失败`
+            : `未知物料 ${component.name}`;
+
+    return <div
+        data-component-id={component.id}
+        data-component-name={component.name}
+        className={`editor-remote-material-placeholder is-${remoteMaterialStatus}`}
+    >
+        <div className="editor-remote-material-placeholder-title">{title}</div>
+        <div className="editor-remote-material-placeholder-detail">
+            {remoteMaterialStatus === 'error'
+                ? remoteMaterialError || '请检查物料来源、版本和完整性配置。'
+                : '组件结构会保留，物料就绪后自动恢复渲染。'}
+        </div>
+        {component.children?.length ? (
+            <div className="editor-remote-material-placeholder-children">
+                {component.children.map((child) => (
+                    <EditorComponentNode
+                        key={child.id}
+                        component={child}
+                        componentConfig={componentConfig}
+                        remoteMaterialStatus={remoteMaterialStatus}
+                        remoteMaterialError={remoteMaterialError}
+                    />
+                ))}
+            </div>
+        ) : null}
+    </div>;
+}
 
 function isHiddenComponent(component: Component) {
     return component.id !== 1 && Boolean(component.props?.hidden);
