@@ -11,7 +11,7 @@ export default [
   },
   js.configs.recommended,
   {
-    files: ['scripts/**/*.mjs'],
+    files: ['scripts/**/*.mjs', 'apps/remote-material-example/scripts/**/*.mjs'],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: 'module',
@@ -22,7 +22,7 @@ export default [
     },
   },
   {
-    files: ['apps/editor-web/src/**/*.{ts,tsx}', 'apps/publisher-web/src/**/*.{ts,tsx}', 'packages/lowcode-runtime/src/**/*.{ts,tsx}'],
+    files: ['apps/editor-web/src/**/*.{ts,tsx}', 'apps/publisher-web/src/**/*.{ts,tsx}', 'apps/remote-material-example/**/*.{ts,tsx}', 'packages/lowcode-runtime/src/**/*.{ts,tsx}'],
     languageOptions: {
       ecmaVersion: 2020,
       sourceType: 'module',
@@ -57,6 +57,12 @@ export default [
         RequestInit: 'readonly',
       },
     },
+    rules: {
+      'react-refresh/only-export-components': 'off',
+    },
+  },
+  {
+    files: ['apps/remote-material-example/**/*.{ts,tsx}'],
     rules: {
       'react-refresh/only-export-components': 'off',
     },

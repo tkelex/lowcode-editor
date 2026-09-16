@@ -6,6 +6,7 @@
 | --- | --- |
 | 编辑器交互、物料、设置面板 | `apps/editor-web/CONTEXT.md` → `docs/04-编辑器/` |
 | 远程物料 manifest、注册与持久化 | `packages/lowcode-schema/CONTEXT.md` → `packages/lowcode-runtime/CONTEXT.md` → `apps/api-server/CONTEXT.md` → `docs/adr/0006-pin-trusted-remote-materials-in-page-versions.md` |
+| 示例远程物料构建与产物 | `apps/remote-material-example/CONTEXT.md` → `docs/04-编辑器/物料体系说明.md` → `docs/adr/0006-pin-trusted-remote-materials-in-page-versions.md` |
 | 匿名发布页 | `apps/publisher-web/CONTEXT.md` → `docs/adr/0001-page-lifecycle-owns-published-snapshot.md` |
 | API、鉴权、持久化 | `apps/api-server/CONTEXT.md` → `docs/03-接口/接口说明.md` |
 | schema、事件、AI 契约 | `packages/lowcode-schema/CONTEXT.md` → `docs/02-架构/` |

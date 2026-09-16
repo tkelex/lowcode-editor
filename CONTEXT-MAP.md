@@ -5,6 +5,7 @@
 - [前端编辑器](./apps/editor-web/CONTEXT.md) — 编辑页面草稿并提供编辑器预览
 - [公开发布运行时](./apps/publisher-web/CONTEXT.md) — 面向访客呈现公开页面
 - [平台后端](./apps/api-server/CONTEXT.md) — 管理页面草稿、发布快照和访问规则
+- [示例远程物料](./apps/remote-material-example/CONTEXT.md) — 独立生成 IIFE、manifest 和编辑态定义
 - [Schema 契约](./packages/lowcode-schema/CONTEXT.md) — 定义跨运行时共享的页面表达
 - [页面运行时](./packages/lowcode-runtime/CONTEXT.md) — 无状态地渲染页面并执行受策略约束的交互
 
@@ -16,3 +17,4 @@
 - **公开发布运行时 → 平台后端**：通过公开读取接口取得发布快照，不读取页面草稿。
 - **公开发布运行时 → 页面运行时**：发布站通过 adapter 提供发布快照和匿名受限策略。
 - **页面运行时 → Schema 契约**：页面在呈现前迁移并校验，交互遵守共享动作契约。
+- **示例远程物料 → 远程物料宿主**：IIFE 通过浏览器全局协议注册，并只使用宿主提供的 React、ReactDOM 和 Ant Design 实例。

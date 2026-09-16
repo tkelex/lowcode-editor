@@ -29,6 +29,7 @@
 - 安装：`npm install`
 - 开发：`npm run dev`、`npm run dev:publisher`、`npm run dev:server`
 - 构建：`npm run build`、`npm run build:publisher`、`npm run build:server`
+- 示例远程物料：`npm run build:remote-material-example`；本地模拟 OSS/CDN 使用 `npm run serve:remote-material-example`
 - 检查：`npm run lint`、`npm run test`、`npm run check:architecture`、`npm run check`
 - 主链路：`npm run smoke:api`、`npm run test:e2e:editor`、`npm run preflight`
 - 远程物料 PostgreSQL/API：`npm run smoke:remote-material`；需要已迁移并运行中的本地 API 与 PostgreSQL。
@@ -40,6 +41,7 @@
 - `apps/editor-web/` 是编辑器应用，内部按 `app / features / shared` 组织。
 - `apps/publisher-web/` 是匿名发布站，不读取编辑器或后端源码。
 - `apps/api-server/` 是 API 部署单元；`prisma/` 是唯一数据库结构和 migration 来源。
+- `apps/remote-material-example/` 是独立远程物料产物，不得读取其他 app 源码或进入 editor/runtime 主 bundle。
 - `packages/lowcode-schema/` 只定义跨运行时契约，不依赖任何 app。
 - `packages/lowcode-runtime/` 只提供无状态运行时，不依赖任何 app。
 - `shared/` 只放业务无关能力；业务 API、类型和展示规则归对应 feature。
@@ -61,6 +63,7 @@
 - 远程物料只保存和校验可信 manifest 元数据，API 与 Next.js 服务端不得执行远程 JavaScript；同一项目同一包只能启用一个固定版本。
 - `Page.materialDependencies` 与 `PageVersion.materialDependencies` 只包含页面实际使用的规范化依赖；发布、回滚前必须校验固定版本仍启用，公开读取始终返回发布版本自己的依赖快照。
 - 远程物料宿主注册必须校验协议、schema、共享 React/ReactDOM/Ant Design 版本和组件名冲突，并保持同包同版本幂等。
+- 示例远程物料的 React、ReactDOM 和 Ant Design 必须保持 peer dependency；IIFE 只从宿主共享实例取用，manifest integrity 必须按最终 entry 字节生成。
 
 ## AI Page Builder
 
@@ -77,6 +80,7 @@
 | --- | --- |
 | 编辑器或样式 | `npm run lint`、`npm run build` |
 | schema、事件、URL、HTTP action | `npm run test` |
+| 示例远程物料 | `npm run build:remote-material-example`、`node --test scripts/test/remote-material-example.test.mjs` |
 | 发布站 | `npm run build:publisher` |
 | API | `npm run build:server` |
 | 目录或依赖边界 | `npm run check:architecture` |
