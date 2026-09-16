@@ -9,6 +9,27 @@ const require = createRequire(import.meta.url);
 const { createPageMaterialDependency } = require('@lowcode/schema');
 
 describe('remote material host protocol', () => {
+  it('matches explicit React 18/19 alternatives including Next.js canary versions', async () => {
+    const { matchesVersionRequirement } = await loadHostModule();
+
+    assert.equal(
+      matchesVersionRequirement('^18.3.1 || ^19.0.0', '18.3.1'),
+      true,
+    );
+    assert.equal(
+      matchesVersionRequirement('^18.3.1 || ^19.0.0', '19.2.0-canary-0bdb9206-20250818'),
+      true,
+    );
+    assert.equal(
+      matchesVersionRequirement('^18.3.1', '19.2.0-canary-0bdb9206-20250818'),
+      false,
+    );
+    assert.equal(
+      matchesVersionRequirement('^18.3.1 || ^19.0.0', '20.0.0'),
+      false,
+    );
+  });
+
   it('registers a trusted bundle once and treats repeated registration as idempotent', async () => {
     const { createRemoteMaterialHost } = await loadHostModule();
     const dependency = createPageMaterialDependency(

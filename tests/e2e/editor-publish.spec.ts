@@ -29,6 +29,8 @@ const pageRecord = {
   publicId: null,
   publishedAt: null,
   publishedVersionId: null,
+  materialDependencies: [],
+  revision: 1,
   createdAt: now,
   updatedAt: now,
 };
@@ -38,6 +40,7 @@ test('completes the mocked edit, preview, save and publish flow', async ({ page 
     projects: [] as typeof project[],
     pages: [] as typeof pageRecord[],
     savedSchema: pageRecord.schema,
+    revision: pageRecord.revision,
   };
 
   await mockApi(page, state);
@@ -86,6 +89,7 @@ async function mockApi(
     projects: typeof project[];
     pages: typeof pageRecord[];
     savedSchema: ReturnType<typeof createPageSchema>;
+    revision: number;
   },
 ) {
   await page.route('http://localhost:3000/api/**', async (route) => {
@@ -124,6 +128,11 @@ async function mockApi(
       return;
     }
 
+    if (method === 'GET' && pathname === `/projects/${project.id}/remote-materials`) {
+      await json(route, []);
+      return;
+    }
+
     if (method === 'POST' && pathname === `/projects/${project.id}/pages`) {
       const nextPage = {
         ...pageRecord,
@@ -139,15 +148,18 @@ async function mockApi(
       await json(route, {
         ...pageRecord,
         schema: state.savedSchema,
+        revision: state.revision,
       });
       return;
     }
 
     if (method === 'PATCH' && pathname === `/pages/${pageRecord.id}`) {
       state.savedSchema = body.schema;
+      state.revision += 1;
       await json(route, {
         ...pageRecord,
         schema: state.savedSchema,
+        revision: state.revision,
       });
       return;
     }
@@ -160,6 +172,7 @@ async function mockApi(
         publicId: 'public-e2e-page',
         publishedAt: now,
         publishedVersionId: 100,
+        revision: state.revision,
       });
       return;
     }

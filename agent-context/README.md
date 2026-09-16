@@ -31,7 +31,7 @@
 - 构建：`npm run build`、`npm run build:publisher`、`npm run build:server`
 - 示例远程物料：`npm run build:remote-material-example`；本地模拟 OSS/CDN 使用 `npm run serve:remote-material-example`
 - 检查：`npm run lint`、`npm run test`、`npm run check:architecture`、`npm run check`
-- 主链路：`npm run smoke:api`、`npm run test:e2e:editor`、`npm run preflight`
+- 主链路：`npm run smoke:api`、`npm run test:e2e:editor`、`npm run test:e2e:remote-material`、`npm run preflight`
 - 远程物料 PostgreSQL/API：`npm run smoke:remote-material`；需要已迁移并运行中的本地 API 与 PostgreSQL。
 - 编辑器状态性能：`npm run benchmark:editor-state -- --sizes 500,1000 --iterations 5 --assert`
 - Agent 数据库集成：`npm run test:agent:postgres`；先迁移独立测试库，显式设置 `AGENT_TEST_DATABASE_URL`（数据库名以 `_test` 或 `_ci` 结尾），不能复用个人开发库。
@@ -89,6 +89,7 @@
 | 目录或依赖边界 | `npm run check:architecture` |
 | 权限、保存、发布 | `npm run smoke:api` |
 | 编辑器关键交互 | `npm run test:e2e:editor` |
+| 远程物料安装、编辑、发布和匿名渲染 | 启动已迁移的 PostgreSQL/API 后运行 `npm run test:e2e:remote-material` |
 | 编辑器订阅、组件树更新或撤销重做 | `npm run benchmark:editor-state -- --sizes 500,1000 --iterations 5 --assert` |
 
 只评审当前任务产生的 diff。全量命令发现的既有问题，仅在阻塞当前验证时说明。

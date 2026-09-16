@@ -28,7 +28,7 @@ jobs:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lowcode_editor_ci?schema=public
       JWT_SECRET: ci-secret-change-me
       JWT_EXPIRES_IN: 7d
-      FRONTEND_ORIGIN: http://127.0.0.1:5173
+      FRONTEND_ORIGIN: http://localhost:5173
       PORT: 3000
       API_BASE_URL: http://127.0.0.1:3000/api
 
@@ -58,6 +58,15 @@ jobs:
       - name: Build public publisher
         run: npm run build:publisher
 
+      - name: Build remote material example
+        run: npm run build:remote-material-example
+
+      - name: Audit editor prop contracts
+        run: npm run check:editor-props
+
+      - name: Verify editor state benchmark assertions
+        run: npm run benchmark:editor-state -- --sizes 500,1000 --iterations 5 --assert
+
       - name: Apply database migrations
         run: npm run prisma:deploy
 
@@ -84,8 +93,14 @@ jobs:
       - name: Run API smoke
         run: npm run smoke:api
 
+      - name: Run remote material API smoke
+        run: npm run smoke:remote-material
+
       - name: Run mocked E2E
         run: npm run test:e2e
+
+      - name: Run remote material cross-app E2E
+        run: npm run test:e2e:remote-material
 
       - name: Upload Playwright report
         if: always()

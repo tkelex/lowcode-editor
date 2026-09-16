@@ -37,7 +37,7 @@ Agent 创建请求只负责入队，PostgreSQL 的 `AiAgentRun` / `AiAgentRunEve
 
 候选有效期时间戳为生成完成后 24 小时。确认或拒绝时由 PostgreSQL `clock_timestamp()` 判断是否过期；过期状态、事件和 `ai.agent.expire` 审计在事务中先持久化，之后才向客户端返回冲突。同一决策幂等；相反决策或候选 ID 不一致会返回冲突。当前尚未实现 SSE、无用户操作时的定时过期扫描、30 天清理、provider 分级重试及完整凭证识别。当前只限制持久化 JSON 512 KB 并拒绝常见凭证键和 Bearer 值；不应输入真实业务凭证。内部工具轨迹在任务完成时批量持久化，排队/开始/恢复事件单独持久化。
 
-服务启动前必须部署 migration；独立 PostgreSQL 集成检查见 `npm run test:agent:postgres`，本机数据库就绪前不宣称迁移、并发和重启恢复已验收。
+服务启动前必须部署 migration；独立 PostgreSQL 集成检查见 `npm run test:agent:postgres`。2026-09-16 已在隔离测试库验证 migration、并发抢占、租约恢复和候选决策；该检查仍不等同于真实进程 kill/restart 或多主机故障演练。
 
 ## 安全
 

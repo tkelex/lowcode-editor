@@ -22,8 +22,8 @@ function emitManifest(): Plugin {
         integrity,
         schemaVersion: exampleMaterial.schemaVersion,
         dependencies: {
-          react: '^18.3.1',
-          reactDom: '^18.3.1',
+          react: '^18.3.1 || ^19.0.0',
+          reactDom: '^18.3.1 || ^19.0.0',
           antd: '^5.20.0',
         },
         materials: [{

@@ -254,6 +254,14 @@ function assertSharedDependencies(
 }
 
 export function matchesVersionRequirement(requirement: string, actual: string) {
+  return requirement
+    .split('||')
+    .map((candidate) => candidate.trim())
+    .filter(Boolean)
+    .some((candidate) => matchesSingleVersionRequirement(candidate, actual));
+}
+
+function matchesSingleVersionRequirement(requirement: string, actual: string) {
   const actualVersion = parseVersion(actual);
   if (!actualVersion) return false;
   const normalized = requirement.trim();
@@ -296,7 +304,7 @@ interface ParsedVersion {
 }
 
 function parseVersion(value: string): ParsedVersion | undefined {
-  const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?$/.exec(value.trim());
+  const match = /^(\d+)(?:\.(\d+))?(?:\.(\d+))?(?:[-+][0-9A-Za-z.-]+)?$/.exec(value.trim());
   if (!match) return undefined;
   return {
     major: Number(match[1]),

@@ -1,6 +1,6 @@
 # Agent 数据库集成验收
 
-`AiAgentRun` 的数据库约束、并发抢占、租约隔离以及候选决策需要真实 PostgreSQL，mock 单测不能证明这些性质。人工执行记录显示 2026-09-15 曾在本机独立测试库运行通过，但仓库未保留该次原始日志；CI workflow 也在 migration 之后、API worker 启动之前执行同一检查。
+`AiAgentRun` 的数据库约束、并发抢占、租约隔离以及候选决策需要真实 PostgreSQL，mock 单测不能证明这些性质。2026-09-16 已在本机独立 `lowcode_agent_test` 数据库重新部署 migration 并运行通过；CI workflow 也在 migration 之后、API worker 启动之前执行同一检查。
 
 ## 当前验收结论
 
